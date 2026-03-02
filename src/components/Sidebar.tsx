@@ -35,24 +35,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUserSwitcher, currentPag
   };
 
   return (
-    <aside className="w-64 bg-[#1a1a2e] text-white flex flex-col border-r border-white/10">
+    <aside className="w-64 bg-[#FFFED4] text-[#1a1a2e] flex flex-col border-r border-gray-300">
       {/* Logo Section */}
-      <div className="p-6 border-b border-white/10 flex items-center gap-3">
-        <div className="w-10 h-10 bg-[#FFC857] rounded-lg flex items-center justify-center text-[#1a1a2e] font-bold text-sm">
-          RPA
-        </div>
-        <div className="font-bold text-lg">
-          <span className="text-[#FFC857]">RPA</span> Platform
-        </div>
+      <div className="p-6 border-b border-gray-300 flex items-center justify-center">
+        <img src="/newlogo.png" alt="Logo" className="h-10 w-auto" />
       </div>
 
       {/* User Info Section */}
-      <div className="p-5 border-b border-white/10">
+      <div className="p-5 border-b border-gray-300">
         <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-2 status-badge ${getBadgeClass(currentUser.role)}`}>
           {getRoleIcon(currentUser.badgeIcon)} {currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)}
         </div>
-        <div className="font-semibold text-white mb-1">{currentUser.name}</div>
-        <div className="text-white/70 text-sm">{currentUser.email}</div>
+        <div className="font-semibold text-[#1a1a2e] mb-1">{currentUser.name}</div>
+        <div className="text-gray-700 text-sm">{currentUser.email}</div>
       </div>
 
       {/* Navigation */}
@@ -63,13 +58,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUserSwitcher, currentPag
               <li key={module.id}>
                 <button
                   onClick={() => onPageChange(module.id)}
-                  className={`w-full flex items-center gap-3 px-5 py-3 text-sm text-white/70 hover:text-white transition-colors border-l-4 ${
+                  className={`w-full flex items-center gap-3 px-5 py-3 text-sm text-gray-700 hover:text-[#1a1a2e] transition-colors border-l-4 ${
                     currentPage === module.id
-                      ? 'border-l-[#FFC857] bg-white/5 text-white'
-                      : 'border-l-transparent hover:bg-white/5'
+                      ? 'border-l-[#FFC857] bg-gray-200 text-[#1a1a2e]'
+                      : 'border-l-transparent hover:bg-gray-100'
                   }`}
                 >
-                  <span>{module.icon}</span>
+                  <module.icon size={20} />
                   {module.name}
                 </button>
               </li>
@@ -79,13 +74,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUserSwitcher, currentPag
       </nav>
 
       {/* Footer */}
-      <div className="p-5 border-t border-white/10 space-y-2">
+      <div className="p-5 border-t border-gray-300 space-y-2">
         <Button
           variant="outline"
           block
           icon={ArrowRightLeft}
           onClick={onOpenUserSwitcher}
-          className="!text-white/80 !border-white/30 hover:!text-white"
+          className="!text-gray-700 !border-gray-400 hover:!text-[#1a1a2e]"
         >
           Switch Role
         </Button>
