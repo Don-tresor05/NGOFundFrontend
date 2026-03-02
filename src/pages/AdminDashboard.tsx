@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '../components/Button';
 import { StatCard } from '../components/StatCard';
+import { DashboardCharts } from '../components/DashboardCharts';
 import { TrendingUp, Users, FileText, Shield, Download, RotateCcw, Eye, Settings, Eye as EyeIcon } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -46,6 +47,11 @@ export const AdminDashboard: React.FC = () => {
           trend="Excellent"
           trendDirection="up"
         />
+      </div>
+
+      {/* Dashboard Charts */}
+      <div className="mb-8">
+        <DashboardCharts />
       </div>
 
       {/* Quick Actions */}
