@@ -18,7 +18,7 @@ export interface User {
 export interface Module {
   id: string;
   name: string;
-  icon: string;
+  icon: any;
   path: string;
   roles: UserRole[];
 }
