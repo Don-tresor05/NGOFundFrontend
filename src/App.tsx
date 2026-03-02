@@ -48,14 +48,17 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
-        <TopHeader pageTitle={pageConfig.title} />
+      <div className="flex-1 flex flex-col overflow-hidden p-4">
+        {/* Card Container */}
+        <div className="flex-1 flex flex-col bg-white rounded-1xl shadow-lg overflow-hidden">
+          {/* Top Header */}
+          <TopHeader pageTitle={pageConfig.title} />
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
-          <PageComponent />
-        </main>
+          {/* Page Content */}
+          <main className="flex-1 overflow-y-auto">
+            <PageComponent />
+          </main>
+        </div>
       </div>
 
       {/* User Switcher Modal */}
