@@ -11,7 +11,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ pageTitle, notificationCou
   const { currentUser } = useAuthStore();
 
   return (
-    <div className="bg-white px-8 py-0 h-[70px] flex items-center justify-between border-b border-[#dee2e6] sticky top-0 z-40">
+    <div className="bg-[#FFFED4] px-8 py-0 h-[70px] flex items-center justify-between border-b border-gray-300 sticky top-0 z-40">
       <div>
         <h2 className="text-2xl text-[#212529] m-0">{pageTitle}</h2>
         <div className="text-sm text-[#6c757d]">Welcome back, {currentUser.name}</div>
