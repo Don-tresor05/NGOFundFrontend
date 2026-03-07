@@ -16,6 +16,7 @@ import {
   ReportsAnalytics,
   AuditCompliance,
 } from './pages';
+import { ProfilePage } from './pages/ProfilePage';
 
 const PAGES = {
   dashboard: { component: AdminDashboard, title: 'Dashboard & Transparency Portal' },
@@ -28,6 +29,7 @@ const PAGES = {
   'user-management': { component: UserManagement, title: 'User Management' },
   'reports-analytics': { component: ReportsAnalytics, title: 'Reports & Analytics' },
   'audit-compliance': { component: AuditCompliance, title: 'Audit & Compliance' },
+  'profile': { component: ProfilePage, title: 'User Profile' },
 };
 
 function App() {
@@ -52,7 +54,10 @@ function App() {
         {/* Card Container */}
         <div className="flex-1 flex flex-col bg-white rounded-1xl shadow-lg overflow-hidden">
           {/* Top Header */}
-          <TopHeader pageTitle={pageConfig.title} />
+          <TopHeader 
+            pageTitle={pageConfig.title} 
+            onNavigateToProfile={() => setCurrentPage('profile')}
+          />
 
           {/* Page Content */}
           <main className="flex-1 overflow-y-auto">
