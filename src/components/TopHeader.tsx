@@ -5,9 +5,10 @@ import { Bell } from 'lucide-react';
 interface TopHeaderProps {
   pageTitle: string;
   notificationCount?: number;
+  onNavigateToProfile?: () => void;
 }
 
-export const TopHeader: React.FC<TopHeaderProps> = ({ pageTitle, notificationCount = 3 }) => {
+export const TopHeader: React.FC<TopHeaderProps> = ({ pageTitle, notificationCount = 3, onNavigateToProfile }) => {
   const { currentUser } = useAuthStore();
 
   return (
@@ -29,7 +30,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ pageTitle, notificationCou
         </div>
 
         {/* User Profile */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigateToProfile?.()}>
           <div className="w-10 h-10 rounded-full bg-[#e9ecef] flex items-center justify-center text-[#212529] font-semibold">
             {currentUser.avatarText}
           </div>
