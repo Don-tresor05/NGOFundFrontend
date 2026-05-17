@@ -35,14 +35,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUserSwitcher, currentPag
   };
 
   return (
-    <aside className="w-64 bg-[#FFFED4] text-[#1a1a2e] flex flex-col border-r border-gray-300">
+    <aside className="w-64 bg-[#FFFED4] text-[#1a1a2e] flex flex-col rounded-xl shadow-2xl border-2 border-gray-300 m-4 shadow-inner" style={{boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.15)'}}>
       {/* Logo Section */}
-      <div className="p-6 border-b border-gray-300 flex items-center justify-center">
+      <div className="p-6 border-b-2 border-gray-300 flex items-center justify-center rounded-t-xl shadow-inner">
         <img src="/newlogo.png" alt="Logo" className="h-10 w-auto" />
       </div>
 
       {/* User Info Section */}
-      <div className="p-5 border-b border-gray-300">
+      <div className="p-5 border-b-2 border-gray-300 shadow-inner">
         <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-2 status-badge ${getBadgeClass(currentUser.role)}`}>
           {getRoleIcon(currentUser.badgeIcon)} {currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)}
         </div>
@@ -51,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUserSwitcher, currentPag
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-5 overflow-y-auto">
+      <nav className="flex-1 py-5 overflow-y-auto shadow-inner">
         {currentUser.role === 'admin' && (
           <ul className="space-y-1 px-0">
             {ADMIN_MODULES.map((module) => (
@@ -60,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUserSwitcher, currentPag
                   onClick={() => onPageChange(module.id)}
                   className={`w-full flex items-center gap-3 px-5 py-3 text-sm text-gray-700 hover:text-[#1a1a2e] transition-colors border-l-4 ${
                     currentPage === module.id
-                      ? 'border-l-[#FFC857] bg-gray-200 text-[#1a1a2e]'
+                      ? 'border-l-[#FFC857] bg-gray-200 text-[#1a1a2e] shadow-inner'
                       : 'border-l-transparent hover:bg-gray-100'
                   }`}
                 >
@@ -74,13 +74,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenUserSwitcher, currentPag
       </nav>
 
       {/* Footer */}
-      <div className="p-5 border-t border-gray-300 space-y-2">
+      <div className="p-5 border-t-2 border-gray-300 space-y-2 rounded-b-xl shadow-inner">
         <Button
           variant="outline"
           block
           icon={ArrowRightLeft}
           onClick={onOpenUserSwitcher}
-          className="!text-gray-700 !border-gray-400 hover:!text-[#1a1a2e]"
+          className="!text-gray-700 !border-gray-300 hover:!text-[#1a1a2e]"
         >
           Switch Role
         </Button>
