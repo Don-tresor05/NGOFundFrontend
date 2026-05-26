@@ -1,37 +1,37 @@
-import React from 'react';
+import { ButtonHTMLAttributes, ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline';
-  size?: 'sm' | 'md' | 'lg';
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children?: ReactNode;
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   icon?: LucideIcon;
-  children: React.ReactNode;
   block?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({
-  variant = 'primary',
-  size = 'md',
-  icon: Icon,
+export function Button({
   children,
-  block = false,
   className = '',
+  variant = 'primary',
+  icon: Icon,
+  block = false,
+  type = 'button',
   ...props
-}) => {
-  const baseClasses = 'btn';
-  const variantClasses = {
+}: ButtonProps) {
+  const variantClass = {
     primary: 'btn-primary',
     secondary: 'btn-secondary',
     outline: 'btn-outline',
-  };
+    ghost: 'btn-ghost',
+  }[variant];
 
   return (
     <button
-      className={`${baseClasses} ${variantClasses[variant]} ${block ? 'btn-block' : ''} ${className}`}
+      type={type}
+      className={`btn ${variantClass} ${block ? 'btn-block' : ''} ${className}`.trim()}
       {...props}
     >
-      {Icon && <Icon size={18} />}
-      {children}
+      {Icon ? <Icon size={18} /> : null}
+      {children ? <span>{children}</span> : null}
     </button>
   );
-};
+}

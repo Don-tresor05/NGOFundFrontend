@@ -1,39 +1,34 @@
-import React from 'react';
-import { LucideIcon, ArrowUp, ArrowDown } from 'lucide-react';
+import { LucideIcon, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { DashboardStat, TrendDirection } from '../types';
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
+interface StatCardProps extends DashboardStat {
   icon: LucideIcon;
-  iconBgClass: string;
-  trend: string;
-  trendDirection: 'up' | 'down';
 }
 
-export const StatCard: React.FC<StatCardProps> = ({
-  title,
-  value,
-  icon: Icon,
-  iconBgClass,
-  trend,
-  trendDirection,
-}) => {
-  const trendColor = trendDirection === 'up' ? 'text-[#4CAF50]' : 'text-[#F44336]';
-  const TrendIcon = trendDirection === 'up' ? ArrowUp : ArrowDown;
+const trendIconMap: Record<TrendDirection, LucideIcon> = {
+  up: TrendingUp,
+  down: TrendingDown,
+  neutral: Minus,
+};
+
+export function StatCard({ label, value, trend, trendDirection, icon: Icon }: StatCardProps) {
+  const TrendIcon = trendIconMap[trendDirection];
 
   return (
-    <div className="stat-card">
-      <div className="flex justify-between items-start mb-4">
-        <div className="text-[#6c757d] font-semibold text-sm">{title}</div>
-        <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-xl ${iconBgClass}`}>
-          <Icon size={24} />
+    <div className="panel-card stat-card">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="eyebrow mb-2">{label}</p>
+          <h3 className="text-3xl font-bold text-slate-900">{value}</h3>
+        </div>
+        <div className="icon-chip">
+          <Icon size={22} />
         </div>
       </div>
-      <div className="text-3xl font-bold text-[#212529] mb-2 leading-tight">{value}</div>
-      <div className={`text-xs flex items-center gap-1 ${trendColor}`}>
-        <TrendIcon size={14} />
-        {trend}
+      <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+        <TrendIcon size={16} />
+        <span>{trend}</span>
       </div>
     </div>
   );
-};
+}
