@@ -1,5 +1,9 @@
+export { AppHeader } from './AppHeader';
+export { AppSidebar } from './AppSidebar';
+export { BrandLogo } from './BrandLogo';
 export { Button } from './Button';
+export { DataTable } from './DataTable';
+export { HighlightedText } from './HighlightedText';
+export { ProtectedRoute } from './ProtectedRoute';
 export { StatCard } from './StatCard';
-export { Sidebar } from './Sidebar';
-export { TopHeader } from './TopHeader';
-export { UserSwitcher } from './UserSwitcher';
+export { StatusBadge } from './StatusBadge';

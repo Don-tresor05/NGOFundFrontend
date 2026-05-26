@@ -1,12 +1,6 @@
-export { AdminDashboard } from './AdminDashboard';
-export {
-  DonorManagement,
-  FundTracking,
-  ProjectAllocation,
-  ExpenditureMonitoring,
-  StaffOperations,
-  TestingValidation,
-  UserManagement,
-  ReportsAnalytics,
-  AuditCompliance,
-} from './modules';
+export { CreateAccountPage } from './CreateAccountPage';
+export { DashboardPage } from './DashboardPage';
+export { LoginPage } from './LoginPage';
+export { NotFoundPage } from './NotFoundPage';
+export { ProfilePage } from './ProfilePage';
+export { UseCasePage } from './UseCasePage';
