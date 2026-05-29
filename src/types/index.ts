@@ -140,6 +140,7 @@ export interface MockAccount {
 }
 
 export interface SystemSetting {
+  id?: number;
   key: string;
   label: string;
   value: string;
@@ -245,6 +246,7 @@ export interface Transaction {
   amount: number;
   transaction_date: string;
   bank_reference_number: string;
+  status?: 'pending' | 'cleared' | 'reconciled';
   created_at: string;
 }
 
@@ -253,7 +255,7 @@ export interface Report {
   grant_id: number;
   report_type: string;
   generated_by_user_id: number;
-  file_url: string;
-  format: 'PDF' | 'Excel';
+  file_url: string | null;
+  format: 'PDF' | 'Excel' | 'CSV';
   created_at: string;
 }
