@@ -33,7 +33,7 @@ export function LoginPage() {
   const loginError = useAuthStore((state) => state.loginError);
   const [actor, setActor] = useState<Actor>('super_administrator');
   const [email, setEmail] = useState('superadmin@ngofund.org');
-  const [password, setPassword] = useState('demo123');
+  const [password, setPassword] = useState('demo12345');
 
   const actorDefinition = useMemo(
     () => ACTORS.find((entry) => entry.id === actor) ?? ACTORS[0],
@@ -54,9 +54,9 @@ export function LoginPage() {
     }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const authenticated = login({ actor, email, password });
+    const authenticated = await login({ actor, email, password });
     if (authenticated) {
       navigate('/app/dashboard');
     }
@@ -175,7 +175,7 @@ export function LoginPage() {
               <div>
                 <div className="text-sm font-bold text-slate-900">Demo credentials for this role</div>
                 <div className="mt-1 text-sm text-slate-600">
-                  {demoAccount?.email} <span className="mx-2 text-slate-300">|</span> password: <strong>demo123</strong>
+                  {demoAccount?.email} <span className="mx-2 text-slate-300">|</span> password: <strong>demo12345</strong>
                 </div>
               </div>
               <Button

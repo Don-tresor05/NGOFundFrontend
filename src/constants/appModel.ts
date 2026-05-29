@@ -551,7 +551,7 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
     id: 'acct-001',
     actor: 'super_administrator',
     email: 'superadmin@ngofund.org',
-    password: 'demo123',
+    password: 'demo12345',
     name: 'Nadine Uwase',
     metadata: {
       organization_unit: 'Central Administration',
@@ -563,7 +563,7 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
     id: 'acct-002',
     actor: 'finance_officer',
     email: 'finance@ngofund.org',
-    password: 'demo123',
+    password: 'demo12345',
     name: 'Michael Finance',
     metadata: {
       finance_unit: 'Treasury and Controls',
@@ -575,7 +575,7 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
     id: 'acct-003',
     actor: 'field_staff',
     email: 'field@ngofund.org',
-    password: 'demo123',
+    password: 'demo12345',
     name: 'Grace Field',
     metadata: {
       operational_region: 'Eastern Province',
@@ -587,7 +587,7 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
     id: 'acct-004',
     actor: 'project_manager',
     email: 'manager@ngofund.org',
-    password: 'demo123',
+    password: 'demo12345',
     name: 'Patrick Manager',
     metadata: {
       project_portfolio: 'Health Systems Strengthening',
@@ -599,7 +599,7 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
     id: 'acct-005',
     actor: 'executive_director',
     email: 'director@ngofund.org',
-    password: 'demo123',
+    password: 'demo12345',
     name: 'Aline Director',
     metadata: {
       office_title: 'Executive Director',
@@ -611,7 +611,7 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
     id: 'acct-006',
     actor: 'external_auditor',
     email: 'auditor@ngofund.org',
-    password: 'demo123',
+    password: 'demo12345',
     name: 'Lisa Auditor',
     metadata: {
       audit_firm: 'Independent Assurance LLP',
@@ -623,7 +623,7 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
     id: 'acct-007',
     actor: 'donor_user',
     email: 'donor@ngofund.org',
-    password: 'demo123',
+    password: 'demo12345',
     name: 'Sarah Donor',
     metadata: {
       donor_type: 'Individual',

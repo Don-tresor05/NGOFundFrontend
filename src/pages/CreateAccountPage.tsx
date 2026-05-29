@@ -20,7 +20,7 @@ export function CreateAccountPage() {
   const [actor, setActor] = useState<Actor>('donor_user');
   const [name, setName] = useState('New User');
   const [email, setEmail] = useState('new.user@ngofund.org');
-  const [password, setPassword] = useState('demo123');
+  const [password, setPassword] = useState('demo12345');
   const [phone, setPhone] = useState('+250 788 123 456');
   const [location, setLocation] = useState('Kigali, Rwanda');
   const [roleValues, setRoleValues] = useState<Record<string, string>>(() => defaultRoleValues('donor_user'));
@@ -37,9 +37,9 @@ export function CreateAccountPage() {
     setEmail(ACTOR_LOGIN_IDS[nextActor].placeholder);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    register({
+    const created = await register({
       actor,
       name,
       email,
@@ -50,7 +50,9 @@ export function CreateAccountPage() {
         ...roleValues,
       },
     });
-    navigate('/app/dashboard');
+    if (created) {
+      navigate('/app/dashboard');
+    }
   };
 
   return (
