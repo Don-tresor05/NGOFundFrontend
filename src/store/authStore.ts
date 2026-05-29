@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ACTORS, MOCK_ACCOUNTS } from '../constants/appModel';
-import { Actor, MockAccount, Profile } from '../types';
+import { apiRequest, tokenStorage } from '../lib/api';
+import { Actor, MockAccount, Profile, Role } from '../types';
 
 interface LoginPayload {
   actor: Actor;
@@ -21,111 +22,180 @@ interface AuthState {
   currentProfile: Profile | null;
   accounts: MockAccount[];
   loginError: string | null;
-  login: (payload: LoginPayload) => boolean;
+  authReady: boolean;
+  login: (payload: LoginPayload) => Promise<boolean>;
   logout: () => void;
-  register: (payload: RegisterPayload) => void;
-  updateProfile: (payload: Partial<Profile>) => void;
+  register: (payload: RegisterPayload) => Promise<boolean>;
+  updateProfile: (payload: Partial<Profile>) => Promise<void>;
+  hydrateProfile: () => Promise<void>;
 }
 
-const toProfile = (account: MockAccount): Profile => {
-  const actorDefinition = ACTORS.find((actor) => actor.id === account.actor);
+interface ApiUser {
+  id: number;
+  full_name: string;
+  email: string;
+  role: Role;
+  phone: string;
+  department: string;
+  location: string;
+}
+
+interface LoginResponse {
+  access: string;
+  refresh: string;
+  user: ApiUser;
+}
+
+const roleToActor: Record<Role, Actor> = {
+  SUPER_ADMIN: 'super_administrator',
+  FINANCE_OFFICER: 'finance_officer',
+  FIELD_STAFF: 'field_staff',
+  PROJECT_MANAGER: 'project_manager',
+  EXECUTIVE_DIRECTOR: 'executive_director',
+  EXTERNAL_AUDITOR: 'external_auditor',
+  DONOR_USER: 'donor_user',
+};
+
+const actorToRole: Record<Actor, Role> = {
+  super_administrator: 'SUPER_ADMIN',
+  finance_officer: 'FINANCE_OFFICER',
+  field_staff: 'FIELD_STAFF',
+  project_manager: 'PROJECT_MANAGER',
+  executive_director: 'EXECUTIVE_DIRECTOR',
+  external_auditor: 'EXTERNAL_AUDITOR',
+  donor_user: 'DONOR_USER',
+};
+
+const toProfileFromUser = (user: ApiUser): Profile => {
+  const actor = roleToActor[user.role];
+  const actorDefinition = ACTORS.find((entry) => entry.id === actor);
+
   return {
-    id: account.id,
-    name: account.name,
-    email: account.email,
-    actor: account.actor,
-    phone: account.metadata.phone ?? '+250 788 000 000',
-    department: actorDefinition?.shortLabel ?? 'Operations',
-    location: account.metadata.location ?? 'Kigali, Rwanda',
-    avatarText: account.name
+    id: String(user.id),
+    name: user.full_name,
+    email: user.email,
+    actor,
+    phone: user.phone || '+250 788 000 000',
+    department: user.department || actorDefinition?.shortLabel || 'Operations',
+    location: user.location || 'Kigali, Rwanda',
+    avatarText: user.full_name
       .split(' ')
       .map((part) => part[0])
       .join('')
       .slice(0, 2)
       .toUpperCase(),
-    metadata: account.metadata,
+    metadata: {},
   };
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  isAuthenticated: false,
+  isAuthenticated: Boolean(tokenStorage.access),
   currentProfile: null,
   accounts: MOCK_ACCOUNTS,
   loginError: null,
+  authReady: !tokenStorage.access,
 
-  login: ({ actor, email, password }) => {
-    const account = get().accounts.find(
-      (candidate) =>
-        candidate.actor === actor &&
-        candidate.email.toLowerCase() === email.toLowerCase() &&
-        candidate.password === password
-    );
+  login: async ({ actor, email, password }) => {
+    try {
+      const response = await apiRequest<LoginResponse>('/auth/login/', {
+        method: 'POST',
+        skipAuth: true,
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!account) {
-      set({ loginError: 'Invalid credentials for the selected actor.' });
+      const profile = toProfileFromUser(response.user);
+      if (profile.actor !== actor) {
+        set({ loginError: 'This account exists, but it does not match the selected role portal.' });
+        tokenStorage.clear();
+        return false;
+      }
+
+      tokenStorage.set(response.access, response.refresh);
+      set({
+        isAuthenticated: true,
+        currentProfile: profile,
+        loginError: null,
+        authReady: true,
+      });
+      return true;
+    } catch (error) {
+      set({ loginError: error instanceof Error ? error.message : 'Invalid credentials for the selected actor.', authReady: true });
       return false;
     }
-
-    set({
-      isAuthenticated: true,
-      currentProfile: toProfile(account),
-      loginError: null,
-    });
-    return true;
   },
 
   logout: () => {
+    tokenStorage.clear();
     set({
       isAuthenticated: false,
       currentProfile: null,
       loginError: null,
+      authReady: true,
     });
   },
 
-  register: ({ actor, name, email, password, metadata }) => {
-    const account: MockAccount = {
-      id: `acct-${Math.random().toString(36).slice(2, 8)}`,
-      actor,
-      email,
-      password,
-      name,
-      metadata,
-    };
+  register: async ({ actor, name, email, password, metadata }) => {
+    try {
+      const response = await apiRequest<LoginResponse & ApiUser>('/auth/register/', {
+        method: 'POST',
+        skipAuth: true,
+        body: JSON.stringify({
+          full_name: name,
+          email,
+          password,
+          role: actorToRole[actor],
+          phone: metadata.phone,
+          location: metadata.location,
+          department: ACTORS.find((entry) => entry.id === actor)?.shortLabel ?? '',
+        }),
+      });
 
-    set((state) => ({
-      accounts: [...state.accounts, account],
-      isAuthenticated: true,
-      currentProfile: toProfile(account),
-      loginError: null,
-    }));
+      tokenStorage.set(response.access, response.refresh);
+      set({
+        isAuthenticated: true,
+        currentProfile: toProfileFromUser(response as ApiUser),
+        loginError: null,
+        authReady: true,
+      });
+      return true;
+    } catch (error) {
+      set({ loginError: error instanceof Error ? error.message : 'Account registration failed.', authReady: true });
+      return false;
+    }
   },
 
-  updateProfile: (payload) => {
+  updateProfile: async (payload) => {
     const currentProfile = get().currentProfile;
     if (!currentProfile) {
       return;
     }
 
-    const nextProfile = { ...currentProfile, ...payload };
-    const nextMetadata = {
-      ...currentProfile.metadata,
-      phone: nextProfile.phone,
-      location: nextProfile.location,
-      ...nextProfile.metadata,
-    };
-    set((state) => ({
-      currentProfile: { ...nextProfile, metadata: nextMetadata },
-      accounts: state.accounts.map((account) =>
-        account.id === currentProfile.id
-          ? {
-              ...account,
-              name: nextProfile.name,
-              email: nextProfile.email,
-              actor: nextProfile.actor,
-              metadata: nextMetadata,
-            }
-          : account
-      ),
-    }));
+    const user = await apiRequest<ApiUser>('/auth/profile/', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        full_name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        department: payload.department,
+        location: payload.location,
+      }),
+    });
+
+    set({ currentProfile: toProfileFromUser(user) });
+  },
+
+  hydrateProfile: async () => {
+    if (!tokenStorage.access) {
+      set({ isAuthenticated: false, currentProfile: null, authReady: true });
+      return;
+    }
+
+    try {
+      const user = await apiRequest<ApiUser>('/auth/profile/');
+      set({ isAuthenticated: true, currentProfile: toProfileFromUser(user), authReady: true, loginError: null });
+    } catch {
+      tokenStorage.clear();
+      set({ isAuthenticated: false, currentProfile: null, authReady: true });
+    }
   },
 }));
