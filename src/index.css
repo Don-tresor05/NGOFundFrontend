@@ -116,6 +116,115 @@
     @apply items-stretch px-4 py-6 lg:px-8;
   }
 
+  .auth-shell-login {
+    @apply justify-start pt-8 pb-10 lg:pt-12 lg:pb-12;
+  }
+
+  .sync-shell {
+    @apply relative flex min-h-screen overflow-hidden p-4 sm:p-6 lg:p-8;
+  }
+
+  .sync-layout {
+    @apply relative mx-auto grid w-full max-w-[1480px] items-stretch gap-6 xl:grid-cols-[1.05fr_0.95fr];
+  }
+
+  .sync-orb {
+    @apply pointer-events-none absolute rounded-full blur-3xl;
+  }
+
+  .sync-orb-top {
+    @apply -left-10 top-10 h-48 w-48 bg-amber-300/25;
+  }
+
+  .sync-orb-bottom {
+    @apply bottom-0 right-0 h-72 w-72 bg-teal-300/20;
+  }
+
+  .sync-hero-panel {
+    @apply relative overflow-hidden rounded-[2.5rem] border border-amber-100 bg-[linear-gradient(155deg,#1f6f78_0%,#0f172a_68%,#f4b93f_180%)] p-8 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)] lg:p-12;
+  }
+
+  .sync-status-panel {
+    @apply rounded-[2.5rem] border border-amber-100 bg-white/90 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.08)] backdrop-blur lg:p-8;
+  }
+
+  .sync-hero-top {
+    @apply flex items-center justify-between gap-4;
+  }
+
+  .sync-live-badge {
+    @apply inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-white/80;
+  }
+
+  .sync-role-card {
+    @apply mt-8 flex items-center gap-4 rounded-[1.75rem] border bg-white/10 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.16)] backdrop-blur;
+  }
+
+  .sync-avatar {
+    @apply flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-bold text-white;
+  }
+
+  .sync-metric {
+    @apply rounded-[1.5rem] border border-white/10 bg-white/10 p-4 text-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] backdrop-blur;
+  }
+
+  .sync-metric-label {
+    @apply block text-[10px] font-extrabold uppercase tracking-[0.28em] text-white/60;
+  }
+
+  .sync-metric strong {
+    @apply mt-2 block text-sm font-bold leading-6 text-white;
+  }
+
+  .sync-progress-shell {
+    @apply mt-8 rounded-[1.75rem] border border-white/10 bg-white/10 p-4 backdrop-blur;
+  }
+
+  .sync-progress-track {
+    @apply relative mt-3 h-3 overflow-hidden rounded-full bg-white/15;
+  }
+
+  .sync-progress-fill {
+    @apply absolute inset-y-0 left-0 w-[40%] rounded-full bg-[linear-gradient(90deg,#f4b93f_0%,#fff3bf_45%,#ffffff_100%)];
+    animation: sync-indeterminate 2.2s ease-in-out infinite;
+  }
+
+  .sync-panel-badge {
+    @apply inline-flex items-center gap-2 rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-amber-700;
+  }
+
+  .sync-step {
+    @apply flex items-start gap-4 rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_32px_rgba(15,23,42,0.04)];
+  }
+
+  .sync-step-active {
+    @apply border-amber-200 bg-amber-50/70 shadow-[0_16px_36px_rgba(244,185,63,0.12)];
+  }
+
+  .sync-step-complete {
+    @apply border-emerald-200 bg-emerald-50/70;
+  }
+
+  .sync-step-icon {
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white;
+  }
+
+  .sync-step-active .sync-step-icon {
+    @apply bg-amber-500 text-slate-950;
+  }
+
+  .sync-step-complete .sync-step-icon {
+    @apply bg-emerald-600 text-white;
+  }
+
+  .sync-step-pill {
+    @apply rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500;
+  }
+
+  .sync-footer-card {
+    @apply rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4;
+  }
+
   .auth-layout {
     @apply grid w-full max-w-[1520px] gap-6 xl:grid-cols-[1.15fr_0.85fr];
   }
@@ -256,6 +365,20 @@
 
   .demo-credential-card {
     @apply flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-amber-100 bg-amber-50/70 px-5 py-4;
+  }
+
+  @keyframes sync-indeterminate {
+    0% {
+      transform: translateX(-20%);
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(230%);
+      opacity: 0.7;
+    }
   }
 
   .role-preview-grid {

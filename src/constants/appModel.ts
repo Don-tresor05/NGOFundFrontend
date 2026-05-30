@@ -1,4 +1,4 @@
-import { Actor, ActorDefinition, MockAccount, PlatformModuleDefinition, RoleFormField, UseCaseDefinition } from '../types';
+import { Actor, ActorDefinition, DemoAccount, PlatformModuleDefinition, RoleFormField, UseCaseDefinition } from '../types';
 
 export const ACTORS: ActorDefinition[] = [
   {
@@ -546,7 +546,7 @@ export const USE_CASES: UseCaseDefinition[] = [
   },
 ];
 
-export const MOCK_ACCOUNTS: MockAccount[] = [
+export const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     id: 'acct-001',
     actor: 'super_administrator',

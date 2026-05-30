@@ -10,7 +10,7 @@ import {
   Telescope,
   WalletCards,
 } from 'lucide-react';
-import { ACTORS, ACTOR_LOGIN_IDS, MOCK_ACCOUNTS } from '../constants/appModel';
+import { ACTORS, ACTOR_LOGIN_IDS, DEMO_ACCOUNTS } from '../constants/appModel';
 import { BrandLogo } from '../components/BrandLogo';
 import { Button } from '../components/Button';
 import { HighlightedText } from '../components/HighlightedText';
@@ -40,14 +40,14 @@ export function LoginPage() {
     [actor]
   );
   const demoAccount = useMemo(
-    () => MOCK_ACCOUNTS.find((entry) => entry.actor === actor),
+    () => DEMO_ACCOUNTS.find((entry) => entry.actor === actor),
     [actor]
   );
   const LoginIcon = actorIcons[actor];
 
   const handleActorSelect = (nextActor: Actor) => {
     setActor(nextActor);
-    const account = MOCK_ACCOUNTS.find((entry) => entry.actor === nextActor);
+    const account = DEMO_ACCOUNTS.find((entry) => entry.actor === nextActor);
     if (account) {
       setEmail(account.email);
       setPassword(account.password);
@@ -63,7 +63,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="auth-shell auth-shell-wide">
+    <div className="auth-shell auth-shell-wide auth-shell-login">
       <div className="auth-layout">
         <section className="auth-hero">
           <div className="auth-hero-card">

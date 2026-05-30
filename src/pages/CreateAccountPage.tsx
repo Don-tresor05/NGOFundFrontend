@@ -66,7 +66,7 @@ export function CreateAccountPage() {
               <HighlightedText text="Each actor now has its own intake form." />
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600">
-              Registration is no longer generic. The fields below change with the selected role so the mock account
+              Registration is no longer generic. The fields below change with the selected role so the account
               captures the identity details that matter for that actor’s workflow.
             </p>
 

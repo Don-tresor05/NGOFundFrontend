@@ -46,7 +46,7 @@ export function UseCasePage() {
 
   const commonStats: DashboardStat[] = [
     { label: 'Responsible Actor', value: actor?.shortLabel ?? 'Actor', trend: 'Directly mapped from diagram', trendDirection: 'up' },
-    { label: 'Mock Workflow State', value: 'Live', trend: 'Interactive local-state prototype', trendDirection: 'neutral' },
+    { label: 'Workflow State', value: 'Live', trend: 'Connected to backend APIs', trendDirection: 'neutral' },
     { label: 'Access Policy', value: 'Exact', trend: 'Use-case permissions enforced', trendDirection: 'up' },
   ];
 
@@ -80,7 +80,7 @@ export function UseCasePage() {
                   store.createUser({
                     full_name: userForm.name,
                     email: userForm.email,
-                    password: 'demo123',
+                    password: 'demo12345',
                     role: actorToRole[userForm.actor as Actor],
                   });
                   setUserForm({ name: '', email: '', actor: 'field_staff' });
@@ -410,7 +410,7 @@ export function UseCasePage() {
           <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
             <DataEntryForm
               title="Generate a finance report"
-              description="Produce mock reporting output for a selected period."
+              description="Produce reporting output for a selected period."
               onSubmit={(event) => {
                 event.preventDefault();
                 store.generateReport(reportForm.name || reportForm.period, firstGrant.grant_id, currentUserId, 'PDF');

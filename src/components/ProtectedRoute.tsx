@@ -3,12 +3,17 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAppDataStore } from '../store/appDataStore';
 import { useAuthStore } from '../store/authStore';
 import { AppSidebar } from './AppSidebar';
+import { WorkspaceSyncScreen } from './WorkspaceSyncScreen';
 
 export function ProtectedRoute() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const authReady = useAuthStore((state) => state.authReady);
+  const currentProfile = useAuthStore((state) => state.currentProfile);
   const hydrateProfile = useAuthStore((state) => state.hydrateProfile);
   const fetchAll = useAppDataStore((state) => state.fetchAll);
+  const isLoading = useAppDataStore((state) => state.isLoading);
+  const dataReady = useAppDataStore((state) => state.dataReady);
+  const apiError = useAppDataStore((state) => state.apiError);
 
   useEffect(() => {
     hydrateProfile();
@@ -26,6 +31,21 @@ export function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!dataReady || !currentProfile) {
+    if (!currentProfile) {
+      return null;
+    }
+
+    return (
+      <WorkspaceSyncScreen
+        profile={currentProfile}
+        isLoading={isLoading}
+        apiError={apiError}
+        onRetry={fetchAll}
+      />
+    );
   }
 
   return (

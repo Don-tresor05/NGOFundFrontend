@@ -130,7 +130,7 @@ export interface Profile {
   metadata: Record<string, string>;
 }
 
-export interface MockAccount {
+export interface DemoAccount {
   id: string;
   actor: Actor;
   email: string;

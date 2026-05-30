@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiList, apiRequest } from '../lib/api';
+import { ApiError, apiList, apiRequest } from '../lib/api';
 import {
   AuditLog,
   BudgetLine,
@@ -19,6 +19,7 @@ import {
 interface AppDataState {
   isLoading: boolean;
   apiError: string | null;
+  dataReady: boolean;
   users: User[];
   donors: Donor[];
   notifications: Notification[];
@@ -31,6 +32,7 @@ interface AppDataState {
   reports: Report[];
   systemSettings: SystemSetting[];
   complianceItems: ComplianceItem[];
+  resetData: () => void;
   fetchAll: () => Promise<void>;
   createUser: (payload: Omit<User, 'user_id' | 'created_at' | 'is_active'>) => Promise<void>;
   updateSetting: (key: string, value: string) => Promise<void>;
@@ -43,7 +45,12 @@ interface AppDataState {
   recordTransaction: (payload: Omit<Transaction, 'transaction_id' | 'created_at'>) => Promise<void>;
   reconcileTransaction: (id: number) => Promise<void>;
   createAuditLog: (payload: Omit<AuditLog, 'log_id' | 'timestamp'>) => Promise<void>;
-  generateReport: (report_type: string, grant_id: number, generated_by_user_id: number, format: 'PDF' | 'Excel') => Promise<void>;
+  generateReport: (
+    report_type: string,
+    grant_id: number,
+    generated_by_user_id: number,
+    format: 'PDF' | 'Excel' | 'CSV'
+  ) => Promise<void>;
   createNotification: (payload: Omit<Notification, 'notification_id' | 'created_at' | 'is_read'>) => Promise<void>;
   markNotificationAsRead: (id: number) => Promise<void>;
   markAllNotificationsAsRead: (userId: number) => Promise<void>;
@@ -69,6 +76,9 @@ type ApiUser = {
   role: Role;
   is_active: boolean;
   created_at: string;
+  phone?: string;
+  department?: string;
+  location?: string;
 };
 
 type ApiSystemSetting = {
@@ -178,257 +188,55 @@ const mapNotification = (notification: ApiNotification): Notification => ({
 });
 const mapComplianceItem = (item: ApiComplianceItem): ComplianceItem => ({ ...item, id: String(item.id) });
 
-const retainOnForbidden = async <T>(request: Promise<T[]>, fallback: T[]) => {
+const emptyOnForbidden = async <T>(request: Promise<T[]>) => {
   try {
     return await request;
-  } catch {
-    return fallback;
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+      return [];
+    }
+    throw error;
   }
 };
 
 export const useAppDataStore = create<AppDataState>((set, get) => ({
   isLoading: false,
   apiError: null,
-  users: [
-    {
-      user_id: 1,
-      full_name: 'Nadine Uwase',
-      email: 'superadmin@ngofund.org',
-      password: 'demo123',
-      role: 'SUPER_ADMIN',
-      is_active: true,
-      created_at: '2026-01-10 08:00',
-    },
-    {
-      user_id: 2,
-      full_name: 'Michael Finance',
-      email: 'finance@ngofund.org',
-      password: 'demo123',
-      role: 'FINANCE_OFFICER',
-      is_active: true,
-      created_at: '2026-01-12 09:15',
-    },
-    {
-      user_id: 3,
-      full_name: 'Grace Field',
-      email: 'field@ngofund.org',
-      password: 'demo123',
-      role: 'FIELD_STAFF',
-      is_active: true,
-      created_at: '2026-02-03 14:05',
-    },
-    {
-      user_id: 4,
-      full_name: 'Patrick Manager',
-      email: 'manager@ngofund.org',
-      password: 'demo123',
-      role: 'PROJECT_MANAGER',
-      is_active: true,
-      created_at: '2026-02-10 10:25',
-    },
-  ],
-  donors: [
-    {
-      donor_id: 1,
-      organization_name: 'Sarah Donor',
-      contact_person: 'Sarah Donor',
-      contact_email: 'sarah@impact.org',
-      country: 'Rwanda',
-      category: 'Individual',
-      status: 'active',
-      notes: 'Supports maternal care and water access.',
-    },
-    {
-      donor_id: 2,
-      organization_name: 'Health Equity Fund',
-      contact_person: 'Robert Johnson',
-      contact_email: 'contact@hef.org',
-      country: 'United States',
-      category: 'Foundation',
-      status: 'active',
-      notes: 'Quarterly compliance package required.',
-    },
-  ],
-  notifications: [
-    {
-      notification_id: 1,
-      user_id: 1,
-      type: 'system',
-      title: 'Budget request escalated',
-      message: 'Water Access request requires review.',
-      is_read: false,
-      created_at: '2026-05-26 08:10',
-    },
-    {
-      notification_id: 2,
-      user_id: 2,
-      type: 'finance',
-      title: 'Bank reference pending',
-      message: 'Transaction BNK-10043 needs reconciliation.',
-      is_read: false,
-      created_at: '2026-05-26 09:00',
-    },
-  ],
-  grants: [
-    {
-      grant_id: 1,
-      donor_id: 2,
-      grant_title: 'Health Systems Grant',
-      total_amount: 85000,
-      currency: 'USD',
-      start_date: '2026-01-01',
-      end_date: '2026-12-31',
-      status: 'active',
-      compliance_notes: 'Quarterly utilization and audit report required.',
-    },
-    {
-      grant_id: 2,
-      donor_id: 1,
-      grant_title: 'Maternal Care Support',
-      total_amount: 32000,
-      currency: 'USD',
-      start_date: '2026-03-01',
-      end_date: '2026-09-30',
-      status: 'active',
-      compliance_notes: 'Receipts required for all field claims.',
-    },
-  ],
-  budgetLines: [
-    { budget_line_id: 1, grant_id: 1, line_name: 'Water Access', allocated_amount: 25000, spent_amount: 16400 },
-    { budget_line_id: 2, grant_id: 1, line_name: 'School Nutrition', allocated_amount: 18000, spent_amount: 9100 },
-    { budget_line_id: 3, grant_id: 2, line_name: 'Maternal Care', allocated_amount: 21000, spent_amount: 8750 },
-  ],
-  projects: [
-    {
-      project_id: 1,
-      name: 'Water Access',
-      grant_id: 1,
-      description: 'Community water-point rehabilitation and monitoring.',
-      start_date: '2026-02-01',
-      end_date: '2026-10-31',
-      status: 'active',
-    },
-    {
-      project_id: 2,
-      name: 'School Nutrition',
-      grant_id: 1,
-      description: 'Nutrition support for school-age children.',
-      start_date: '2026-01-15',
-      end_date: '2026-11-30',
-      status: 'active',
-    },
-    {
-      project_id: 3,
-      name: 'Maternal Care',
-      grant_id: 2,
-      description: 'Field care support for mothers and newborns.',
-      start_date: '2026-03-01',
-      end_date: '2026-09-30',
-      status: 'active',
-    },
-  ],
-  requisitions: [
-    {
-      requisition_id: 1,
-      submitted_by_user_id: 3,
-      budget_line_id: 1,
-      amount: 5300,
-      description: 'Water pump installation materials',
-      receipt_document_url: '/receipts/water-pump.pdf',
-      status: 'pending',
-      rejection_reason: '',
-      created_at: '2026-05-23 11:40',
-    },
-    {
-      requisition_id: 2,
-      submitted_by_user_id: 4,
-      budget_line_id: 2,
-      amount: 7800,
-      description: 'Nutrition kit procurement',
-      receipt_document_url: '/receipts/nutrition-kit.pdf',
-      status: 'approved',
-      rejection_reason: '',
-      created_at: '2026-05-21 15:10',
-    },
-  ],
-  auditLogs: [
-    {
-      log_id: 1,
-      user_id: 2,
-      action_type: 'recordTransaction',
-      target_entity_id: 1,
-      target_entity_type: 'transactions',
-      timestamp: '2026-05-25 07:55',
-      ip_address: '192.168.1.24',
-      details: 'Receipt posted and linked to Maternal Care budget line.',
-    },
-    {
-      log_id: 2,
-      user_id: 4,
-      action_type: 'approveRequisition',
-      target_entity_id: 2,
-      target_entity_type: 'requisitions',
-      timestamp: '2026-05-24 16:10',
-      ip_address: '192.168.1.42',
-      details: 'Budget request approved for School Nutrition.',
-    },
-  ],
-  transactions: [
-    {
-      transaction_id: 1,
-      requisition_id: 2,
-      budget_line_id: 2,
-      processed_by_user_id: 2,
-      amount: 7800,
-      transaction_date: '2026-05-22',
-      bank_reference_number: 'BNK-10042',
-      created_at: '2026-05-22 12:00',
-    },
-    {
-      transaction_id: 2,
-      requisition_id: 1,
-      budget_line_id: 1,
-      processed_by_user_id: 2,
-      amount: 4200,
-      transaction_date: '2026-05-25',
-      bank_reference_number: 'BNK-10043',
-      created_at: '2026-05-25 09:20',
-    },
-  ],
-  reports: [
-    {
-      report_id: 1,
-      grant_id: 1,
-      report_type: 'Q2 Financial Position',
-      generated_by_user_id: 2,
-      file_url: '/reports/q2-financial-position.pdf',
-      format: 'PDF',
-      created_at: '2026-05-20 10:00',
-    },
-    {
-      report_id: 2,
-      grant_id: 2,
-      report_type: 'Receipts Summary',
-      generated_by_user_id: 2,
-      file_url: '/reports/receipts-summary.xlsx',
-      format: 'Excel',
-      created_at: '2026-05-22 13:30',
-    },
-  ],
-  systemSettings: [
-    { key: 'approval_window', label: 'Approval Window', value: '48 hours', group: 'access' },
-    { key: 'receipt_currency', label: 'Receipt Currency', value: 'USD', group: 'finance' },
-    { key: 'notify_executive', label: 'Executive Alerts', value: 'Enabled', group: 'notifications' },
-  ],
-  complianceItems: [
-    { id: 'cmp-001', title: 'Donor consent evidence attached', owner: 'Fundraising', verified: true },
-    { id: 'cmp-002', title: 'Expense receipt archive complete', owner: 'Finance', verified: false },
-    { id: 'cmp-003', title: 'Role review performed this quarter', owner: 'Administration', verified: true },
-  ],
+  dataReady: false,
+  users: [],
+  donors: [],
+  notifications: [],
+  grants: [],
+  budgetLines: [],
+  projects: [],
+  requisitions: [],
+  auditLogs: [],
+  transactions: [],
+  reports: [],
+  systemSettings: [],
+  complianceItems: [],
+
+  resetData: () =>
+    set({
+      isLoading: false,
+      dataReady: false,
+      apiError: null,
+      users: [],
+      donors: [],
+      notifications: [],
+      grants: [],
+      budgetLines: [],
+      projects: [],
+      requisitions: [],
+      auditLogs: [],
+      transactions: [],
+      reports: [],
+      systemSettings: [],
+      complianceItems: [],
+    }),
 
   fetchAll: async () => {
-    const state = get();
-    set({ isLoading: true, apiError: null });
+    set({ isLoading: true, apiError: null, dataReady: false });
     try {
       const [
         users,
@@ -444,18 +252,18 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         systemSettings,
         complianceItems,
       ] = await Promise.all([
-        retainOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser)), state.users),
-        retainOnForbidden(apiList<ApiDonor>('/donors/').then((rows) => rows.map(mapDonor)), state.donors),
-        retainOnForbidden(apiList<ApiNotification>('/notifications/').then((rows) => rows.map(mapNotification)), state.notifications),
-        retainOnForbidden(apiList<ApiGrant>('/grants/').then((rows) => rows.map(mapGrant)), state.grants),
-        retainOnForbidden(apiList<ApiBudgetLine>('/budget-lines/').then((rows) => rows.map(mapBudgetLine)), state.budgetLines),
-        retainOnForbidden(apiList<ApiProject>('/projects/').then((rows) => rows.map(mapProject)), state.projects),
-        retainOnForbidden(apiList<ApiRequisition>('/requisitions/').then((rows) => rows.map(mapRequisition)), state.requisitions),
-        retainOnForbidden(apiList<ApiAuditLog>('/audit-logs/').then((rows) => rows.map(mapAuditLog)), state.auditLogs),
-        retainOnForbidden(apiList<ApiTransaction>('/transactions/').then((rows) => rows.map(mapTransaction)), state.transactions),
-        retainOnForbidden(apiList<ApiReport>('/reports/').then((rows) => rows.map(mapReport)), state.reports),
-        retainOnForbidden(apiList<ApiSystemSetting>('/system-settings/').then((rows) => rows.map(mapSetting)), state.systemSettings),
-        retainOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem)), state.complianceItems),
+        emptyOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser))),
+        emptyOnForbidden(apiList<ApiDonor>('/donors/').then((rows) => rows.map(mapDonor))),
+        emptyOnForbidden(apiList<ApiNotification>('/notifications/').then((rows) => rows.map(mapNotification))),
+        emptyOnForbidden(apiList<ApiGrant>('/grants/').then((rows) => rows.map(mapGrant))),
+        emptyOnForbidden(apiList<ApiBudgetLine>('/budget-lines/').then((rows) => rows.map(mapBudgetLine))),
+        emptyOnForbidden(apiList<ApiProject>('/projects/').then((rows) => rows.map(mapProject))),
+        emptyOnForbidden(apiList<ApiRequisition>('/requisitions/').then((rows) => rows.map(mapRequisition))),
+        emptyOnForbidden(apiList<ApiAuditLog>('/audit-logs/').then((rows) => rows.map(mapAuditLog))),
+        emptyOnForbidden(apiList<ApiTransaction>('/transactions/').then((rows) => rows.map(mapTransaction))),
+        emptyOnForbidden(apiList<ApiReport>('/reports/').then((rows) => rows.map(mapReport))),
+        emptyOnForbidden(apiList<ApiSystemSetting>('/system-settings/').then((rows) => rows.map(mapSetting))),
+        emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
       ]);
 
       set({
@@ -472,9 +280,14 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         systemSettings,
         complianceItems,
         isLoading: false,
+        dataReady: true,
       });
     } catch (error) {
-      set({ apiError: error instanceof Error ? error.message : 'Could not load backend data.', isLoading: false });
+      set({
+        apiError: error instanceof Error ? error.message : 'Could not load backend data.',
+        isLoading: false,
+        dataReady: false,
+      });
     }
   },
 

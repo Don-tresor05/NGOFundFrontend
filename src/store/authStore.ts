@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { ACTORS, MOCK_ACCOUNTS } from '../constants/appModel';
+import { ACTORS } from '../constants/appModel';
 import { apiRequest, tokenStorage } from '../lib/api';
-import { Actor, MockAccount, Profile, Role } from '../types';
+import { useAppDataStore } from './appDataStore';
+import { Actor, Profile, Role } from '../types';
 
 interface LoginPayload {
   actor: Actor;
@@ -20,7 +21,6 @@ interface RegisterPayload {
 interface AuthState {
   isAuthenticated: boolean;
   currentProfile: Profile | null;
-  accounts: MockAccount[];
   loginError: string | null;
   authReady: boolean;
   login: (payload: LoginPayload) => Promise<boolean>;
@@ -46,6 +46,8 @@ interface LoginResponse {
   user: ApiUser;
 }
 
+type RegisterResponse = LoginResponse & ApiUser;
+
 const roleToActor: Record<Role, Actor> = {
   SUPER_ADMIN: 'super_administrator',
   FINANCE_OFFICER: 'finance_officer',
@@ -64,6 +66,10 @@ const actorToRole: Record<Actor, Role> = {
   executive_director: 'EXECUTIVE_DIRECTOR',
   external_auditor: 'EXTERNAL_AUDITOR',
   donor_user: 'DONOR_USER',
+};
+
+const resetApplicationData = () => {
+  useAppDataStore.getState().resetData();
 };
 
 const toProfileFromUser = (user: ApiUser): Profile => {
@@ -91,7 +97,6 @@ const toProfileFromUser = (user: ApiUser): Profile => {
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: Boolean(tokenStorage.access),
   currentProfile: null,
-  accounts: MOCK_ACCOUNTS,
   loginError: null,
   authReady: !tokenStorage.access,
 
@@ -107,10 +112,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (profile.actor !== actor) {
         set({ loginError: 'This account exists, but it does not match the selected role portal.' });
         tokenStorage.clear();
+        resetApplicationData();
         return false;
       }
 
       tokenStorage.set(response.access, response.refresh);
+      resetApplicationData();
       set({
         isAuthenticated: true,
         currentProfile: profile,
@@ -126,6 +133,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: () => {
     tokenStorage.clear();
+    resetApplicationData();
     set({
       isAuthenticated: false,
       currentProfile: null,
@@ -136,7 +144,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   register: async ({ actor, name, email, password, metadata }) => {
     try {
-      const response = await apiRequest<LoginResponse & ApiUser>('/auth/register/', {
+      const response = await apiRequest<RegisterResponse>('/auth/register/', {
         method: 'POST',
         skipAuth: true,
         body: JSON.stringify({
@@ -151,9 +159,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       tokenStorage.set(response.access, response.refresh);
+      resetApplicationData();
       set({
         isAuthenticated: true,
-        currentProfile: toProfileFromUser(response as ApiUser),
+        currentProfile: toProfileFromUser(response),
         loginError: null,
         authReady: true,
       });
@@ -186,6 +195,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   hydrateProfile: async () => {
     if (!tokenStorage.access) {
+      resetApplicationData();
       set({ isAuthenticated: false, currentProfile: null, authReady: true });
       return;
     }
@@ -195,6 +205,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isAuthenticated: true, currentProfile: toProfileFromUser(user), authReady: true, loginError: null });
     } catch {
       tokenStorage.clear();
+      resetApplicationData();
       set({ isAuthenticated: false, currentProfile: null, authReady: true });
     }
   },

@@ -20,10 +20,14 @@ export function ProfilePage() {
     return null;
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    updateProfile(formData);
-    setSaved(true);
+    try {
+      await updateProfile(formData);
+      setSaved(true);
+    } catch {
+      setSaved(false);
+    }
   };
 
   return (
@@ -98,7 +102,7 @@ export function ProfilePage() {
             </label>
             <div className="md:col-span-2 flex flex-wrap items-center gap-3">
               <Button type="submit">Save Profile Updates</Button>
-              {saved ? <span className="text-sm font-semibold text-emerald-700">Profile updated in mock state.</span> : null}
+              {saved ? <span className="text-sm font-semibold text-emerald-700">Profile updated in the backend.</span> : null}
             </div>
           </form>
         </div>
