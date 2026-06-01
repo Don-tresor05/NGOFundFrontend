@@ -2,10 +2,12 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components';
 import {
   CreateAccountPage,
+  ConfirmPasswordPage,
   DashboardPage,
   LoginPage,
   NotFoundPage,
   ProfilePage,
+  ResetPasswordPage,
   UseCasePage,
 } from './pages';
 
@@ -15,6 +17,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/reset-password/confirm" element={<ConfirmPasswordPage />} />
         <Route path="/create-account" element={<CreateAccountPage />} />
         <Route path="/app" element={<ProtectedRoute />}>
           <Route index element={<Navigate to="dashboard" replace />} />

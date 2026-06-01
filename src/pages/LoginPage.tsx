@@ -199,9 +199,14 @@ export function LoginPage() {
           </form>
 
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 pt-6 text-sm text-slate-600">
-            <span>Need a fresh role-specific account intake?</span>
-            <Link to="/create-account" className="font-semibold text-amber-700">
-              Create Account
+            <div className="flex flex-wrap gap-4">
+              <span>Need a fresh role-specific account intake?</span>
+              <Link to="/create-account" className="font-semibold text-amber-700">
+                Create Account
+              </Link>
+            </div>
+            <Link to="/reset-password" className="font-semibold text-amber-700">
+              Forgot password?
             </Link>
           </div>
         </section>

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { ACTORS } from '../constants/appModel';
 import { apiRequest, tokenStorage } from '../lib/api';
 import { useAppDataStore } from './appDataStore';
-import { Actor, Profile, Role } from '../types';
+import { Actor, PasswordResetRequestRecord, Profile, Role } from '../types';
 
 interface LoginPayload {
   actor: Actor;
@@ -28,6 +28,8 @@ interface AuthState {
   register: (payload: RegisterPayload) => Promise<boolean>;
   updateProfile: (payload: Partial<Profile>) => Promise<void>;
   hydrateProfile: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<PasswordResetRequestRecord>;
+  confirmPasswordReset: (token: string, newPassword: string) => Promise<string>;
 }
 
 interface ApiUser {
@@ -208,5 +210,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       resetApplicationData();
       set({ isAuthenticated: false, currentProfile: null, authReady: true });
     }
+  },
+
+  requestPasswordReset: async (email) => apiRequest<PasswordResetRequestRecord>('/users/password-reset-request/', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({ email }),
+  }),
+
+  confirmPasswordReset: async (token, newPassword) => {
+    const response = await apiRequest<{ detail: string }>('/users/password-reset-confirm/', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ token, new_password: newPassword }),
+    });
+    return response.detail;
   },
 }));
