@@ -2,18 +2,27 @@ import { create } from 'zustand';
 import { ApiError, apiList, apiRequest } from '../lib/api';
 import {
   AuditLog,
+  BugReport,
   BudgetLine,
   ComplianceItem,
   Donor,
+  DonorEngagementSummary,
+  ExpenseApproval,
   Grant,
   Notification,
   Project,
+  ProcessDocument,
   Report,
+  ReportDelivery,
+  ReportSchedule,
+  ReallocationRequest,
   Requisition,
   Role,
+  SecuritySummary,
   SystemSetting,
   Transaction,
   User,
+  ReleaseNote,
 } from '../types';
 
 interface AppDataState {
@@ -32,18 +41,38 @@ interface AppDataState {
   reports: Report[];
   systemSettings: SystemSetting[];
   complianceItems: ComplianceItem[];
+  securitySummary: SecuritySummary | null;
+  reallocationRequests: ReallocationRequest[];
+  expenseApprovals: ExpenseApproval[];
+  reportSchedules: ReportSchedule[];
+  reportDeliveries: ReportDelivery[];
+  processDocuments: ProcessDocument[];
+  bugReports: BugReport[];
+  releaseNotes: ReleaseNote[];
   resetData: () => void;
   fetchAll: () => Promise<void>;
+  fetchSecuritySummary: () => Promise<SecuritySummary | null>;
   createUser: (payload: Omit<User, 'user_id' | 'created_at' | 'is_active'>) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<string>;
+  confirmPasswordReset: (token: string, newPassword: string) => Promise<string>;
   updateSetting: (key: string, value: string) => Promise<void>;
   createDonor: (payload: Omit<Donor, 'donor_id' | 'status' | 'notes'>) => Promise<void>;
+  fetchDonorEngagementSummary: (donorId: number) => Promise<DonorEngagementSummary | null>;
+  acknowledgeDonor: (donorId: number, payload?: { channel?: string; subject?: string; message?: string }) => Promise<void>;
   createGrant: (payload: Omit<Grant, 'grant_id' | 'status' | 'compliance_notes'>) => Promise<void>;
   createBudgetLine: (payload: Omit<BudgetLine, 'budget_line_id' | 'spent_amount'>) => Promise<void>;
   createRequisition: (payload: Omit<Requisition, 'requisition_id' | 'status' | 'rejection_reason' | 'created_at'>) => Promise<void>;
   approveRequisition: (id: number) => Promise<void>;
   rejectRequisition: (id: number, reason: string) => Promise<void>;
+  createReallocationRequest: (payload: { source_budget_line: number; target_budget_line: number; amount: number; reason: string }) => Promise<void>;
+  approveReallocationRequest: (id: number) => Promise<void>;
+  rejectReallocationRequest: (id: number) => Promise<void>;
   recordTransaction: (payload: Omit<Transaction, 'transaction_id' | 'created_at'>) => Promise<void>;
   reconcileTransaction: (id: number) => Promise<void>;
+  createExpenseApproval: (payload: { requisition: number; notes?: string }) => Promise<void>;
+  advanceExpenseApproval: (id: number, stage: 'department-review' | 'finance-review' | 'executive-review') => Promise<void>;
+  approveExpenseApproval: (id: number, notes?: string) => Promise<void>;
+  rejectExpenseApproval: (id: number, decisionReason: string) => Promise<void>;
   createAuditLog: (payload: Omit<AuditLog, 'log_id' | 'timestamp'>) => Promise<void>;
   generateReport: (
     report_type: string,
@@ -51,6 +80,23 @@ interface AppDataState {
     generated_by_user_id: number,
     format: 'PDF' | 'Excel' | 'CSV'
   ) => Promise<void>;
+  createReportSchedule: (payload: { report_type: string; grant: number | null; frequency: ReportSchedule['frequency']; delivery_method: ReportSchedule['delivery_method']; recipient_emails: string; next_run_at?: string | null }) => Promise<void>;
+  activateReportSchedule: (id: number) => Promise<void>;
+  deactivateReportSchedule: (id: number) => Promise<void>;
+  deliverReport: (reportId: number, payload?: { destination?: string; delivery_method?: string }) => Promise<void>;
+  createProcessDocument: (payload: { title: string; version: string; summary: string; content: string }) => Promise<void>;
+  submitProcessDocumentForReview: (id: number) => Promise<void>;
+  approveProcessDocument: (id: number) => Promise<void>;
+  publishProcessDocument: (id: number) => Promise<void>;
+  rejectProcessDocument: (id: number) => Promise<void>;
+  createBugReport: (payload: { title: string; description: string; reproduction_steps?: string; environment: string; severity: BugReport['severity'] }) => Promise<void>;
+  triageBugReport: (id: number) => Promise<void>;
+  startBugReport: (id: number) => Promise<void>;
+  resolveBugReport: (id: number) => Promise<void>;
+  closeBugReport: (id: number) => Promise<void>;
+  createReleaseNote: (payload: { version: string; title: string; summary: string; changelog: string; environment: string }) => Promise<void>;
+  publishReleaseNote: (id: number) => Promise<void>;
+  archiveReleaseNote: (id: number) => Promise<void>;
   createNotification: (payload: Omit<Notification, 'notification_id' | 'created_at' | 'is_read'>) => Promise<void>;
   markNotificationAsRead: (id: number) => Promise<void>;
   markAllNotificationsAsRead: (userId: number) => Promise<void>;
@@ -114,8 +160,59 @@ type ApiReport = Omit<Report, 'report_id' | 'grant_id' | 'generated_by_user_id' 
 };
 type ApiNotification = Omit<Notification, 'notification_id' | 'user_id'> & { id: number; user: number };
 type ApiComplianceItem = Omit<ComplianceItem, 'id'> & { id: number };
+type ApiSecuritySummary = SecuritySummary;
+type ApiDonorEngagementSummary = DonorEngagementSummary;
+type ApiPasswordResetRequestRecord = {
+  id: number;
+  user: number;
+  token: string;
+  expires_at: string;
+  is_used: boolean;
+  used_at: string | null;
+  created_at: string;
+};
+type ApiReallocationRequest = Omit<ReallocationRequest, 'id' | 'source_budget_line' | 'target_budget_line' | 'requested_by' | 'reviewed_by'> & {
+  id: number;
+  source_budget_line: number;
+  target_budget_line: number;
+  requested_by: number;
+  reviewed_by: number | null;
+};
+type ApiExpenseApproval = Omit<ExpenseApproval, 'id' | 'requisition' | 'requested_by' | 'reviewed_by'> & {
+  id: number;
+  requisition: number;
+  requested_by: number;
+  reviewed_by: number | null;
+};
+type ApiReportSchedule = Omit<ReportSchedule, 'id' | 'grant' | 'created_by'> & {
+  id: number;
+  grant: number | null;
+  created_by: number;
+};
+type ApiReportDelivery = Omit<ReportDelivery, 'id' | 'report' | 'created_by'> & {
+  id: number;
+  report: number;
+  created_by: number;
+};
+type ApiProcessDocument = Omit<ProcessDocument, 'id' | 'created_by' | 'approved_by'> & {
+  id: number;
+  created_by: number;
+  approved_by: number | null;
+};
+type ApiBugReport = Omit<BugReport, 'id' | 'reported_by' | 'assigned_to'> & {
+  id: number;
+  reported_by: number;
+  assigned_to: number | null;
+};
+type ApiReleaseNote = Omit<ReleaseNote, 'id' | 'created_by' | 'published_by'> & {
+  id: number;
+  created_by: number;
+  published_by: number | null;
+};
 
 const toNumber = (value: number | string) => Number(value);
+
+const toNumberOrNull = (value: number | string | null) => (value === null ? null : Number(value));
 
 const mapUser = (user: ApiUser): User => ({
   user_id: user.id,
@@ -187,6 +284,90 @@ const mapNotification = (notification: ApiNotification): Notification => ({
   created_at: notification.created_at,
 });
 const mapComplianceItem = (item: ApiComplianceItem): ComplianceItem => ({ ...item, id: String(item.id) });
+const mapReallocationRequest = (request: ApiReallocationRequest): ReallocationRequest => ({
+  id: request.id,
+  source_budget_line: request.source_budget_line,
+  target_budget_line: request.target_budget_line,
+  requested_by: request.requested_by,
+  amount: toNumber(request.amount),
+  reason: request.reason,
+  status: request.status,
+  reviewed_by: toNumberOrNull(request.reviewed_by),
+  reviewed_at: request.reviewed_at,
+  created_at: request.created_at,
+});
+const mapExpenseApproval = (approval: ApiExpenseApproval): ExpenseApproval => ({
+  id: approval.id,
+  requisition: approval.requisition,
+  requested_by: approval.requested_by,
+  reviewed_by: toNumberOrNull(approval.reviewed_by),
+  stage: approval.stage,
+  notes: approval.notes,
+  decision_reason: approval.decision_reason,
+  reviewed_at: approval.reviewed_at,
+  created_at: approval.created_at,
+});
+const mapReportSchedule = (schedule: ApiReportSchedule): ReportSchedule => ({
+  id: schedule.id,
+  report_type: schedule.report_type,
+  grant: schedule.grant,
+  created_by: schedule.created_by,
+  frequency: schedule.frequency,
+  delivery_method: schedule.delivery_method,
+  recipient_emails: schedule.recipient_emails,
+  next_run_at: schedule.next_run_at,
+  last_run_at: schedule.last_run_at,
+  is_active: schedule.is_active,
+  created_at: schedule.created_at,
+});
+const mapReportDelivery = (delivery: ApiReportDelivery): ReportDelivery => ({
+  id: delivery.id,
+  report: delivery.report,
+  created_by: delivery.created_by,
+  delivery_method: delivery.delivery_method,
+  destination: delivery.destination,
+  status: delivery.status,
+  sent_at: delivery.sent_at,
+  created_at: delivery.created_at,
+});
+const mapProcessDocument = (document: ApiProcessDocument): ProcessDocument => ({
+  id: document.id,
+  title: document.title,
+  version: document.version,
+  summary: document.summary,
+  content: document.content,
+  created_by: document.created_by,
+  approved_by: document.approved_by,
+  status: document.status,
+  created_at: document.created_at,
+  updated_at: document.updated_at,
+});
+const mapBugReport = (bug: ApiBugReport): BugReport => ({
+  id: bug.id,
+  reported_by: bug.reported_by,
+  assigned_to: bug.assigned_to,
+  title: bug.title,
+  description: bug.description,
+  reproduction_steps: bug.reproduction_steps,
+  environment: bug.environment,
+  severity: bug.severity,
+  status: bug.status,
+  resolved_at: bug.resolved_at,
+  created_at: bug.created_at,
+});
+const mapReleaseNote = (note: ApiReleaseNote): ReleaseNote => ({
+  id: note.id,
+  version: note.version,
+  title: note.title,
+  summary: note.summary,
+  changelog: note.changelog,
+  environment: note.environment,
+  created_by: note.created_by,
+  published_by: note.published_by,
+  status: note.status,
+  published_at: note.published_at,
+  created_at: note.created_at,
+});
 
 const emptyOnForbidden = async <T>(request: Promise<T[]>) => {
   try {
@@ -194,6 +375,17 @@ const emptyOnForbidden = async <T>(request: Promise<T[]>) => {
   } catch (error) {
     if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
       return [];
+    }
+    throw error;
+  }
+};
+
+const emptyOnForbiddenValue = async <T>(request: Promise<T>): Promise<T | null> => {
+  try {
+    return await request;
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+      return null;
     }
     throw error;
   }
@@ -215,6 +407,14 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
   reports: [],
   systemSettings: [],
   complianceItems: [],
+  securitySummary: null,
+  reallocationRequests: [],
+  expenseApprovals: [],
+  reportSchedules: [],
+  reportDeliveries: [],
+  processDocuments: [],
+  bugReports: [],
+  releaseNotes: [],
 
   resetData: () =>
     set({
@@ -233,6 +433,14 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       reports: [],
       systemSettings: [],
       complianceItems: [],
+      securitySummary: null,
+      reallocationRequests: [],
+      expenseApprovals: [],
+      reportSchedules: [],
+      reportDeliveries: [],
+      processDocuments: [],
+      bugReports: [],
+      releaseNotes: [],
     }),
 
   fetchAll: async () => {
@@ -251,6 +459,14 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         reports,
         systemSettings,
         complianceItems,
+        securitySummary,
+        reallocationRequests,
+        expenseApprovals,
+        reportSchedules,
+        reportDeliveries,
+        processDocuments,
+        bugReports,
+        releaseNotes,
       ] = await Promise.all([
         emptyOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser))),
         emptyOnForbidden(apiList<ApiDonor>('/donors/').then((rows) => rows.map(mapDonor))),
@@ -264,6 +480,14 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         emptyOnForbidden(apiList<ApiReport>('/reports/').then((rows) => rows.map(mapReport))),
         emptyOnForbidden(apiList<ApiSystemSetting>('/system-settings/').then((rows) => rows.map(mapSetting))),
         emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
+        emptyOnForbiddenValue(apiRequest<ApiSecuritySummary>('/users/security-summary/')),
+        emptyOnForbidden(apiList<ApiReallocationRequest>('/reallocation-requests/').then((rows) => rows.map(mapReallocationRequest))),
+        emptyOnForbidden(apiList<ApiExpenseApproval>('/expense-approvals/').then((rows) => rows.map(mapExpenseApproval))),
+        emptyOnForbidden(apiList<ApiReportSchedule>('/report-schedules/').then((rows) => rows.map(mapReportSchedule))),
+        emptyOnForbidden(apiList<ApiReportDelivery>('/report-deliveries/').then((rows) => rows.map(mapReportDelivery))),
+        emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
+        emptyOnForbidden(apiList<ApiBugReport>('/bug-reports/').then((rows) => rows.map(mapBugReport))),
+        emptyOnForbidden(apiList<ApiReleaseNote>('/release-notes/').then((rows) => rows.map(mapReleaseNote))),
       ]);
 
       set({
@@ -279,6 +503,14 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         reports,
         systemSettings,
         complianceItems,
+        securitySummary,
+        reallocationRequests,
+        expenseApprovals,
+        reportSchedules,
+        reportDeliveries,
+        processDocuments,
+        bugReports,
+        releaseNotes,
         isLoading: false,
         dataReady: true,
       });
@@ -304,6 +536,30 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     set((state) => ({ users: [...state.users, mapUser(created)] }));
   },
 
+  fetchSecuritySummary: async () => {
+    const summary = await emptyOnForbiddenValue(apiRequest<ApiSecuritySummary>('/users/security-summary/'));
+    set({ securitySummary: summary });
+    return summary;
+  },
+
+  requestPasswordReset: async (email) => {
+    const resetRequest = await apiRequest<ApiPasswordResetRequestRecord>('/users/password-reset-request/', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ email }),
+    });
+    return resetRequest.token;
+  },
+
+  confirmPasswordReset: async (token, newPassword) => {
+    const response = await apiRequest<{ detail: string }>('/users/password-reset-confirm/', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ token, new_password: newPassword }),
+    });
+    return response.detail;
+  },
+
   updateSetting: async (key, value) => {
     const setting = get().systemSettings.find((entry) => entry.key === key);
     if (!setting?.id) {
@@ -324,6 +580,22 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       body: JSON.stringify({ ...payload, status: 'active', notes: 'Created from Register New Donor workflow.' }),
     });
     set((state) => ({ donors: [...state.donors, mapDonor(created)] }));
+  },
+
+  fetchDonorEngagementSummary: async (donorId) => {
+    const summary = await emptyOnForbiddenValue(apiRequest<ApiDonorEngagementSummary>(`/donors/${donorId}/engagement-summary/`));
+    return summary;
+  },
+
+  acknowledgeDonor: async (donorId, payload = {}) => {
+    await apiRequest(`/donors/${donorId}/acknowledge/`, {
+      method: 'POST',
+      body: JSON.stringify({
+        channel: payload.channel ?? 'email',
+        subject: payload.subject,
+        message: payload.message,
+      }),
+    });
   },
 
   createGrant: async (payload) => {
@@ -355,6 +627,39 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     set((state) => ({ budgetLines: [...state.budgetLines, mapBudgetLine(created)] }));
   },
 
+  createReallocationRequest: async (payload) => {
+    const created = await apiRequest<ApiReallocationRequest>('/reallocation-requests/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({ reallocationRequests: [mapReallocationRequest(created), ...state.reallocationRequests] }));
+  },
+
+  approveReallocationRequest: async (id) => {
+    const updated = await apiRequest<ApiReallocationRequest>(`/reallocation-requests/${id}/approve/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      reallocationRequests: state.reallocationRequests.map((request) => (request.id === id ? mapReallocationRequest(updated) : request)),
+      budgetLines: state.budgetLines.map((line) =>
+        line.budget_line_id === updated.source_budget_line
+          ? { ...line, allocated_amount: line.allocated_amount - updated.amount }
+          : line.budget_line_id === updated.target_budget_line
+            ? { ...line, allocated_amount: line.allocated_amount + updated.amount }
+            : line
+      ),
+    }));
+  },
+
+  rejectReallocationRequest: async (id) => {
+    const updated = await apiRequest<ApiReallocationRequest>(`/reallocation-requests/${id}/reject/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      reallocationRequests: state.reallocationRequests.map((request) => (request.id === id ? mapReallocationRequest(updated) : request)),
+    }));
+  },
+
   createRequisition: async (payload) => {
     const created = await apiRequest<ApiRequisition>('/requisitions/', {
       method: 'POST',
@@ -384,6 +689,58 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     set((state) => ({
       requisitions: state.requisitions.map((requisition) =>
         requisition.requisition_id === id ? mapRequisition(updated) : requisition
+      ),
+    }));
+  },
+
+  createExpenseApproval: async (payload) => {
+    const created = await apiRequest<ApiExpenseApproval>('/expense-approvals/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({ expenseApprovals: [mapExpenseApproval(created), ...state.expenseApprovals] }));
+  },
+
+  advanceExpenseApproval: async (id, stage) => {
+    const endpoint = {
+      'department-review': 'department-review',
+      'finance-review': 'finance-review',
+      'executive-review': 'executive-review',
+    }[stage];
+    const updated = await apiRequest<ApiExpenseApproval>(`/expense-approvals/${id}/${endpoint}/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      expenseApprovals: state.expenseApprovals.map((approval) => (approval.id === id ? mapExpenseApproval(updated) : approval)),
+    }));
+  },
+
+  approveExpenseApproval: async (id, notes) => {
+    const updated = await apiRequest<ApiExpenseApproval>(`/expense-approvals/${id}/approve/`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+    set((state) => ({
+      expenseApprovals: state.expenseApprovals.map((approval) => (approval.id === id ? mapExpenseApproval(updated) : approval)),
+      requisitions: state.requisitions.map((requisition) =>
+        requisition.requisition_id === updated.requisition
+          ? { ...requisition, status: 'approved', rejection_reason: '' }
+          : requisition
+      ),
+    }));
+  },
+
+  rejectExpenseApproval: async (id, decisionReason) => {
+    const updated = await apiRequest<ApiExpenseApproval>(`/expense-approvals/${id}/reject/`, {
+      method: 'POST',
+      body: JSON.stringify({ decision_reason: decisionReason }),
+    });
+    set((state) => ({
+      expenseApprovals: state.expenseApprovals.map((approval) => (approval.id === id ? mapExpenseApproval(updated) : approval)),
+      requisitions: state.requisitions.map((requisition) =>
+        requisition.requisition_id === updated.requisition
+          ? { ...requisition, status: 'rejected', rejection_reason: decisionReason }
+          : requisition
       ),
     }));
   },
@@ -444,6 +801,87 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     set((state) => ({ reports: [...state.reports, mapReport(created)] }));
   },
 
+  createReportSchedule: async (payload) => {
+    const created = await apiRequest<ApiReportSchedule>('/report-schedules/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({ reportSchedules: [mapReportSchedule(created), ...state.reportSchedules] }));
+  },
+
+  activateReportSchedule: async (id) => {
+    const updated = await apiRequest<ApiReportSchedule>(`/report-schedules/${id}/activate/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      reportSchedules: state.reportSchedules.map((schedule) => (schedule.id === id ? mapReportSchedule(updated) : schedule)),
+    }));
+  },
+
+  deactivateReportSchedule: async (id) => {
+    const updated = await apiRequest<ApiReportSchedule>(`/report-schedules/${id}/deactivate/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      reportSchedules: state.reportSchedules.map((schedule) => (schedule.id === id ? mapReportSchedule(updated) : schedule)),
+    }));
+  },
+
+  deliverReport: async (reportId, payload = {}) => {
+    const created = await apiRequest<ApiReportDelivery>(`/reports/${reportId}/deliver/`, {
+      method: 'POST',
+      body: JSON.stringify({
+        destination: payload.destination,
+        delivery_method: payload.delivery_method,
+      }),
+    });
+    set((state) => ({ reportDeliveries: [mapReportDelivery(created), ...state.reportDeliveries] }));
+  },
+
+  createProcessDocument: async (payload) => {
+    const created = await apiRequest<ApiProcessDocument>('/process-documents/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({ processDocuments: [mapProcessDocument(created), ...state.processDocuments] }));
+  },
+
+  submitProcessDocumentForReview: async (id) => {
+    const updated = await apiRequest<ApiProcessDocument>(`/process-documents/${id}/submit-for-review/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      processDocuments: state.processDocuments.map((document) => (document.id === id ? mapProcessDocument(updated) : document)),
+    }));
+  },
+
+  approveProcessDocument: async (id) => {
+    const updated = await apiRequest<ApiProcessDocument>(`/process-documents/${id}/approve/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      processDocuments: state.processDocuments.map((document) => (document.id === id ? mapProcessDocument(updated) : document)),
+    }));
+  },
+
+  publishProcessDocument: async (id) => {
+    const updated = await apiRequest<ApiProcessDocument>(`/process-documents/${id}/publish/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      processDocuments: state.processDocuments.map((document) => (document.id === id ? mapProcessDocument(updated) : document)),
+    }));
+  },
+
+  rejectProcessDocument: async (id) => {
+    const updated = await apiRequest<ApiProcessDocument>(`/process-documents/${id}/reject/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      processDocuments: state.processDocuments.map((document) => (document.id === id ? mapProcessDocument(updated) : document)),
+    }));
+  },
+
   createNotification: async (payload) => {
     const created = await apiRequest<ApiNotification>('/notifications/', {
       method: 'POST',
@@ -473,6 +911,64 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     await apiRequest<void>('/notifications/mark-all-read/', { method: 'POST' });
     set((state) => ({
       notifications: state.notifications.map((notification) => ({ ...notification, is_read: true })),
+    }));
+  },
+
+  createBugReport: async (payload) => {
+    const created = await apiRequest<ApiBugReport>('/bug-reports/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({ bugReports: [mapBugReport(created), ...state.bugReports] }));
+  },
+
+  triageBugReport: async (id) => {
+    const updated = await apiRequest<ApiBugReport>(`/bug-reports/${id}/triage/`, { method: 'POST' });
+    set((state) => ({
+      bugReports: state.bugReports.map((bug) => (bug.id === id ? mapBugReport(updated) : bug)),
+    }));
+  },
+
+  startBugReport: async (id) => {
+    const updated = await apiRequest<ApiBugReport>(`/bug-reports/${id}/start/`, { method: 'POST' });
+    set((state) => ({
+      bugReports: state.bugReports.map((bug) => (bug.id === id ? mapBugReport(updated) : bug)),
+    }));
+  },
+
+  resolveBugReport: async (id) => {
+    const updated = await apiRequest<ApiBugReport>(`/bug-reports/${id}/resolve/`, { method: 'POST' });
+    set((state) => ({
+      bugReports: state.bugReports.map((bug) => (bug.id === id ? mapBugReport(updated) : bug)),
+    }));
+  },
+
+  closeBugReport: async (id) => {
+    const updated = await apiRequest<ApiBugReport>(`/bug-reports/${id}/close/`, { method: 'POST' });
+    set((state) => ({
+      bugReports: state.bugReports.map((bug) => (bug.id === id ? mapBugReport(updated) : bug)),
+    }));
+  },
+
+  createReleaseNote: async (payload) => {
+    const created = await apiRequest<ApiReleaseNote>('/release-notes/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({ releaseNotes: [mapReleaseNote(created), ...state.releaseNotes] }));
+  },
+
+  publishReleaseNote: async (id) => {
+    const updated = await apiRequest<ApiReleaseNote>(`/release-notes/${id}/publish/`, { method: 'POST' });
+    set((state) => ({
+      releaseNotes: state.releaseNotes.map((note) => (note.id === id ? mapReleaseNote(updated) : note)),
+    }));
+  },
+
+  archiveReleaseNote: async (id) => {
+    const updated = await apiRequest<ApiReleaseNote>(`/release-notes/${id}/archive/`, { method: 'POST' });
+    set((state) => ({
+      releaseNotes: state.releaseNotes.map((note) => (note.id === id ? mapReleaseNote(updated) : note)),
     }));
   },
 
