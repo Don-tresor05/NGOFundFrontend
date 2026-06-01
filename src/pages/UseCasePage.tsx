@@ -7,7 +7,15 @@ import { AreaMetricChart, BarMetricChart, PieMetricChart } from '../components/c
 import { ACTORS, USE_CASES } from '../constants/appModel';
 import { roleLabels, useAppDataStore } from '../store/appDataStore';
 import { useAuthStore } from '../store/authStore';
-import { Actor, DashboardStat, Role, UseCaseId } from '../types';
+import {
+  Actor,
+  BugReport,
+  DashboardStat,
+  DonorEngagementSummary,
+  ReportSchedule,
+  Role,
+  UseCaseId,
+} from '../types';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
@@ -43,6 +51,7 @@ export function UseCasePage() {
   const grantTitle = (id: number) => store.grants.find((grant) => grant.grant_id === id)?.grant_title ?? 'Unmapped Grant';
   const firstBudgetLine = store.budgetLines[0];
   const firstGrant = store.grants[0];
+  const firstDonor = store.donors[0];
 
   const commonStats: DashboardStat[] = [
     { label: 'Responsible Actor', value: actor?.shortLabel ?? 'Actor', trend: 'Directly mapped from diagram', trendDirection: 'up' },
@@ -60,6 +69,13 @@ export function UseCasePage() {
   const [claimForm, setClaimForm] = useState({ category: '', amount: '0' });
   const [requirementForm, setRequirementForm] = useState({ interviewee: '', process: '', feedback: '' });
   const [testingForm, setTestingForm] = useState({ testCase: '', environment: 'Staging', feedback: '' });
+  const [donorEngagement, setDonorEngagement] = useState<DonorEngagementSummary | null>(null);
+  const [reallocationForm, setReallocationForm] = useState({ source: '', target: '', amount: '0', reason: '' });
+  const [expenseForm, setExpenseForm] = useState({ requisition: '', notes: '', decisionReason: '' });
+  const [scheduleForm, setScheduleForm] = useState({ reportType: '', frequency: 'monthly', deliveryMethod: 'email', recipients: '', nextRunAt: '' });
+  const [documentForm, setDocumentForm] = useState({ title: '', version: 'v1', summary: '', content: '' });
+  const [bugForm, setBugForm] = useState({ title: '', description: '', reproductionSteps: '', environment: 'UAT', severity: 'medium' as BugReport['severity'] });
+  const [releaseForm, setReleaseForm] = useState({ version: '', title: '', summary: '', changelog: '', environment: 'Production' });
 
   const content = useMemo(() => {
     switch (useCase.id) {
@@ -70,6 +86,37 @@ export function UseCasePage() {
               {commonStats.map((stat, index) => (
                 <StatCard key={stat.label} {...stat} icon={[Plus, Eye, Check][index]} />
               ))}
+            </section>
+            <section className="mt-6 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+              <div className="panel-card">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-slate-900">Security summary</h3>
+                  <Button variant="outline" onClick={() => store.fetchSecuritySummary()}>
+                    Refresh Summary
+                  </Button>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className="metric-tile">
+                    <span className="eyebrow">Session Timeout</span>
+                    <strong>{store.securitySummary?.session_timeout_minutes ?? 60} mins</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Reset Requests</span>
+                    <strong>{store.securitySummary?.password_reset_requests ?? 0}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Inactive Users</span>
+                    <strong>{store.securitySummary?.inactive_users ?? 0}</strong>
+                  </div>
+                </div>
+              </div>
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">Role governance snapshot</h3>
+                <div className="mt-6 space-y-3 text-sm text-slate-600">
+                  <p>Security settings and account controls now load from the backend instead of local mock state.</p>
+                  <p>Password reset, access governance, and user lifecycle checks are available through the accounts API.</p>
+                </div>
+              </div>
             </section>
             <section className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
               <DataEntryForm
@@ -408,27 +455,81 @@ export function UseCasePage() {
       case 'generate-financial-reports':
         return (
           <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <DataEntryForm
-              title="Generate a finance report"
-              description="Produce reporting output for a selected period."
-              onSubmit={(event) => {
-                event.preventDefault();
-                store.generateReport(reportForm.name || reportForm.period, firstGrant.grant_id, currentUserId, 'PDF');
-                setReportForm({ name: '', period: '' });
-              }}
-              actions={<Button type="submit">Generate Financial Reports</Button>}
-            >
-              <label className="form-group">
-                <span className="form-label">Report Name</span>
-                <input className="form-control" value={reportForm.name} onChange={(event) => setReportForm((state) => ({ ...state, name: event.target.value }))} />
-              </label>
-              <label className="form-group">
-                <span className="form-label">Period</span>
-                <input className="form-control" value={reportForm.period} onChange={(event) => setReportForm((state) => ({ ...state, period: event.target.value }))} />
-              </label>
-            </DataEntryForm>
+            <div className="space-y-6">
+              <DataEntryForm
+                title="Generate a finance report"
+                description="Produce reporting output for a selected period."
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  store.generateReport(reportForm.name || reportForm.period, firstGrant.grant_id, currentUserId, 'PDF');
+                  setReportForm({ name: '', period: '' });
+                }}
+                actions={<Button type="submit">Generate Financial Reports</Button>}
+              >
+                <label className="form-group">
+                  <span className="form-label">Report Name</span>
+                  <input className="form-control" value={reportForm.name} onChange={(event) => setReportForm((state) => ({ ...state, name: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Period</span>
+                  <input className="form-control" value={reportForm.period} onChange={(event) => setReportForm((state) => ({ ...state, period: event.target.value }))} />
+                </label>
+              </DataEntryForm>
+
+              <DataEntryForm
+                title="Schedule report delivery"
+                description="Set cadence, destination, and delivery path for repeating reports."
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  store.createReportSchedule({
+                    report_type: scheduleForm.reportType,
+                    grant: firstGrant?.grant_id ?? null,
+                    frequency: scheduleForm.frequency as ReportSchedule['frequency'],
+                    delivery_method: scheduleForm.deliveryMethod as ReportSchedule['delivery_method'],
+                    recipient_emails: scheduleForm.recipients,
+                    next_run_at: scheduleForm.nextRunAt || null,
+                  });
+                  setScheduleForm({ reportType: '', frequency: 'monthly', deliveryMethod: 'email', recipients: '', nextRunAt: '' });
+                }}
+                actions={<Button type="submit">Create Schedule</Button>}
+              >
+                <label className="form-group">
+                  <span className="form-label">Report Type</span>
+                  <input className="form-control" value={scheduleForm.reportType} onChange={(event) => setScheduleForm((state) => ({ ...state, reportType: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Frequency</span>
+                  <select className="form-control" value={scheduleForm.frequency} onChange={(event) => setScheduleForm((state) => ({ ...state, frequency: event.target.value }))}>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Delivery Method</span>
+                  <select className="form-control" value={scheduleForm.deliveryMethod} onChange={(event) => setScheduleForm((state) => ({ ...state, deliveryMethod: event.target.value }))}>
+                    <option value="email">Email</option>
+                    <option value="download">Download</option>
+                    <option value="archive">Archive</option>
+                  </select>
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Recipient Emails</span>
+                  <input className="form-control" value={scheduleForm.recipients} onChange={(event) => setScheduleForm((state) => ({ ...state, recipients: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Next Run At</span>
+                  <input className="form-control" type="datetime-local" value={scheduleForm.nextRunAt} onChange={(event) => setScheduleForm((state) => ({ ...state, nextRunAt: event.target.value }))} />
+                </label>
+              </DataEntryForm>
+            </div>
             <div className="panel-card">
-              <h3 className="text-xl font-bold text-slate-900">Generated reports</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-xl font-bold text-slate-900">Generated reports</h3>
+                <Button variant="outline" onClick={() => store.fetchAll()}>Refresh</Button>
+              </div>
               <div className="mt-6">
                 <DataTable
                   rows={store.reports}
@@ -438,8 +539,55 @@ export function UseCasePage() {
                     { key: 'generatedBy', header: 'Generated By', render: (row) => userName(row.generated_by_user_id) },
                     { key: 'format', header: 'Format', render: (row) => row.format },
                     { key: 'created', header: 'Created At', render: (row) => row.created_at },
+                    {
+                      key: 'deliver',
+                      header: 'Delivery',
+                      render: (row) => (
+                        <Button variant="outline" onClick={() => store.deliverReport(row.report_id, { destination: currentProfile.email, delivery_method: 'email' })}>
+                          Deliver
+                        </Button>
+                      ),
+                    },
                   ]}
                 />
+              </div>
+              <div className="mt-6 border-t border-slate-200 pt-6">
+                <h4 className="text-lg font-semibold text-slate-900">Scheduled report runs</h4>
+                <div className="mt-4">
+                  <DataTable
+                    rows={store.reportSchedules}
+                    columns={[
+                      { key: 'type', header: 'Report Type', render: (row) => row.report_type },
+                      { key: 'frequency', header: 'Frequency', render: (row) => row.frequency },
+                      { key: 'delivery', header: 'Delivery', render: (row) => row.delivery_method },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.is_active ? 'active' : 'pending'} /> },
+                      {
+                        key: 'actions',
+                        header: 'Actions',
+                        render: (row) => (
+                          <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => store.activateReportSchedule(row.id)}>Activate</Button>
+                            <Button variant="ghost" onClick={() => store.deactivateReportSchedule(row.id)}>Deactivate</Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+              <div className="mt-6 border-t border-slate-200 pt-6">
+                <h4 className="text-lg font-semibold text-slate-900">Delivered copies</h4>
+                <div className="mt-4">
+                  <DataTable
+                    rows={store.reportDeliveries}
+                    columns={[
+                      { key: 'report', header: 'Report', render: (row) => row.report },
+                      { key: 'destination', header: 'Destination', render: (row) => row.destination },
+                      { key: 'method', header: 'Method', render: (row) => row.delivery_method },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
           </section>
@@ -599,6 +747,60 @@ export function UseCasePage() {
                   { label: 'Audit', value: 91 },
                 ]}
               />
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">Process documents</h3>
+                <div className="mt-6">
+                  <DataEntryForm
+                    title="Create or update a process document"
+                    description="Capture the process narrative, version, and editable content."
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      store.createProcessDocument(documentForm);
+                      setDocumentForm({ title: '', version: 'v1', summary: '', content: '' });
+                    }}
+                    actions={<Button type="submit">Save Document</Button>}
+                  >
+                    <label className="form-group">
+                      <span className="form-label">Title</span>
+                      <input className="form-control" value={documentForm.title} onChange={(event) => setDocumentForm((state) => ({ ...state, title: event.target.value }))} />
+                    </label>
+                    <label className="form-group">
+                      <span className="form-label">Version</span>
+                      <input className="form-control" value={documentForm.version} onChange={(event) => setDocumentForm((state) => ({ ...state, version: event.target.value }))} />
+                    </label>
+                    <label className="form-group">
+                      <span className="form-label">Summary</span>
+                      <input className="form-control" value={documentForm.summary} onChange={(event) => setDocumentForm((state) => ({ ...state, summary: event.target.value }))} />
+                    </label>
+                    <label className="form-group">
+                      <span className="form-label">Content</span>
+                      <textarea className="form-control min-h-36" value={documentForm.content} onChange={(event) => setDocumentForm((state) => ({ ...state, content: event.target.value }))} />
+                    </label>
+                  </DataEntryForm>
+                </div>
+                <div className="mt-6">
+                  <DataTable
+                    rows={store.processDocuments}
+                    columns={[
+                      { key: 'title', header: 'Title', render: (row) => row.title },
+                      { key: 'version', header: 'Version', render: (row) => row.version },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                      {
+                        key: 'actions',
+                        header: 'Actions',
+                        render: (row) => (
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" onClick={() => store.submitProcessDocumentForReview(row.id)}>Submit</Button>
+                            <Button variant="outline" onClick={() => store.approveProcessDocument(row.id)}>Approve</Button>
+                            <Button variant="outline" onClick={() => store.publishProcessDocument(row.id)}>Publish</Button>
+                            <Button variant="ghost" onClick={() => store.rejectProcessDocument(row.id)}>Reject</Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
             </div>
           </section>
         );
@@ -612,6 +814,175 @@ export function UseCasePage() {
                   <h3 className="text-xl font-bold text-slate-900">Test case management</h3>
                   <Button variant="outline" icon={Bug}>Open Bug Board</Button>
                 </div>
+                <div className="mt-6">
+                  <DataTable
+                    rows={store.bugReports}
+                    columns={[
+                      { key: 'title', header: 'Bug', render: (row) => row.title },
+                      { key: 'environment', header: 'Environment', render: (row) => row.environment },
+                      { key: 'severity', header: 'Severity', render: (row) => <StatusBadge label={row.severity} /> },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                      {
+                        key: 'actions',
+                        header: 'Actions',
+                        render: (row) => (
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" onClick={() => store.triageBugReport(row.id)}>Triage</Button>
+                            <Button variant="outline" onClick={() => store.startBugReport(row.id)}>Start</Button>
+                            <Button variant="outline" onClick={() => store.resolveBugReport(row.id)}>Resolve</Button>
+                            <Button variant="ghost" onClick={() => store.closeBugReport(row.id)}>Close</Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+              <AreaMetricChart
+                title="Validation Status"
+                data={[
+                  { label: 'Unit', value: 92 },
+                  { label: 'Flow', value: 84 },
+                  { label: 'UAT', value: 71 },
+                  { label: 'Release', value: 63 },
+                ]}
+              />
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">Release notes</h3>
+                <div className="mt-6">
+                  <DataEntryForm
+                    title="Create release note"
+                    description="Capture the release summary and deployment changelog."
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      store.createReleaseNote(releaseForm);
+                      setReleaseForm({ version: '', title: '', summary: '', changelog: '', environment: 'Production' });
+                    }}
+                    actions={<Button type="submit">Save Release Note</Button>}
+                  >
+                    <label className="form-group">
+                      <span className="form-label">Version</span>
+                      <input className="form-control" value={releaseForm.version} onChange={(event) => setReleaseForm((state) => ({ ...state, version: event.target.value }))} />
+                    </label>
+                    <label className="form-group">
+                      <span className="form-label">Title</span>
+                      <input className="form-control" value={releaseForm.title} onChange={(event) => setReleaseForm((state) => ({ ...state, title: event.target.value }))} />
+                    </label>
+                    <label className="form-group">
+                      <span className="form-label">Summary</span>
+                      <input className="form-control" value={releaseForm.summary} onChange={(event) => setReleaseForm((state) => ({ ...state, summary: event.target.value }))} />
+                    </label>
+                    <label className="form-group">
+                      <span className="form-label">Changelog</span>
+                      <textarea className="form-control min-h-28" value={releaseForm.changelog} onChange={(event) => setReleaseForm((state) => ({ ...state, changelog: event.target.value }))} />
+                    </label>
+                  </DataEntryForm>
+                </div>
+                <div className="mt-6">
+                  <DataTable
+                    rows={store.releaseNotes}
+                    columns={[
+                      { key: 'version', header: 'Version', render: (row) => row.version },
+                      { key: 'title', header: 'Title', render: (row) => row.title },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                      {
+                        key: 'actions',
+                        header: 'Actions',
+                        render: (row) => (
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" onClick={() => store.publishReleaseNote(row.id)}>Publish</Button>
+                            <Button variant="ghost" onClick={() => store.archiveReleaseNote(row.id)}>Archive</Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <DataEntryForm
+                title="Capture UAT feedback"
+                description="Record testing feedback against an environment and keep release readiness traceable."
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  store.createAuditLog({
+                    user_id: currentUserId,
+                    action_type: 'UAT_FEEDBACK_CAPTURED',
+                    target_entity_id: currentUserId,
+                    target_entity_type: 'testing_validation',
+                    ip_address: '192.168.1.71',
+                    details: `${testingForm.testCase || 'A test case'} feedback captured for ${testingForm.environment}.`,
+                  });
+                  setTestingForm({ testCase: '', environment: 'Staging', feedback: '' });
+                }}
+                actions={<Button type="submit" icon={ClipboardCheck}>Submit Feedback</Button>}
+              >
+                <label className="form-group">
+                  <span className="form-label">Test Case</span>
+                  <input className="form-control" value={testingForm.testCase} onChange={(event) => setTestingForm((state) => ({ ...state, testCase: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Environment</span>
+                  <select className="form-control" value={testingForm.environment} onChange={(event) => setTestingForm((state) => ({ ...state, environment: event.target.value }))}>
+                    <option>Staging</option>
+                    <option>UAT</option>
+                    <option>Pre-release</option>
+                    <option>Production Smoke</option>
+                  </select>
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Feedback</span>
+                  <textarea className="form-control min-h-32" value={testingForm.feedback} onChange={(event) => setTestingForm((state) => ({ ...state, feedback: event.target.value }))} />
+                </label>
+              </DataEntryForm>
+
+              <DataEntryForm
+                title="Log a bug report"
+                description="Capture a defect, its environment, and the evidence needed for triage."
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  store.createBugReport({
+                    title: bugForm.title,
+                    description: bugForm.description,
+                    reproduction_steps: bugForm.reproductionSteps,
+                    environment: bugForm.environment,
+                    severity: bugForm.severity,
+                  });
+                  setBugForm({ title: '', description: '', reproductionSteps: '', environment: 'UAT', severity: 'medium' });
+                }}
+                actions={<Button type="submit">Create Bug Report</Button>}
+              >
+                <label className="form-group">
+                  <span className="form-label">Title</span>
+                  <input className="form-control" value={bugForm.title} onChange={(event) => setBugForm((state) => ({ ...state, title: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Environment</span>
+                  <input className="form-control" value={bugForm.environment} onChange={(event) => setBugForm((state) => ({ ...state, environment: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Severity</span>
+                  <select className="form-control" value={bugForm.severity} onChange={(event) => setBugForm((state) => ({ ...state, severity: event.target.value as BugReport['severity'] }))}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Description</span>
+                  <textarea className="form-control min-h-28" value={bugForm.description} onChange={(event) => setBugForm((state) => ({ ...state, description: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Reproduction Steps</span>
+                  <textarea className="form-control min-h-28" value={bugForm.reproductionSteps} onChange={(event) => setBugForm((state) => ({ ...state, reproductionSteps: event.target.value }))} />
+                </label>
+              </DataEntryForm>
+
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">Active test cases</h3>
                 <div className="mt-6">
                   <DataTable
                     rows={[
@@ -628,52 +999,7 @@ export function UseCasePage() {
                   />
                 </div>
               </div>
-              <AreaMetricChart
-                title="Validation Status"
-                data={[
-                  { label: 'Unit', value: 92 },
-                  { label: 'Flow', value: 84 },
-                  { label: 'UAT', value: 71 },
-                  { label: 'Release', value: 63 },
-                ]}
-              />
             </div>
-
-            <DataEntryForm
-              title="Capture UAT feedback"
-              description="Record testing feedback against an environment and keep release readiness traceable."
-              onSubmit={(event) => {
-                event.preventDefault();
-                store.createAuditLog({
-                  user_id: currentUserId,
-                  action_type: 'UAT_FEEDBACK_CAPTURED',
-                  target_entity_id: currentUserId,
-                  target_entity_type: 'testing_validation',
-                  ip_address: '192.168.1.71',
-                  details: `${testingForm.testCase || 'A test case'} feedback captured for ${testingForm.environment}.`,
-                });
-                setTestingForm({ testCase: '', environment: 'Staging', feedback: '' });
-              }}
-              actions={<Button type="submit" icon={ClipboardCheck}>Submit Feedback</Button>}
-            >
-              <label className="form-group">
-                <span className="form-label">Test Case</span>
-                <input className="form-control" value={testingForm.testCase} onChange={(event) => setTestingForm((state) => ({ ...state, testCase: event.target.value }))} />
-              </label>
-              <label className="form-group">
-                <span className="form-label">Environment</span>
-                <select className="form-control" value={testingForm.environment} onChange={(event) => setTestingForm((state) => ({ ...state, environment: event.target.value }))}>
-                  <option>Staging</option>
-                  <option>UAT</option>
-                  <option>Pre-release</option>
-                  <option>Production Smoke</option>
-                </select>
-              </label>
-              <label className="form-group">
-                <span className="form-label">Feedback</span>
-                <textarea className="form-control min-h-32" value={testingForm.feedback} onChange={(event) => setTestingForm((state) => ({ ...state, feedback: event.target.value }))} />
-              </label>
-            </DataEntryForm>
           </section>
         );
 
@@ -682,30 +1008,82 @@ export function UseCasePage() {
 
       case 'review-budget-requests':
         return (
-          <div className="panel-card">
-            <h3 className="text-xl font-bold text-slate-900">Budget request queue</h3>
-            <div className="mt-6">
-              <DataTable
-                rows={store.requisitions}
-                columns={[
-                  { key: 'project', header: 'Budget Line', render: (row) => budgetLineName(row.budget_line_id) },
-                  { key: 'requester', header: 'Requester', render: (row) => userName(row.submitted_by_user_id) },
-                  { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
-                  { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
-                  {
-                    key: 'actions',
-                    header: 'Actions',
-                    render: (row) => (
-                      <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => store.approveRequisition(row.requisition_id)}>Approve</Button>
-                        <Button variant="ghost" onClick={() => store.rejectRequisition(row.requisition_id, 'Rejected during budget review')}>Reject</Button>
-                      </div>
-                    ),
-                  },
-                ]}
-              />
+          <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+            <DataEntryForm
+              title="Request budget reallocation"
+              description="Move value between budget lines while keeping approvals traceable."
+              onSubmit={(event) => {
+                event.preventDefault();
+                store.createReallocationRequest({
+                  source_budget_line: Number(reallocationForm.source || (firstBudgetLine?.budget_line_id ?? 0)),
+                  target_budget_line: Number(reallocationForm.target || (firstBudgetLine?.budget_line_id ?? 0)),
+                  amount: Number(reallocationForm.amount),
+                  reason: reallocationForm.reason,
+                });
+                setReallocationForm({ source: '', target: '', amount: '0', reason: '' });
+              }}
+              actions={<Button type="submit">Submit Reallocation</Button>}
+            >
+              <label className="form-group">
+                <span className="form-label">Source Budget Line ID</span>
+                <input className="form-control" value={reallocationForm.source} onChange={(event) => setReallocationForm((state) => ({ ...state, source: event.target.value }))} />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Target Budget Line ID</span>
+                <input className="form-control" value={reallocationForm.target} onChange={(event) => setReallocationForm((state) => ({ ...state, target: event.target.value }))} />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Amount</span>
+                <input className="form-control" type="number" value={reallocationForm.amount} onChange={(event) => setReallocationForm((state) => ({ ...state, amount: event.target.value }))} />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Reason</span>
+                <textarea className="form-control min-h-28" value={reallocationForm.reason} onChange={(event) => setReallocationForm((state) => ({ ...state, reason: event.target.value }))} />
+              </label>
+            </DataEntryForm>
+
+            <div className="panel-card">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-xl font-bold text-slate-900">Budget request queue</h3>
+                <Button variant="outline" onClick={() => store.fetchAll()}>Refresh</Button>
+              </div>
+              <div className="mt-6">
+                <DataTable
+                  rows={store.reallocationRequests}
+                  columns={[
+                    { key: 'source', header: 'Source', render: (row) => budgetLineName(row.source_budget_line) },
+                    { key: 'target', header: 'Target', render: (row) => budgetLineName(row.target_budget_line) },
+                    { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
+                    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                    {
+                      key: 'actions',
+                      header: 'Actions',
+                      render: (row) => (
+                        <div className="flex gap-2">
+                          <Button variant="outline" onClick={() => store.approveReallocationRequest(row.id)}>Approve</Button>
+                          <Button variant="ghost" onClick={() => store.rejectReallocationRequest(row.id)}>Reject</Button>
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
+              </div>
+              <div className="mt-6 border-t border-slate-200 pt-6">
+                <h4 className="text-lg font-semibold text-slate-900">Expense requisitions</h4>
+                <div className="mt-4">
+                  <DataTable
+                    rows={store.requisitions}
+                    columns={[
+                      { key: 'project', header: 'Budget Line', render: (row) => budgetLineName(row.budget_line_id) },
+                      { key: 'requester', header: 'Requester', render: (row) => userName(row.submitted_by_user_id) },
+                      { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                    ]}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
         );
 
       case 'monitor-project-budget':
@@ -738,30 +1116,93 @@ export function UseCasePage() {
 
       case 'final-approve-requisitions':
         return (
-          <div className="panel-card">
-            <h3 className="text-xl font-bold text-slate-900">Requisition board</h3>
-            <div className="mt-6">
-              <DataTable
-                  rows={store.requisitions}
-                  columns={[
-                  { key: 'title', header: 'Description', render: (row) => row.description },
-                  { key: 'owner', header: 'Submitted By', render: (row) => userName(row.submitted_by_user_id) },
-                  { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
-                  { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
-                  {
-                    key: 'approve',
-                    header: 'Decision',
-                    render: (row) =>
-                      row.status === 'pending' ? (
-                        <Button onClick={() => store.approveRequisition(row.requisition_id)}>Final Approve Requisitions</Button>
-                      ) : (
-                        <Button variant="ghost" icon={Check} />
-                      ),
-                  },
-                ]}
-              />
+          <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+            <DataEntryForm
+              title="Submit expense approval"
+              description="Create a workflow record that routes a requisition through approval stages."
+              onSubmit={(event) => {
+                event.preventDefault();
+                store.createExpenseApproval({
+                  requisition: Number(expenseForm.requisition || (store.requisitions[0]?.requisition_id ?? 0)),
+                  notes: expenseForm.notes,
+                });
+                setExpenseForm({ requisition: '', notes: '', decisionReason: '' });
+              }}
+              actions={<Button type="submit">Create Expense Approval</Button>}
+            >
+              <label className="form-group">
+                <span className="form-label">Requisition ID</span>
+                <input className="form-control" value={expenseForm.requisition} onChange={(event) => setExpenseForm((state) => ({ ...state, requisition: event.target.value }))} />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Notes</span>
+                <textarea className="form-control min-h-28" value={expenseForm.notes} onChange={(event) => setExpenseForm((state) => ({ ...state, notes: event.target.value }))} />
+              </label>
+            </DataEntryForm>
+
+            <div className="panel-card space-y-8">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Requisition board</h3>
+                <div className="mt-6">
+                  <DataTable
+                    rows={store.requisitions}
+                    columns={[
+                      { key: 'title', header: 'Description', render: (row) => row.description },
+                      { key: 'owner', header: 'Submitted By', render: (row) => userName(row.submitted_by_user_id) },
+                      { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                      {
+                        key: 'approve',
+                        header: 'Decision',
+                        render: (row) =>
+                          row.status === 'pending' ? (
+                            <Button onClick={() => store.approveRequisition(row.requisition_id)}>Final Approve Requisitions</Button>
+                          ) : (
+                            <Button variant="ghost" icon={Check} />
+                          ),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-slate-900">Expense approval chain</h3>
+                  <Button variant="outline" onClick={() => store.fetchAll()}>Refresh</Button>
+                </div>
+                <div className="mt-6">
+                  <DataTable
+                    rows={store.expenseApprovals}
+                    columns={[
+                      { key: 'req', header: 'Requisition', render: (row) => row.requisition },
+                      { key: 'stage', header: 'Stage', render: (row) => <StatusBadge label={row.stage} /> },
+                      { key: 'notes', header: 'Notes', render: (row) => row.notes || '-' },
+                      {
+                        key: 'actions',
+                        header: 'Actions',
+                        render: (row) => (
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" onClick={() => store.advanceExpenseApproval(row.id, 'department-review')}>Dept Review</Button>
+                            <Button variant="outline" onClick={() => store.advanceExpenseApproval(row.id, 'finance-review')}>Finance Review</Button>
+                            <Button variant="outline" onClick={() => store.advanceExpenseApproval(row.id, 'executive-review')}>Executive Review</Button>
+                            <Button onClick={() => store.approveExpenseApproval(row.id, expenseForm.notes || 'Approved')}>Approve</Button>
+                            <Button variant="ghost" onClick={() => store.rejectExpenseApproval(row.id, expenseForm.decisionReason || 'Rejected during approval chain')}>Reject</Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+                <div className="mt-4">
+                  <label className="form-group">
+                    <span className="form-label">Decision Reason</span>
+                    <input className="form-control" value={expenseForm.decisionReason} onChange={(event) => setExpenseForm((state) => ({ ...state, decisionReason: event.target.value }))} />
+                  </label>
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
         );
 
       case 'view-strategic-dashboard':
@@ -833,25 +1274,84 @@ export function UseCasePage() {
 
       case 'access-donor-portal':
         return (
-          <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <div className="panel-card">
-              <h3 className="text-xl font-bold text-slate-900">Donor experience summary</h3>
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div className="metric-tile">
-                  <span className="eyebrow">Lifetime Giving</span>
-                  <strong>{currency.format(store.transactions.reduce((sum, transaction) => sum + transaction.amount, 0))}</strong>
+          <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="space-y-6">
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">Donor experience summary</h3>
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div className="metric-tile">
+                    <span className="eyebrow">Lifetime Giving</span>
+                    <strong>{currency.format(store.transactions.reduce((sum, transaction) => sum + transaction.amount, 0))}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Active Projects</span>
+                    <strong>{store.projects.length} supported programs</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Receipts Ready</span>
+                    <strong>{store.transactions.length} tax receipts</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Impact Updates</span>
+                    <strong>2 new stories</strong>
+                  </div>
                 </div>
-                <div className="metric-tile">
-                  <span className="eyebrow">Active Projects</span>
-                  <strong>{store.projects.length} supported programs</strong>
+              </div>
+              <div className="panel-card">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-slate-900">Engagement summary</h3>
+                  <Button
+                    variant="outline"
+                    disabled={!firstDonor}
+                    onClick={async () => {
+                      if (!firstDonor) {
+                        return;
+                      }
+                      setDonorEngagement(await store.fetchDonorEngagementSummary(firstDonor.donor_id));
+                    }}
+                  >
+                    Load Summary
+                  </Button>
                 </div>
-                <div className="metric-tile">
-                  <span className="eyebrow">Receipts Ready</span>
-                  <strong>{store.transactions.length} tax receipts</strong>
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className="metric-tile">
+                    <span className="eyebrow">Communication Count</span>
+                    <strong>{donorEngagement?.communication_count ?? 0}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Last Contact</span>
+                    <strong>{donorEngagement?.last_contact_date ?? 'None'}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Channels</span>
+                    <strong>{donorEngagement?.channels.length ?? 0}</strong>
+                  </div>
                 </div>
-                <div className="metric-tile">
-                  <span className="eyebrow">Impact Updates</span>
-                  <strong>2 new stories</strong>
+                <div className="mt-4 text-sm text-slate-600">
+                  {donorEngagement?.last_contact_subject ? `Latest subject: ${donorEngagement.last_contact_subject}` : 'Load a donor summary to inspect acknowledgement history.'}
+                </div>
+              </div>
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">Acknowledgment action</h3>
+                <div className="mt-4 text-sm text-slate-600">
+                  Trigger the donor acknowledgment endpoint for the selected donor record.
+                </div>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Button
+                    disabled={!firstDonor}
+                    onClick={async () => {
+                      if (!firstDonor) {
+                        return;
+                      }
+                      await store.acknowledgeDonor(firstDonor.donor_id, {
+                        channel: 'email',
+                        subject: 'Thank you for your support',
+                      });
+                      setDonorEngagement(await store.fetchDonorEngagementSummary(firstDonor.donor_id));
+                    }}
+                  >
+                    Send Acknowledgment
+                  </Button>
                 </div>
               </div>
             </div>
@@ -899,6 +1399,7 @@ export function UseCasePage() {
     commonStats,
     currentProfile.actor,
     currentProfile.name,
+    currentProfile.email,
     settingDrafts,
     store,
     useCase.id,
@@ -918,6 +1419,33 @@ export function UseCasePage() {
     reportForm.period,
     auditForm.action,
     auditForm.source,
+    donorEngagement,
+    reallocationForm.amount,
+    reallocationForm.reason,
+    reallocationForm.source,
+    reallocationForm.target,
+    expenseForm.decisionReason,
+    expenseForm.notes,
+    expenseForm.requisition,
+    scheduleForm.deliveryMethod,
+    scheduleForm.frequency,
+    scheduleForm.nextRunAt,
+    scheduleForm.recipients,
+    scheduleForm.reportType,
+    documentForm.content,
+    documentForm.summary,
+    documentForm.title,
+    documentForm.version,
+    bugForm.description,
+    bugForm.environment,
+    bugForm.reproductionSteps,
+    bugForm.severity,
+    bugForm.title,
+    releaseForm.changelog,
+    releaseForm.environment,
+    releaseForm.summary,
+    releaseForm.title,
+    releaseForm.version,
   ]);
 
   return <><AppHeader title={useCase.title} summary={useCase.summary} />{content}</>;
