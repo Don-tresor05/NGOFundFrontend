@@ -159,6 +159,30 @@ export interface Requisition {
   created_at: string;
 }
 
+export interface SecuritySummary {
+  session_timeout_minutes: number;
+  password_reset_requests: number;
+  inactive_users: number;
+}
+
+export interface PasswordResetRequestRecord {
+  id: number;
+  user: number;
+  token: string;
+  expires_at: string;
+  is_used: boolean;
+  used_at: string | null;
+  created_at: string;
+}
+
+export interface DonorEngagementSummary {
+  donor_id: number;
+  communication_count: number;
+  last_contact_date: string | null;
+  last_contact_subject: string | null;
+  channels: string[];
+}
+
 export interface ComplianceItem {
   id: string;
   title: string;
@@ -257,5 +281,96 @@ export interface Report {
   generated_by_user_id: number;
   file_url: string | null;
   format: 'PDF' | 'Excel' | 'CSV';
+  created_at: string;
+}
+
+export interface ReallocationRequest {
+  id: number;
+  source_budget_line: number;
+  target_budget_line: number;
+  requested_by: number;
+  amount: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by: number | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface ExpenseApproval {
+  id: number;
+  requisition: number;
+  requested_by: number;
+  reviewed_by: number | null;
+  stage: 'submitted' | 'department_review' | 'finance_review' | 'executive_review' | 'approved' | 'rejected';
+  notes: string;
+  decision_reason: string;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface ReportSchedule {
+  id: number;
+  report_type: string;
+  grant: number | null;
+  created_by: number;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'custom';
+  delivery_method: 'email' | 'download' | 'archive';
+  recipient_emails: string;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ReportDelivery {
+  id: number;
+  report: number;
+  created_by: number;
+  delivery_method: string;
+  destination: string;
+  status: 'queued' | 'sent' | 'failed';
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface ProcessDocument {
+  id: number;
+  title: string;
+  version: string;
+  summary: string;
+  content: string;
+  created_by: number;
+  approved_by: number | null;
+  status: 'draft' | 'in_review' | 'approved' | 'rejected' | 'published';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BugReport {
+  id: number;
+  reported_by: number;
+  assigned_to: number | null;
+  title: string;
+  description: string;
+  reproduction_steps: string;
+  environment: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  status: 'open' | 'triaged' | 'in_progress' | 'resolved' | 'closed';
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface ReleaseNote {
+  id: number;
+  version: string;
+  title: string;
+  summary: string;
+  changelog: string;
+  environment: string;
+  created_by: number;
+  published_by: number | null;
+  status: 'draft' | 'published' | 'archived';
+  published_at: string | null;
   created_at: string;
 }
