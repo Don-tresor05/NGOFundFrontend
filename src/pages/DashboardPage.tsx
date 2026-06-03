@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { AppHeader, HighlightedText, StatCard } from '../components';
 import { AreaMetricChart, BarMetricChart, PieMetricChart } from '../components/charts';
 import { ACTORS, PLATFORM_MODULES, USE_CASES } from '../constants/appModel';
+import { useAppDataStore } from '../store/appDataStore';
 import { useAuthStore } from '../store/authStore';
 import { DashboardStat } from '../types';
 
@@ -18,6 +19,9 @@ const dashboardIcons = [Shield, Coins, BarChart3, Activity, UserRoundCog, Landma
 
 export function DashboardPage() {
   const currentProfile = useAuthStore((state) => state.currentProfile);
+  const dataReady = useAppDataStore((state) => state.dataReady);
+  const systemSettingsSummary = useAppDataStore((state) => state.systemSettingsSummary);
+  const donorEngagementDashboard = useAppDataStore((state) => state.donorEngagementDashboard);
 
   if (!currentProfile) {
     return null;
@@ -29,12 +33,40 @@ export function DashboardPage() {
     ...module,
     useCases: actorUseCases.filter((useCase) => useCase.moduleId === module.id),
   })).filter((module) => module.useCases.length > 0);
+  const activeApprovals =
+    useAppDataStore((state) => state.requisitions.filter((item) => item.status === 'pending').length) +
+    useAppDataStore((state) => state.expenseApprovals.filter((item) => item.stage !== 'approved' && item.stage !== 'rejected').length) +
+    useAppDataStore((state) => state.reallocationRequests.filter((item) => item.status === 'pending').length);
+  const outstandingAlerts =
+    useAppDataStore((state) => state.bugReports.filter((item) => item.status !== 'closed').length) +
+    useAppDataStore((state) => state.complianceItems.filter((item) => !item.verified).length) +
+    useAppDataStore((state) => state.notifications.filter((item) => !item.is_read).length);
+  const workflowDistribution = [
+    {
+      label: 'Approvals',
+      value:
+        useAppDataStore((state) => state.requisitions.filter((item) => item.status === 'pending').length) +
+        useAppDataStore((state) => state.expenseApprovals.filter((item) => item.stage !== 'approved' && item.stage !== 'rejected').length),
+    },
+    {
+      label: 'Monitoring',
+      value: useAppDataStore((state) => state.budgetLines.length + state.complianceItems.filter((item) => !item.verified).length),
+    },
+    {
+      label: 'Reporting',
+      value: useAppDataStore((state) => state.reports.length + state.reportSchedules.length + state.reportDeliveries.length),
+    },
+    {
+      label: 'Governance',
+      value: useAppDataStore((state) => state.users.length + state.notifications.length),
+    },
+  ];
 
   const stats: DashboardStat[] = [
     { label: 'Role Modules', value: String(actorModules.length), trend: 'Module access mapped by role', trendDirection: 'up' },
     { label: 'Role Workflows', value: String(actorUseCases.length), trend: 'Use cases grouped under modules', trendDirection: 'up' },
-    { label: 'Active Approvals', value: '12', trend: '3 escalated this morning', trendDirection: 'neutral' },
-    { label: 'Outstanding Alerts', value: '3', trend: 'Critical items visible', trendDirection: 'down' },
+    { label: 'Active Approvals', value: String(activeApprovals), trend: dataReady ? 'Live workflow queue from backend data' : 'Waiting on backend sync', trendDirection: 'neutral' },
+    { label: 'Outstanding Alerts', value: String(outstandingAlerts), trend: 'Open issues and unread notices', trendDirection: 'down' },
   ];
 
   return (
@@ -51,22 +83,26 @@ export function DashboardPage() {
       <section className="mt-6 grid gap-6 xl:grid-cols-2">
         <AreaMetricChart
           title="Funding Rhythm"
-          data={[
-            { label: 'Jan', value: 18 },
-            { label: 'Feb', value: 24 },
-            { label: 'Mar', value: 29 },
-            { label: 'Apr', value: 34 },
-            { label: 'May', value: 31 },
-          ]}
+          data={Array.from({ length: 5 }, (_, index) => {
+            const monthDate = new Date();
+            monthDate.setMonth(monthDate.getMonth() - (4 - index));
+            const label = monthDate.toLocaleString('en-US', { month: 'short' });
+            const total = useAppDataStore
+              .getState()
+              .transactions.filter((transaction) => {
+                const date = new Date(`${transaction.transaction_date}T00:00:00`);
+                return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
+              })
+              .reduce((sum, transaction) => sum + transaction.amount, 0);
+            return { label, value: Math.round(total / 1000) };
+          })}
         />
         <PieMetricChart
           title="Workflow Distribution"
-          data={[
-            { label: 'Approvals', value: 34, color: '#f59e0b' },
-            { label: 'Monitoring', value: 28, color: '#1f6f78' },
-            { label: 'Reporting', value: 20, color: '#4caf50' },
-            { label: 'Profile', value: 18, color: '#ef4444' },
-          ]}
+          data={workflowDistribution.map((item, index) => ({
+            ...item,
+            color: ['#f59e0b', '#1f6f78', '#4caf50', '#ef4444'][index],
+          }))}
         />
       </section>
 
@@ -109,6 +145,81 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {(systemSettingsSummary || donorEngagementDashboard) && (
+        <section className="mt-6 grid gap-6 xl:grid-cols-2">
+          {systemSettingsSummary && (
+            <div className="panel-card">
+              <h3 className="text-lg font-bold text-slate-900">
+                <HighlightedText text="Governance Summary" />
+              </h3>
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
+                <div className="metric-tile">
+                  <span className="eyebrow">Settings</span>
+                  <strong>{systemSettingsSummary.total}</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Session Timeout</span>
+                  <strong>{systemSettingsSummary.access_timeout_minutes} mins</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Groups</span>
+                  <strong>{Object.keys(systemSettingsSummary.groups).length}</strong>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {Object.entries(systemSettingsSummary.groups).map(([group, count]) => (
+                  <div key={group} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.24em] text-slate-500">{group}</div>
+                    <div className="mt-2 text-2xl font-bold text-slate-900">{count}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {donorEngagementDashboard && (
+            <div className="panel-card">
+              <h3 className="text-lg font-bold text-slate-900">
+                <HighlightedText text="Donor Engagement" />
+              </h3>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="metric-tile">
+                  <span className="eyebrow">Total Donors</span>
+                  <strong>{donorEngagementDashboard.total_donors}</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Communications</span>
+                  <strong>{donorEngagementDashboard.total_communications}</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Active</span>
+                  <strong>{donorEngagementDashboard.active_donors}</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Inactive</span>
+                  <strong>{donorEngagementDashboard.inactive_donors}</strong>
+                </div>
+              </div>
+              <div className="mt-5 space-y-3">
+                {donorEngagementDashboard.top_donors.map((donor) => (
+                  <div key={donor.donor_id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div>
+                      <div className="font-semibold text-slate-900">{donor.organization_name}</div>
+                      <div className="text-sm text-slate-500">
+                        {donor.communication_count} communications · Last contact {donor.last_contact_date ?? 'none'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Engagement</div>
+                      <div className="text-xl font-bold text-slate-900">{donor.engagement_score}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
     </>
   );
 }
