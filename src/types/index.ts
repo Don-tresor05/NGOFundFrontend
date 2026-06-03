@@ -177,10 +177,43 @@ export interface PasswordResetRequestRecord {
 
 export interface DonorEngagementSummary {
   donor_id: number;
+  organization_name?: string;
+  status?: 'active' | 'inactive';
   communication_count: number;
   last_contact_date: string | null;
   last_contact_subject: string | null;
   channels: string[];
+  recent_communications?: Array<{
+    id: number;
+    channel: string;
+    subject: string;
+    message: string;
+    communication_date: string;
+  }>;
+  engagement_score?: number;
+  next_action?: string;
+}
+
+export interface DonorEngagementDashboard {
+  total_donors: number;
+  active_donors: number;
+  inactive_donors: number;
+  total_communications: number;
+  channel_totals: Record<string, number>;
+  top_donors: Array<{
+    donor_id: number;
+    organization_name: string;
+    status: 'active' | 'inactive';
+    communication_count: number;
+    last_contact_date: string | null;
+    engagement_score: number;
+  }>;
+}
+
+export interface SystemSettingsSummary {
+  total: number;
+  groups: Record<string, number>;
+  access_timeout_minutes: number;
 }
 
 export interface ComplianceItem {
@@ -188,6 +221,38 @@ export interface ComplianceItem {
   title: string;
   owner: string;
   verified: boolean;
+}
+
+export interface StaffRequirement {
+  id: number;
+  captured_by: number;
+  interviewee_name: string;
+  process_area: string;
+  feedback: string;
+  validation_status: 'pending' | 'in_review' | 'approved' | 'rejected';
+  signed_off_by: number | null;
+  signed_off_at: string | null;
+  created_at: string;
+}
+
+export interface TestCase {
+  id: number;
+  created_by: number;
+  title: string;
+  scenario: string;
+  environment: string;
+  status: 'todo' | 'in_progress' | 'in_review' | 'approved' | 'rejected';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  created_at: string;
+}
+
+export interface UATFeedback {
+  id: number;
+  test_case: number;
+  submitted_by: number;
+  feedback: string;
+  status: 'open' | 'in_review' | 'resolved' | 'closed';
+  created_at: string;
 }
 
 export interface User {
