@@ -15,6 +15,7 @@ import {
   ReportSchedule,
   Role,
   UseCaseId,
+  TestCase,
 } from '../types';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -52,11 +53,17 @@ export function UseCasePage() {
   const firstBudgetLine = store.budgetLines[0];
   const firstGrant = store.grants[0];
   const firstDonor = store.donors[0];
+  const staffRequirementTotal = store.staffRequirements.length;
+  const staffRequirementInReview = store.staffRequirements.filter((requirement) => requirement.validation_status === 'in_review').length;
+  const staffRequirementPending = store.staffRequirements.filter((requirement) => requirement.validation_status === 'pending').length;
+  const mappedProcessAreas = new Set(store.staffRequirements.map((requirement) => requirement.process_area.trim().toLowerCase()).filter(Boolean));
+  const openTestCaseCount = store.testCases.filter((testCase) => testCase.status !== 'approved' && testCase.status !== 'rejected').length;
+  const uatOpenCount = store.uatFeedback.filter((feedback) => feedback.status !== 'closed').length;
 
   const commonStats: DashboardStat[] = [
     { label: 'Responsible Actor', value: actor?.shortLabel ?? 'Actor', trend: 'Directly mapped from diagram', trendDirection: 'up' },
-    { label: 'Workflow State', value: 'Live', trend: 'Connected to backend APIs', trendDirection: 'neutral' },
-    { label: 'Access Policy', value: 'Exact', trend: 'Use-case permissions enforced', trendDirection: 'up' },
+    { label: 'Workflow State', value: store.dataReady ? 'Backend synced' : 'Syncing', trend: 'Connected to backend APIs', trendDirection: 'neutral' },
+    { label: 'Access Policy', value: actor?.label ?? 'Role-aware', trend: 'Use-case permissions enforced', trendDirection: 'up' },
   ];
 
   const [userForm, setUserForm] = useState({ name: '', email: '', actor: 'field_staff' });
@@ -68,7 +75,8 @@ export function UseCasePage() {
   const [auditForm, setAuditForm] = useState({ action: '', source: '' });
   const [claimForm, setClaimForm] = useState({ category: '', amount: '0' });
   const [requirementForm, setRequirementForm] = useState({ interviewee: '', process: '', feedback: '' });
-  const [testingForm, setTestingForm] = useState({ testCase: '', environment: 'Staging', feedback: '' });
+  const [testCaseForm, setTestCaseForm] = useState({ title: '', scenario: '', environment: 'Staging', priority: 'medium' as TestCase['priority'] });
+  const [uatForm, setUatForm] = useState({ testCase: '', feedback: '' });
   const [donorEngagement, setDonorEngagement] = useState<DonorEngagementSummary | null>(null);
   const [reallocationForm, setReallocationForm] = useState({ source: '', target: '', amount: '0', reason: '' });
   const [expenseForm, setExpenseForm] = useState({ requisition: '', notes: '', decisionReason: '' });
@@ -173,7 +181,53 @@ export function UseCasePage() {
       case 'manage-system-settings':
         return (
           <>
-            <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <section className="grid gap-6 xl:grid-cols-2">
+              <div className="panel-card">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-slate-900">Governance overview</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => store.fetchSystemSettingsSummary()}>
+                      Refresh Summary
+                    </Button>
+                    <Button
+                      onClick={() =>
+                        store.bulkUpdateSettings(
+                          store.systemSettings.map((setting) => ({
+                            setting_key: setting.key,
+                            label: setting.label,
+                            setting_value: settingDrafts[setting.key] ?? setting.value,
+                            setting_group: setting.group,
+                          }))
+                        )
+                      }
+                    >
+                      Save All Settings
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className="metric-tile">
+                    <span className="eyebrow">Total Settings</span>
+                    <strong>{store.systemSettingsSummary?.total ?? store.systemSettings.length}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Session Timeout</span>
+                    <strong>{store.systemSettingsSummary?.access_timeout_minutes ?? 60} mins</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Groups</span>
+                    <strong>{Object.keys(store.systemSettingsSummary?.groups ?? {}).length}</strong>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  {Object.entries(store.systemSettingsSummary?.groups ?? {}).map(([group, count]) => (
+                    <div key={group} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-xs uppercase tracking-[0.24em] text-slate-500">{group}</div>
+                      <div className="mt-2 text-2xl font-bold text-slate-900">{count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="panel-card">
                 <h3 className="text-xl font-bold text-slate-900">Operational settings</h3>
                 <div className="mt-6 space-y-4">
@@ -275,6 +329,48 @@ export function UseCasePage() {
       case 'register-new-donor':
         return (
           <>
+            <section className="panel-card mb-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-xl font-bold text-slate-900">Donor engagement overview</h3>
+                <Button variant="outline" onClick={() => store.fetchDonorEngagementDashboard()}>
+                  Refresh Engagement Overview
+                </Button>
+              </div>
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
+                <div className="metric-tile">
+                  <span className="eyebrow">Total Donors</span>
+                  <strong>{store.donorEngagementDashboard?.total_donors ?? store.donors.length}</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Active Donors</span>
+                  <strong>{store.donorEngagementDashboard?.active_donors ?? store.donors.filter((donor) => donor.status === 'active').length}</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Communications</span>
+                  <strong>{store.donorEngagementDashboard?.total_communications ?? 0}</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Channels</span>
+                  <strong>{Object.keys(store.donorEngagementDashboard?.channel_totals ?? {}).length}</strong>
+                </div>
+              </div>
+              <div className="mt-5 space-y-3">
+                {(store.donorEngagementDashboard?.top_donors ?? []).map((donor) => (
+                  <div key={donor.donor_id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div>
+                      <div className="font-semibold text-slate-900">{donor.organization_name}</div>
+                      <div className="text-sm text-slate-500">
+                        {donor.communication_count} communications · last contact {donor.last_contact_date ?? 'none'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Engagement</div>
+                      <div className="text-xl font-bold text-slate-900">{donor.engagement_score}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
             <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
               <DataEntryForm
                 title="Register donor record"
@@ -579,16 +675,29 @@ export function UseCasePage() {
                 <h4 className="text-lg font-semibold text-slate-900">Delivered copies</h4>
                 <div className="mt-4">
                   <DataTable
-                    rows={store.reportDeliveries}
-                    columns={[
-                      { key: 'report', header: 'Report', render: (row) => row.report },
-                      { key: 'destination', header: 'Destination', render: (row) => row.destination },
-                      { key: 'method', header: 'Method', render: (row) => row.delivery_method },
-                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
-                    ]}
-                  />
-                </div>
+                  rows={store.reportDeliveries}
+                  columns={[
+                    { key: 'report', header: 'Report', render: (row) => row.report },
+                    { key: 'destination', header: 'Destination', render: (row) => row.destination },
+                    { key: 'method', header: 'Method', render: (row) => row.delivery_method },
+                    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                    {
+                      key: 'dispatch',
+                      header: 'Dispatch',
+                      render: (row) => (
+                        <Button
+                          variant="outline"
+                          disabled={row.status === 'sent'}
+                          onClick={() => store.dispatchReportDelivery(row.id)}
+                        >
+                          Dispatch
+                        </Button>
+                      ),
+                    },
+                  ]}
+                />
               </div>
+            </div>
             </div>
           </section>
         );
@@ -693,13 +802,10 @@ export function UseCasePage() {
               description="Record interview notes, process evidence, feedback, and validation status for operational requirements."
               onSubmit={(event) => {
                 event.preventDefault();
-                store.createAuditLog({
-                  user_id: currentUserId,
-                  action_type: 'STAFF_REQUIREMENT_CAPTURED',
-                  target_entity_id: currentUserId,
-                  target_entity_type: 'requirements',
-                  ip_address: '192.168.1.66',
-                  details: `${requirementForm.interviewee || currentProfile.name} submitted ${requirementForm.process || 'an operational process'} feedback.`,
+                store.createStaffRequirement({
+                  interviewee_name: requirementForm.interviewee || currentProfile.name,
+                  process_area: requirementForm.process || 'Operations',
+                  feedback: requirementForm.feedback,
                 });
                 setRequirementForm({ interviewee: '', process: '', feedback: '' });
               }}
@@ -724,9 +830,9 @@ export function UseCasePage() {
                 <h3 className="text-xl font-bold text-slate-900">Requirement validation tracker</h3>
                 <div className="mt-5 grid gap-4 md:grid-cols-3">
                   {[
-                    { label: 'Interviews', value: '18/24', status: 'active' },
-                    { label: 'Processes', value: '11 mapped', status: 'in_review' },
-                    { label: 'Sign-offs', value: '7 pending', status: 'pending' },
+                    { label: 'Interviews', value: String(staffRequirementTotal), status: 'active' },
+                    { label: 'Processes', value: String(mappedProcessAreas.size), status: 'in_review' },
+                    { label: 'Sign-offs', value: String(staffRequirementPending + staffRequirementInReview), status: 'pending' },
                   ].map((item) => (
                     <div key={item.label} className="metric-tile">
                       <span className="eyebrow">{item.label}</span>
@@ -747,6 +853,33 @@ export function UseCasePage() {
                   { label: 'Audit', value: 91 },
                 ]}
               />
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">Captured requirements</h3>
+                <div className="mt-6">
+                  <DataTable
+                    rows={store.staffRequirements}
+                    columns={[
+                      { key: 'interviewee', header: 'Interviewee', render: (row) => row.interviewee_name },
+                      { key: 'process', header: 'Process Area', render: (row) => row.process_area },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.validation_status} /> },
+                      { key: 'signedOff', header: 'Signed Off By', render: (row) => (row.signed_off_by ? userName(row.signed_off_by) : '-') },
+                      {
+                        key: 'actions',
+                        header: 'Actions',
+                        render: (row) => (
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" onClick={() => store.reviewStaffRequirement(row.id)}>Review</Button>
+                            <Button variant="outline" onClick={() => store.signOffStaffRequirement(row.id)}>Sign Off</Button>
+                            <Button variant="ghost" onClick={() => store.rejectStaffRequirement(row.id)}>Reject</Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                    emptyTitle="No staff requirements yet"
+                    emptyDescription="Captured interviews and process notes will appear here after submission."
+                  />
+                </div>
+              </div>
               <div className="panel-card">
                 <h3 className="text-xl font-bold text-slate-900">Process documents</h3>
                 <div className="mt-6">
@@ -798,6 +931,8 @@ export function UseCasePage() {
                         ),
                       },
                     ]}
+                    emptyTitle="No process documents yet"
+                    emptyDescription="Publishable process documents will appear here after the first save."
                   />
                 </div>
               </div>
