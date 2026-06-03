@@ -944,6 +944,49 @@ export function UseCasePage() {
         return (
           <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
             <div className="space-y-6">
+              <DataEntryForm
+                title="Create a test case"
+                description="Capture test coverage before UAT and release validation."
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  store.createTestCase({
+                    title: testCaseForm.title,
+                    scenario: testCaseForm.scenario,
+                    environment: testCaseForm.environment,
+                    priority: testCaseForm.priority,
+                  });
+                  setTestCaseForm({ title: '', scenario: '', environment: 'Staging', priority: 'medium' });
+                }}
+                actions={<Button type="submit">Save Test Case</Button>}
+              >
+                <label className="form-group">
+                  <span className="form-label">Title</span>
+                  <input className="form-control" value={testCaseForm.title} onChange={(event) => setTestCaseForm((state) => ({ ...state, title: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Scenario</span>
+                  <textarea className="form-control min-h-28" value={testCaseForm.scenario} onChange={(event) => setTestCaseForm((state) => ({ ...state, scenario: event.target.value }))} />
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Environment</span>
+                  <select className="form-control" value={testCaseForm.environment} onChange={(event) => setTestCaseForm((state) => ({ ...state, environment: event.target.value }))}>
+                    <option>Staging</option>
+                    <option>UAT</option>
+                    <option>Pre-release</option>
+                    <option>Production Smoke</option>
+                  </select>
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Priority</span>
+                  <select className="form-control" value={testCaseForm.priority} onChange={(event) => setTestCaseForm((state) => ({ ...state, priority: event.target.value as TestCase['priority'] }))}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </label>
+              </DataEntryForm>
+
               <div className="panel-card">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xl font-bold text-slate-900">Test case management</h3>
@@ -951,37 +994,42 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.bugReports}
+                    rows={store.testCases}
                     columns={[
-                      { key: 'title', header: 'Bug', render: (row) => row.title },
+                      { key: 'title', header: 'Test Case', render: (row) => row.title },
+                      { key: 'scenario', header: 'Scenario', render: (row) => row.scenario },
                       { key: 'environment', header: 'Environment', render: (row) => row.environment },
-                      { key: 'severity', header: 'Severity', render: (row) => <StatusBadge label={row.severity} /> },
+                      { key: 'priority', header: 'Priority', render: (row) => <StatusBadge label={row.priority} /> },
                       { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
                       {
                         key: 'actions',
                         header: 'Actions',
                         render: (row) => (
                           <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" onClick={() => store.triageBugReport(row.id)}>Triage</Button>
-                            <Button variant="outline" onClick={() => store.startBugReport(row.id)}>Start</Button>
-                            <Button variant="outline" onClick={() => store.resolveBugReport(row.id)}>Resolve</Button>
-                            <Button variant="ghost" onClick={() => store.closeBugReport(row.id)}>Close</Button>
+                            <Button variant="outline" onClick={() => store.startTestCase(row.id)}>Start</Button>
+                            <Button variant="outline" onClick={() => store.reviewTestCase(row.id)}>Review</Button>
+                            <Button variant="outline" onClick={() => store.approveTestCase(row.id)}>Approve</Button>
+                            <Button variant="ghost" onClick={() => store.rejectTestCase(row.id)}>Reject</Button>
                           </div>
                         ),
                       },
                     ]}
+                    emptyTitle="No test cases yet"
+                    emptyDescription="Create the first validation scenario to track release readiness."
                   />
                 </div>
               </div>
+
               <AreaMetricChart
                 title="Validation Status"
                 data={[
-                  { label: 'Unit', value: 92 },
-                  { label: 'Flow', value: 84 },
-                  { label: 'UAT', value: 71 },
-                  { label: 'Release', value: 63 },
+                  { label: 'Open Cases', value: openTestCaseCount },
+                  { label: 'Bugs', value: store.bugReports.filter((bug) => bug.status !== 'closed').length },
+                  { label: 'UAT', value: uatOpenCount },
+                  { label: 'Release', value: store.releaseNotes.filter((note) => note.status === 'published').length },
                 ]}
               />
+
               <div className="panel-card">
                 <h3 className="text-xl font-bold text-slate-900">Release notes</h3>
                 <div className="mt-6">
@@ -1031,6 +1079,8 @@ export function UseCasePage() {
                         ),
                       },
                     ]}
+                    emptyTitle="No release notes yet"
+                    emptyDescription="Release notes will appear after the first version is saved."
                   />
                 </div>
               </div>
@@ -1039,39 +1089,62 @@ export function UseCasePage() {
             <div className="space-y-6">
               <DataEntryForm
                 title="Capture UAT feedback"
-                description="Record testing feedback against an environment and keep release readiness traceable."
+                description="Record testing feedback against a test case and keep release readiness traceable."
                 onSubmit={(event) => {
                   event.preventDefault();
-                  store.createAuditLog({
-                    user_id: currentUserId,
-                    action_type: 'UAT_FEEDBACK_CAPTURED',
-                    target_entity_id: currentUserId,
-                    target_entity_type: 'testing_validation',
-                    ip_address: '192.168.1.71',
-                    details: `${testingForm.testCase || 'A test case'} feedback captured for ${testingForm.environment}.`,
+                  if (!uatForm.testCase) {
+                    return;
+                  }
+                  store.createUATFeedback({
+                    test_case: Number(uatForm.testCase),
+                    feedback: uatForm.feedback,
                   });
-                  setTestingForm({ testCase: '', environment: 'Staging', feedback: '' });
+                  setUatForm({ testCase: '', feedback: '' });
                 }}
                 actions={<Button type="submit" icon={ClipboardCheck}>Submit Feedback</Button>}
               >
                 <label className="form-group">
                   <span className="form-label">Test Case</span>
-                  <input className="form-control" value={testingForm.testCase} onChange={(event) => setTestingForm((state) => ({ ...state, testCase: event.target.value }))} />
-                </label>
-                <label className="form-group">
-                  <span className="form-label">Environment</span>
-                  <select className="form-control" value={testingForm.environment} onChange={(event) => setTestingForm((state) => ({ ...state, environment: event.target.value }))}>
-                    <option>Staging</option>
-                    <option>UAT</option>
-                    <option>Pre-release</option>
-                    <option>Production Smoke</option>
+                  <select className="form-control" value={uatForm.testCase} onChange={(event) => setUatForm((state) => ({ ...state, testCase: event.target.value }))}>
+                    <option value="">Select a test case</option>
+                    {store.testCases.map((testCase) => (
+                      <option key={testCase.id} value={testCase.id}>
+                        {testCase.title}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label className="form-group">
                   <span className="form-label">Feedback</span>
-                  <textarea className="form-control min-h-32" value={testingForm.feedback} onChange={(event) => setTestingForm((state) => ({ ...state, feedback: event.target.value }))} />
+                  <textarea className="form-control min-h-32" value={uatForm.feedback} onChange={(event) => setUatForm((state) => ({ ...state, feedback: event.target.value }))} />
                 </label>
               </DataEntryForm>
+
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">UAT feedback queue</h3>
+                <div className="mt-6">
+                  <DataTable
+                    rows={store.uatFeedback}
+                    columns={[
+                      { key: 'testCase', header: 'Test Case', render: (row) => store.testCases.find((testCase) => testCase.id === row.test_case)?.title ?? String(row.test_case) },
+                      { key: 'feedback', header: 'Feedback', render: (row) => row.feedback },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                      {
+                        key: 'actions',
+                        header: 'Actions',
+                        render: (row) => (
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" onClick={() => store.resolveUATFeedback(row.id)}>Resolve</Button>
+                            <Button variant="ghost" onClick={() => store.closeUATFeedback(row.id)}>Close</Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                    emptyTitle="No UAT feedback yet"
+                    emptyDescription="UAT notes will appear once testers submit feedback."
+                  />
+                </div>
+              </div>
 
               <DataEntryForm
                 title="Log a bug report"
@@ -1117,20 +1190,33 @@ export function UseCasePage() {
               </DataEntryForm>
 
               <div className="panel-card">
-                <h3 className="text-xl font-bold text-slate-900">Active test cases</h3>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-slate-900">Bug board</h3>
+                  <Button variant="outline" icon={Bug}>Open Bug Board</Button>
+                </div>
                 <div className="mt-6">
                   <DataTable
-                    rows={[
-                      { id: 'TC-001', scenario: 'Finance officer records fund receipt', environment: 'Staging', status: 'approved' },
-                      { id: 'TC-002', scenario: 'Project manager approves budget request', environment: 'UAT', status: 'in_review' },
-                      { id: 'TC-003', scenario: 'Auditor exports compliance checklist', environment: 'Pre-release', status: 'pending' },
-                    ]}
+                    rows={store.bugReports}
                     columns={[
-                      { key: 'id', header: 'Test ID', render: (row) => row.id },
-                      { key: 'scenario', header: 'Scenario', render: (row) => row.scenario },
+                      { key: 'title', header: 'Bug', render: (row) => row.title },
                       { key: 'environment', header: 'Environment', render: (row) => row.environment },
+                      { key: 'severity', header: 'Severity', render: (row) => <StatusBadge label={row.severity} /> },
                       { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                      {
+                        key: 'actions',
+                        header: 'Actions',
+                        render: (row) => (
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" onClick={() => store.triageBugReport(row.id)}>Triage</Button>
+                            <Button variant="outline" onClick={() => store.startBugReport(row.id)}>Start</Button>
+                            <Button variant="outline" onClick={() => store.resolveBugReport(row.id)}>Resolve</Button>
+                            <Button variant="ghost" onClick={() => store.closeBugReport(row.id)}>Close</Button>
+                          </div>
+                        ),
+                      },
                     ]}
+                    emptyTitle="No bug reports yet"
+                    emptyDescription="Logged defects will show up here for triage and resolution."
                   />
                 </div>
               </div>
@@ -1428,7 +1514,7 @@ export function UseCasePage() {
                   </div>
                   <div className="metric-tile">
                     <span className="eyebrow">Impact Updates</span>
-                    <strong>2 new stories</strong>
+                    <strong>{store.reportDeliveries.filter((delivery) => delivery.status === 'sent').length} delivered updates</strong>
                   </div>
                 </div>
               </div>
@@ -1528,9 +1614,6 @@ export function UseCasePage() {
     requirementForm.feedback,
     requirementForm.interviewee,
     requirementForm.process,
-    testingForm.environment,
-    testingForm.feedback,
-    testingForm.testCase,
     commonStats,
     currentProfile.actor,
     currentProfile.name,
@@ -1550,6 +1633,12 @@ export function UseCasePage() {
     receiptForm.receivedOn,
     allocationForm.amount,
     allocationForm.project,
+    testCaseForm.environment,
+    testCaseForm.priority,
+    testCaseForm.scenario,
+    testCaseForm.title,
+    uatForm.feedback,
+    uatForm.testCase,
     reportForm.name,
     reportForm.period,
     auditForm.action,
