@@ -6,6 +6,7 @@ import {
   BudgetLine,
   ComplianceItem,
   Donor,
+  DonorEngagementDashboard,
   DonorEngagementSummary,
   ExpenseApproval,
   Grant,
@@ -18,10 +19,14 @@ import {
   ReallocationRequest,
   Requisition,
   Role,
+  StaffRequirement,
   SecuritySummary,
   SystemSetting,
+  SystemSettingsSummary,
   Transaction,
+  TestCase,
   User,
+  UATFeedback,
   ReleaseNote,
 } from '../types';
 
@@ -42,20 +47,28 @@ interface AppDataState {
   systemSettings: SystemSetting[];
   complianceItems: ComplianceItem[];
   securitySummary: SecuritySummary | null;
+  donorEngagementDashboard: DonorEngagementDashboard | null;
+  systemSettingsSummary: SystemSettingsSummary | null;
   reallocationRequests: ReallocationRequest[];
   expenseApprovals: ExpenseApproval[];
   reportSchedules: ReportSchedule[];
   reportDeliveries: ReportDelivery[];
   processDocuments: ProcessDocument[];
+  staffRequirements: StaffRequirement[];
+  testCases: TestCase[];
+  uatFeedback: UATFeedback[];
   bugReports: BugReport[];
   releaseNotes: ReleaseNote[];
   resetData: () => void;
   fetchAll: () => Promise<void>;
   fetchSecuritySummary: () => Promise<SecuritySummary | null>;
+  fetchDonorEngagementDashboard: () => Promise<DonorEngagementDashboard | null>;
+  fetchSystemSettingsSummary: () => Promise<SystemSettingsSummary | null>;
   createUser: (payload: Omit<User, 'user_id' | 'created_at' | 'is_active'>) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<string>;
   confirmPasswordReset: (token: string, newPassword: string) => Promise<string>;
   updateSetting: (key: string, value: string) => Promise<void>;
+  bulkUpdateSettings: (items: Array<{ setting_key: string; label?: string; setting_value: string; setting_group?: SystemSetting['group'] }>) => Promise<void>;
   createDonor: (payload: Omit<Donor, 'donor_id' | 'status' | 'notes'>) => Promise<void>;
   fetchDonorEngagementSummary: (donorId: number) => Promise<DonorEngagementSummary | null>;
   acknowledgeDonor: (donorId: number, payload?: { channel?: string; subject?: string; message?: string }) => Promise<void>;
@@ -74,6 +87,18 @@ interface AppDataState {
   approveExpenseApproval: (id: number, notes?: string) => Promise<void>;
   rejectExpenseApproval: (id: number, decisionReason: string) => Promise<void>;
   createAuditLog: (payload: Omit<AuditLog, 'log_id' | 'timestamp'>) => Promise<void>;
+  createStaffRequirement: (payload: { interviewee_name: string; process_area: string; feedback?: string }) => Promise<void>;
+  reviewStaffRequirement: (id: number) => Promise<void>;
+  signOffStaffRequirement: (id: number) => Promise<void>;
+  rejectStaffRequirement: (id: number) => Promise<void>;
+  createTestCase: (payload: { title: string; scenario: string; environment: string; priority: TestCase['priority'] }) => Promise<void>;
+  startTestCase: (id: number) => Promise<void>;
+  reviewTestCase: (id: number) => Promise<void>;
+  approveTestCase: (id: number) => Promise<void>;
+  rejectTestCase: (id: number) => Promise<void>;
+  createUATFeedback: (payload: { test_case: number; feedback: string; status?: UATFeedback['status'] }) => Promise<void>;
+  resolveUATFeedback: (id: number) => Promise<void>;
+  closeUATFeedback: (id: number) => Promise<void>;
   generateReport: (
     report_type: string,
     grant_id: number,
@@ -84,6 +109,7 @@ interface AppDataState {
   activateReportSchedule: (id: number) => Promise<void>;
   deactivateReportSchedule: (id: number) => Promise<void>;
   deliverReport: (reportId: number, payload?: { destination?: string; delivery_method?: string }) => Promise<void>;
+  dispatchReportDelivery: (id: number) => Promise<void>;
   createProcessDocument: (payload: { title: string; version: string; summary: string; content: string }) => Promise<void>;
   submitProcessDocumentForReview: (id: number) => Promise<void>;
   approveProcessDocument: (id: number) => Promise<void>;
@@ -134,6 +160,8 @@ type ApiSystemSetting = {
   setting_value: string;
   setting_group: SystemSetting['group'];
 };
+type ApiSystemSettingsSummary = SystemSettingsSummary;
+type ApiDonorEngagementDashboard = DonorEngagementDashboard;
 
 type ApiDonor = Omit<Donor, 'donor_id'> & { id: number };
 type ApiGrant = Omit<Grant, 'grant_id' | 'donor_id'> & { id: number; donor: number };
@@ -198,6 +226,20 @@ type ApiProcessDocument = Omit<ProcessDocument, 'id' | 'created_by' | 'approved_
   id: number;
   created_by: number;
   approved_by: number | null;
+};
+type ApiStaffRequirement = Omit<StaffRequirement, 'id' | 'captured_by' | 'signed_off_by'> & {
+  id: number;
+  captured_by: number;
+  signed_off_by: number | null;
+};
+type ApiTestCase = Omit<TestCase, 'id' | 'created_by'> & {
+  id: number;
+  created_by: number;
+};
+type ApiUATFeedback = Omit<UATFeedback, 'id' | 'test_case' | 'submitted_by'> & {
+  id: number;
+  test_case: number;
+  submitted_by: number;
 };
 type ApiBugReport = Omit<BugReport, 'id' | 'reported_by' | 'assigned_to'> & {
   id: number;
@@ -342,6 +384,35 @@ const mapProcessDocument = (document: ApiProcessDocument): ProcessDocument => ({
   created_at: document.created_at,
   updated_at: document.updated_at,
 });
+const mapStaffRequirement = (requirement: ApiStaffRequirement): StaffRequirement => ({
+  id: requirement.id,
+  captured_by: requirement.captured_by,
+  interviewee_name: requirement.interviewee_name,
+  process_area: requirement.process_area,
+  feedback: requirement.feedback,
+  validation_status: requirement.validation_status,
+  signed_off_by: requirement.signed_off_by,
+  signed_off_at: requirement.signed_off_at,
+  created_at: requirement.created_at,
+});
+const mapTestCase = (testCase: ApiTestCase): TestCase => ({
+  id: testCase.id,
+  created_by: testCase.created_by,
+  title: testCase.title,
+  scenario: testCase.scenario,
+  environment: testCase.environment,
+  status: testCase.status,
+  priority: testCase.priority,
+  created_at: testCase.created_at,
+});
+const mapUATFeedback = (feedback: ApiUATFeedback): UATFeedback => ({
+  id: feedback.id,
+  test_case: feedback.test_case,
+  submitted_by: feedback.submitted_by,
+  feedback: feedback.feedback,
+  status: feedback.status,
+  created_at: feedback.created_at,
+});
 const mapBugReport = (bug: ApiBugReport): BugReport => ({
   id: bug.id,
   reported_by: bug.reported_by,
@@ -408,11 +479,16 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
   systemSettings: [],
   complianceItems: [],
   securitySummary: null,
+  donorEngagementDashboard: null,
+  systemSettingsSummary: null,
   reallocationRequests: [],
   expenseApprovals: [],
   reportSchedules: [],
   reportDeliveries: [],
   processDocuments: [],
+  staffRequirements: [],
+  testCases: [],
+  uatFeedback: [],
   bugReports: [],
   releaseNotes: [],
 
@@ -434,11 +510,16 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       systemSettings: [],
       complianceItems: [],
       securitySummary: null,
+      donorEngagementDashboard: null,
+      systemSettingsSummary: null,
       reallocationRequests: [],
       expenseApprovals: [],
       reportSchedules: [],
       reportDeliveries: [],
       processDocuments: [],
+      staffRequirements: [],
+      testCases: [],
+      uatFeedback: [],
       bugReports: [],
       releaseNotes: [],
     }),
@@ -460,11 +541,16 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         systemSettings,
         complianceItems,
         securitySummary,
+        donorEngagementDashboard,
+        systemSettingsSummary,
         reallocationRequests,
         expenseApprovals,
         reportSchedules,
         reportDeliveries,
         processDocuments,
+        staffRequirements,
+        testCases,
+        uatFeedback,
         bugReports,
         releaseNotes,
       ] = await Promise.all([
@@ -481,11 +567,16 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         emptyOnForbidden(apiList<ApiSystemSetting>('/system-settings/').then((rows) => rows.map(mapSetting))),
         emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
         emptyOnForbiddenValue(apiRequest<ApiSecuritySummary>('/users/security-summary/')),
+        emptyOnForbiddenValue(apiRequest<ApiDonorEngagementDashboard>('/donors/engagement-dashboard/')),
+        emptyOnForbiddenValue(apiRequest<ApiSystemSettingsSummary>('/system-settings/summary/')),
         emptyOnForbidden(apiList<ApiReallocationRequest>('/reallocation-requests/').then((rows) => rows.map(mapReallocationRequest))),
         emptyOnForbidden(apiList<ApiExpenseApproval>('/expense-approvals/').then((rows) => rows.map(mapExpenseApproval))),
         emptyOnForbidden(apiList<ApiReportSchedule>('/report-schedules/').then((rows) => rows.map(mapReportSchedule))),
         emptyOnForbidden(apiList<ApiReportDelivery>('/report-deliveries/').then((rows) => rows.map(mapReportDelivery))),
         emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
+        emptyOnForbidden(apiList<ApiStaffRequirement>('/staff-requirements/').then((rows) => rows.map(mapStaffRequirement))),
+        emptyOnForbidden(apiList<ApiTestCase>('/test-cases/').then((rows) => rows.map(mapTestCase))),
+        emptyOnForbidden(apiList<ApiUATFeedback>('/uat-feedback/').then((rows) => rows.map(mapUATFeedback))),
         emptyOnForbidden(apiList<ApiBugReport>('/bug-reports/').then((rows) => rows.map(mapBugReport))),
         emptyOnForbidden(apiList<ApiReleaseNote>('/release-notes/').then((rows) => rows.map(mapReleaseNote))),
       ]);
@@ -504,11 +595,16 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         systemSettings,
         complianceItems,
         securitySummary,
+        donorEngagementDashboard,
+        systemSettingsSummary,
         reallocationRequests,
         expenseApprovals,
         reportSchedules,
         reportDeliveries,
         processDocuments,
+        staffRequirements,
+        testCases,
+        uatFeedback,
         bugReports,
         releaseNotes,
         isLoading: false,
@@ -542,6 +638,18 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     return summary;
   },
 
+  fetchDonorEngagementDashboard: async () => {
+    const dashboard = await emptyOnForbiddenValue(apiRequest<ApiDonorEngagementDashboard>('/donors/engagement-dashboard/'));
+    set({ donorEngagementDashboard: dashboard });
+    return dashboard;
+  },
+
+  fetchSystemSettingsSummary: async () => {
+    const summary = await emptyOnForbiddenValue(apiRequest<ApiSystemSettingsSummary>('/system-settings/summary/'));
+    set({ systemSettingsSummary: summary });
+    return summary;
+  },
+
   requestPasswordReset: async (email) => {
     const resetRequest = await apiRequest<ApiPasswordResetRequestRecord>('/users/password-reset-request/', {
       method: 'POST',
@@ -572,6 +680,33 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     set((state) => ({
       systemSettings: state.systemSettings.map((entry) => (entry.key === key ? mapSetting(updated) : entry)),
     }));
+  },
+
+  bulkUpdateSettings: async (items) => {
+    const updated = await apiRequest<ApiSystemSetting[]>('/system-settings/bulk-update/', {
+      method: 'POST',
+      body: JSON.stringify(
+        items.map((item) => ({
+          setting_key: item.setting_key,
+          label: item.label,
+          setting_value: item.setting_value,
+          setting_group: item.setting_group,
+        }))
+      ),
+    });
+    set((state) => {
+      const mapped = updated.map(mapSetting);
+      const merged = [...state.systemSettings];
+      for (const entry of mapped) {
+        const index = merged.findIndex((setting) => setting.key === entry.key);
+        if (index >= 0) {
+          merged[index] = entry;
+        } else {
+          merged.push(entry);
+        }
+      }
+      return { systemSettings: merged };
+    });
   },
 
   createDonor: async (payload) => {
@@ -793,6 +928,112 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     set((state) => ({ auditLogs: [mapAuditLog(created), ...state.auditLogs] }));
   },
 
+  createStaffRequirement: async (payload) => {
+    const created = await apiRequest<ApiStaffRequirement>('/staff-requirements/', {
+      method: 'POST',
+      body: JSON.stringify({
+        interviewee_name: payload.interviewee_name,
+        process_area: payload.process_area,
+        feedback: payload.feedback ?? '',
+      }),
+    });
+    set((state) => ({ staffRequirements: [mapStaffRequirement(created), ...state.staffRequirements] }));
+  },
+
+  reviewStaffRequirement: async (id) => {
+    const updated = await apiRequest<ApiStaffRequirement>(`/staff-requirements/${id}/review/`, { method: 'POST' });
+    set((state) => ({
+      staffRequirements: state.staffRequirements.map((requirement) =>
+        requirement.id === id ? mapStaffRequirement(updated) : requirement
+      ),
+    }));
+  },
+
+  signOffStaffRequirement: async (id) => {
+    const updated = await apiRequest<ApiStaffRequirement>(`/staff-requirements/${id}/sign-off/`, { method: 'POST' });
+    set((state) => ({
+      staffRequirements: state.staffRequirements.map((requirement) =>
+        requirement.id === id ? mapStaffRequirement(updated) : requirement
+      ),
+    }));
+  },
+
+  rejectStaffRequirement: async (id) => {
+    const updated = await apiRequest<ApiStaffRequirement>(`/staff-requirements/${id}/reject/`, { method: 'POST' });
+    set((state) => ({
+      staffRequirements: state.staffRequirements.map((requirement) =>
+        requirement.id === id ? mapStaffRequirement(updated) : requirement
+      ),
+    }));
+  },
+
+  createTestCase: async (payload) => {
+    const created = await apiRequest<ApiTestCase>('/test-cases/', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: payload.title,
+        scenario: payload.scenario,
+        environment: payload.environment,
+        priority: payload.priority,
+      }),
+    });
+    set((state) => ({ testCases: [mapTestCase(created), ...state.testCases] }));
+  },
+
+  startTestCase: async (id) => {
+    const updated = await apiRequest<ApiTestCase>(`/test-cases/${id}/start/`, { method: 'POST' });
+    set((state) => ({
+      testCases: state.testCases.map((testCase) => (testCase.id === id ? mapTestCase(updated) : testCase)),
+    }));
+  },
+
+  reviewTestCase: async (id) => {
+    const updated = await apiRequest<ApiTestCase>(`/test-cases/${id}/review/`, { method: 'POST' });
+    set((state) => ({
+      testCases: state.testCases.map((testCase) => (testCase.id === id ? mapTestCase(updated) : testCase)),
+    }));
+  },
+
+  approveTestCase: async (id) => {
+    const updated = await apiRequest<ApiTestCase>(`/test-cases/${id}/approve/`, { method: 'POST' });
+    set((state) => ({
+      testCases: state.testCases.map((testCase) => (testCase.id === id ? mapTestCase(updated) : testCase)),
+    }));
+  },
+
+  rejectTestCase: async (id) => {
+    const updated = await apiRequest<ApiTestCase>(`/test-cases/${id}/reject/`, { method: 'POST' });
+    set((state) => ({
+      testCases: state.testCases.map((testCase) => (testCase.id === id ? mapTestCase(updated) : testCase)),
+    }));
+  },
+
+  createUATFeedback: async (payload) => {
+    const created = await apiRequest<ApiUATFeedback>('/uat-feedback/', {
+      method: 'POST',
+      body: JSON.stringify({
+        test_case: payload.test_case,
+        feedback: payload.feedback,
+        status: payload.status ?? 'open',
+      }),
+    });
+    set((state) => ({ uatFeedback: [mapUATFeedback(created), ...state.uatFeedback] }));
+  },
+
+  resolveUATFeedback: async (id) => {
+    const updated = await apiRequest<ApiUATFeedback>(`/uat-feedback/${id}/resolve/`, { method: 'POST' });
+    set((state) => ({
+      uatFeedback: state.uatFeedback.map((feedback) => (feedback.id === id ? mapUATFeedback(updated) : feedback)),
+    }));
+  },
+
+  closeUATFeedback: async (id) => {
+    const updated = await apiRequest<ApiUATFeedback>(`/uat-feedback/${id}/close/`, { method: 'POST' });
+    set((state) => ({
+      uatFeedback: state.uatFeedback.map((feedback) => (feedback.id === id ? mapUATFeedback(updated) : feedback)),
+    }));
+  },
+
   generateReport: async (report_type, grant_id, _generated_by_user_id, format) => {
     const created = await apiRequest<ApiReport>('/reports/', {
       method: 'POST',
@@ -836,6 +1077,15 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       }),
     });
     set((state) => ({ reportDeliveries: [mapReportDelivery(created), ...state.reportDeliveries] }));
+  },
+
+  dispatchReportDelivery: async (id) => {
+    const updated = await apiRequest<ApiReportDelivery>(`/report-deliveries/${id}/dispatch/`, {
+      method: 'POST',
+    });
+    set((state) => ({
+      reportDeliveries: state.reportDeliveries.map((delivery) => (delivery.id === id ? mapReportDelivery(updated) : delivery)),
+    }));
   },
 
   createProcessDocument: async (payload) => {
