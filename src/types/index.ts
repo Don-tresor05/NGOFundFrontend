@@ -175,6 +175,11 @@ export interface PasswordResetRequestRecord {
   created_at: string;
 }
 
+export interface PasswordResetRequestResponse {
+  detail: string;
+  token?: string;
+}
+
 export interface DonorEngagementSummary {
   donor_id: number;
   organization_name?: string;

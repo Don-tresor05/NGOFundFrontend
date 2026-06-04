@@ -65,7 +65,7 @@ interface AppDataState {
   fetchDonorEngagementDashboard: () => Promise<DonorEngagementDashboard | null>;
   fetchSystemSettingsSummary: () => Promise<SystemSettingsSummary | null>;
   createUser: (payload: Omit<User, 'user_id' | 'created_at' | 'is_active'>) => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<string>;
+  requestPasswordReset: (email: string) => Promise<string | null>;
   confirmPasswordReset: (token: string, newPassword: string) => Promise<string>;
   updateSetting: (key: string, value: string) => Promise<void>;
   bulkUpdateSettings: (items: Array<{ setting_key: string; label?: string; setting_value: string; setting_group?: SystemSetting['group'] }>) => Promise<void>;
@@ -190,14 +190,9 @@ type ApiNotification = Omit<Notification, 'notification_id' | 'user_id'> & { id:
 type ApiComplianceItem = Omit<ComplianceItem, 'id'> & { id: number };
 type ApiSecuritySummary = SecuritySummary;
 type ApiDonorEngagementSummary = DonorEngagementSummary;
-type ApiPasswordResetRequestRecord = {
-  id: number;
-  user: number;
-  token: string;
-  expires_at: string;
-  is_used: boolean;
-  used_at: string | null;
-  created_at: string;
+type ApiPasswordResetRequestResponse = {
+  detail: string;
+  token?: string;
 };
 type ApiReallocationRequest = Omit<ReallocationRequest, 'id' | 'source_budget_line' | 'target_budget_line' | 'requested_by' | 'reviewed_by'> & {
   id: number;
@@ -651,12 +646,12 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
   },
 
   requestPasswordReset: async (email) => {
-    const resetRequest = await apiRequest<ApiPasswordResetRequestRecord>('/users/password-reset-request/', {
+    const resetRequest = await apiRequest<ApiPasswordResetRequestResponse>('/users/password-reset-request/', {
       method: 'POST',
       skipAuth: true,
       body: JSON.stringify({ email }),
     });
-    return resetRequest.token;
+    return resetRequest.token ?? null;
   },
 
   confirmPasswordReset: async (token, newPassword) => {
