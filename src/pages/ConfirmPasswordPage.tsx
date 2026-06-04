@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { KeyRound, ShieldCheck } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowRight, KeyRound, ShieldCheck } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
 import { Button } from '../components/Button';
 import { HighlightedText } from '../components/HighlightedText';
@@ -12,12 +12,14 @@ type ResetLocationState = {
 };
 
 export function ConfirmPasswordPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const confirmPasswordReset = useAuthStore((state) => state.confirmPasswordReset);
   const { email, token: initialToken } = (location.state ?? {}) as ResetLocationState;
   const [token, setToken] = useState(initialToken ?? '');
-  const [newPassword, setNewPassword] = useState('demo12345');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -30,14 +32,40 @@ export function ConfirmPasswordPage() {
 
   const handleConfirm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const trimmedToken = token.trim();
+    const trimmedPassword = newPassword.trim();
+
+    if (!trimmedToken) {
+      setErrorMessage('Enter the reset token before continuing.');
+      setStatusMessage(null);
+      return;
+    }
+
+    if (trimmedPassword.length < 10) {
+      setErrorMessage('New password must be at least 10 characters long.');
+      setStatusMessage(null);
+      return;
+    }
+
+    if (trimmedPassword !== confirmNewPassword.trim()) {
+      setErrorMessage('Passwords do not match.');
+      setStatusMessage(null);
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      const message = await confirmPasswordReset(token, newPassword);
+      const message = await confirmPasswordReset(trimmedToken, trimmedPassword);
       setStatusMessage(message);
       setErrorMessage(null);
-      navigate('/login');
+      setToken('');
+      setNewPassword('');
+      setConfirmNewPassword('');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Could not confirm password reset.');
       setStatusMessage(null);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -108,25 +136,50 @@ export function ConfirmPasswordPage() {
               <form onSubmit={handleConfirm} className="mt-5 space-y-4">
                 <label className="form-group">
                   <span className="form-label">Reset Token</span>
-                  <input className="form-control" value={token} onChange={(event) => setToken(event.target.value)} />
+                  <input
+                    className="form-control"
+                    autoComplete="one-time-code"
+                    value={token}
+                    placeholder="Enter the recovery token"
+                    onChange={(event) => setToken(event.target.value)}
+                  />
                 </label>
                 <label className="form-group">
                   <span className="form-label">New Password</span>
                   <input
                     className="form-control"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     value={newPassword}
+                    placeholder="Create a new password"
                     onChange={(event) => setNewPassword(event.target.value)}
                   />
                 </label>
-                <Button type="submit" block>
-                  Confirm New Password
+                <label className="form-group">
+                  <span className="form-label">Confirm New Password</span>
+                  <input
+                    className="form-control"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={confirmNewPassword}
+                    placeholder="Repeat the new password"
+                    onChange={(event) => setConfirmNewPassword(event.target.value)}
+                  />
+                </label>
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+                  <span>Use a strong password and keep it private.</span>
+                  <Button type="button" variant="ghost" onClick={() => setShowPassword((value) => !value)}>
+                    {showPassword ? 'Hide password' : 'Show password'}
+                  </Button>
+                </div>
+                <Button type="submit" block icon={ArrowRight} disabled={isSubmitting}>
+                  {isSubmitting ? 'Updating password...' : 'Confirm new password'}
                 </Button>
               </form>
             </div>
 
             <div className="mt-4 auth-note-card">
-              If you have not requested a token yet, go back to the request page first.
+              If you did not request a token, go back and start the recovery flow from the request page first.
             </div>
           </div>
 
@@ -138,7 +191,7 @@ export function ConfirmPasswordPage() {
               Request a new token
             </Link>
             <Link to="/login" className="font-semibold text-amber-700">
-              Back to Login into the System
+              Back to sign in
             </Link>
           </div>
         </section>
