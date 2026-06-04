@@ -9,25 +9,27 @@ import { useAuthStore } from '../store/authStore';
 export function ResetPasswordPage() {
   const navigate = useNavigate();
   const requestPasswordReset = useAuthStore((state) => state.requestPasswordReset);
-  const [email, setEmail] = useState('superadmin@ngofund.org');
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [issuedToken, setIssuedToken] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isDev = import.meta.env.DEV;
 
   const handleRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setIsSubmitting(true);
     try {
       const request = await requestPasswordReset(email);
-      setStatusMessage('Reset token created. Continue on the confirmation page.');
+      setStatusMessage(request.detail);
       setErrorMessage(null);
-      navigate('/reset-password/confirm', {
-        state: {
-          email,
-          token: request.token,
-        },
-      });
+      setIssuedToken(request.token ?? null);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Could not request password reset.');
       setStatusMessage(null);
+      setIssuedToken(null);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -98,17 +100,48 @@ export function ResetPasswordPage() {
               <form onSubmit={handleRequest} className="mt-5 space-y-4">
                 <label className="form-group">
                   <span className="form-label">Email</span>
-                  <input className="form-control" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  <input
+                    className="form-control"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    placeholder="name@organization.org"
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
                 </label>
-                <Button type="submit" block icon={ArrowRight}>
-                  Request Reset Token
+                <Button type="submit" block icon={ArrowRight} disabled={isSubmitting}>
+                  {isSubmitting ? 'Requesting token...' : 'Request reset token'}
                 </Button>
               </form>
             </div>
 
             <div className="mt-4 auth-note-card">
-              After submission, you will be taken to the confirmation page with the token prefilled for convenience.
+              Use the confirmation page to set a new password after you receive the reset token.
             </div>
+
+            {issuedToken && isDev ? (
+              <div className="mt-4 rounded-[1.5rem] border border-amber-200 bg-amber-50/80 p-4 text-sm text-slate-700">
+                <p className="font-semibold text-slate-900">Development helper</p>
+                <p className="mt-2 leading-6">
+                  A token was issued in this local environment. You can continue to the confirmation page without
+                  exposing it in the UI.
+                </p>
+                <Button
+                  type="button"
+                  className="mt-4"
+                  onClick={() =>
+                    navigate('/reset-password/confirm', {
+                      state: {
+                        email,
+                        token: issuedToken,
+                      },
+                    })
+                  }
+                >
+                  Continue to confirmation
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           {statusMessage ? <div className="mt-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{statusMessage}</div> : null}
@@ -117,7 +150,7 @@ export function ResetPasswordPage() {
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 pt-6 text-sm text-slate-600">
             <span>Remember your password?</span>
             <Link to="/login" className="font-semibold text-amber-700">
-              Back to Login into the System
+              Back to sign in
             </Link>
           </div>
         </section>
