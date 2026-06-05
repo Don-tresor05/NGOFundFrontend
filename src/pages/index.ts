@@ -1,4 +1,5 @@
 export { CreateAccountPage } from './CreateAccountPage';
+export { VerifyAccountPage } from './VerifyAccountPage';
 export { DashboardPage } from './DashboardPage';
 export { LoginPage } from './LoginPage';
 export { NotFoundPage } from './NotFoundPage';
