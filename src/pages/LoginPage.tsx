@@ -36,7 +36,6 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isDev = import.meta.env.DEV;
 
   const actorDefinition = useMemo(
     () => ACTORS.find((entry) => entry.id === actor) ?? ACTORS[0],
@@ -179,15 +178,6 @@ export function LoginPage() {
                 {showPassword ? 'Hide password' : 'Show password'}
               </Button>
             </div>
-
-            {isDev ? (
-              <details className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 px-5 py-4 text-sm text-slate-700">
-                <summary className="cursor-pointer font-semibold text-slate-900">Development helper</summary>
-                <p className="mt-3 leading-6">
-                  Development builds can still use seeded test accounts for local verification, but the production UI keeps that path hidden.
-                </p>
-              </details>
-            ) : null}
 
             {loginError ? <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{loginError}</div> : null}
 
