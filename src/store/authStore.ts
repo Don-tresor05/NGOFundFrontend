@@ -2,7 +2,14 @@ import { create } from 'zustand';
 import { ACTORS } from '../constants/appModel';
 import { apiRequest, tokenStorage } from '../lib/api';
 import { useAppDataStore } from './appDataStore';
-import { Actor, PasswordResetRequestResponse, Profile, Role } from '../types';
+import {
+  Actor,
+  PasswordResetRequestResponse,
+  Profile,
+  Role,
+  SignupRegistrationResponse,
+  SignupVerificationResponse,
+} from '../types';
 
 interface LoginPayload {
   actor: Actor;
@@ -25,11 +32,13 @@ interface AuthState {
   authReady: boolean;
   login: (payload: LoginPayload) => Promise<boolean>;
   logout: () => void;
-  register: (payload: RegisterPayload) => Promise<boolean>;
+  register: (payload: RegisterPayload) => Promise<SignupRegistrationResponse>;
   updateProfile: (payload: Partial<Profile>) => Promise<void>;
   hydrateProfile: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<PasswordResetRequestResponse>;
   confirmPasswordReset: (token: string, newPassword: string) => Promise<string>;
+  verifySignupOtp: (email: string, otp: string) => Promise<SignupVerificationResponse>;
+  resendSignupOtp: (email: string) => Promise<SignupRegistrationResponse>;
 }
 
 interface ApiUser {
@@ -47,8 +56,6 @@ interface LoginResponse {
   refresh: string;
   user: ApiUser;
 }
-
-type RegisterResponse = LoginResponse & ApiUser;
 
 const roleToActor: Record<Role, Actor> = {
   SUPER_ADMIN: 'super_administrator',
@@ -146,7 +153,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   register: async ({ actor, name, email, password, metadata }) => {
     try {
-      const response = await apiRequest<RegisterResponse>('/auth/register/', {
+      const response = await apiRequest<SignupRegistrationResponse>('/auth/register/', {
         method: 'POST',
         skipAuth: true,
         body: JSON.stringify({
@@ -160,18 +167,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }),
       });
 
-      tokenStorage.set(response.access, response.refresh);
+      tokenStorage.clear();
       resetApplicationData();
       set({
-        isAuthenticated: true,
-        currentProfile: toProfileFromUser(response),
+        isAuthenticated: false,
+        currentProfile: null,
         loginError: null,
         authReady: true,
       });
-      return true;
+      return response;
     } catch (error) {
       set({ loginError: error instanceof Error ? error.message : 'Account registration failed.', authReady: true });
-      return false;
+      throw error;
     }
   },
 
@@ -217,6 +224,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     skipAuth: true,
     body: JSON.stringify({ email }),
   }),
+
+  verifySignupOtp: async (email, otp) => {
+    const response = await apiRequest<SignupVerificationResponse>('/auth/signup/verify-otp/', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ email, otp }),
+    });
+
+    tokenStorage.set(response.access, response.refresh);
+    resetApplicationData();
+    set({
+      isAuthenticated: true,
+      currentProfile: toProfileFromUser(response.user),
+      loginError: null,
+      authReady: true,
+    });
+    return response;
+  },
+
+  resendSignupOtp: async (email) =>
+    apiRequest<SignupRegistrationResponse>('/auth/signup/resend-otp/', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ email }),
+    }),
 
   confirmPasswordReset: async (token, newPassword) => {
     const response = await apiRequest<{ detail: string }>('/users/password-reset-confirm/', {
