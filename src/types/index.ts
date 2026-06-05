@@ -180,6 +180,28 @@ export interface PasswordResetRequestResponse {
   token?: string;
 }
 
+export interface SignupRegistrationResponse {
+  detail: string;
+  email: string;
+  verification_required: boolean;
+  expires_in_minutes: number;
+}
+
+export interface SignupVerificationResponse {
+  detail: string;
+  access: string;
+  refresh: string;
+  user: {
+    id: number;
+    full_name: string;
+    email: string;
+    role: Role;
+    phone: string;
+    department: string;
+    location: string;
+  };
+}
+
 export interface DonorEngagementSummary {
   donor_id: number;
   organization_name?: string;
