@@ -28,7 +28,6 @@ export function CreateAccountPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const isDev = import.meta.env.DEV;
 
   const actorDefinition = useMemo(
     () => ACTORS.find((entry) => entry.id === actor) ?? ACTORS[0],
@@ -71,7 +70,7 @@ export function CreateAccountPage() {
 
     setIsSubmitting(true);
     try {
-      const created = await register({
+      const response = await register({
         actor,
         name: trimmedName,
         email: trimmedEmail,
@@ -84,9 +83,15 @@ export function CreateAccountPage() {
           ),
         },
       });
-      if (created) {
-        navigate('/app/dashboard');
-      }
+      navigate('/verify-account', {
+        replace: true,
+        state: {
+          email: response.email,
+          detail: response.detail,
+        },
+      });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Account registration failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -274,6 +279,10 @@ export function CreateAccountPage() {
               </div>
             </div>
 
+            <div className="auth-note-card">
+              After you submit this form, the account stays inactive until the verification code is confirmed on the next screen.
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
               <span>Use a unique password and confirm it before submitting.</span>
               <Button type="button" variant="ghost" onClick={() => setShowPassword((value) => !value)}>
@@ -289,7 +298,7 @@ export function CreateAccountPage() {
           </form>
 
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 pt-6 text-sm text-slate-600">
-            <span>{isDev ? 'Already have access for this actor portal?' : 'Already have access?'}</span>
+            <span>Already have access?</span>
             <Link to="/login" className="font-semibold text-amber-700">
               Back to sign in
             </Link>
