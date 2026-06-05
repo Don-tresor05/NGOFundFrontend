@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ArrowRight, KeyRound, Mail } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
 import { Button } from '../components/Button';
@@ -7,14 +7,11 @@ import { HighlightedText } from '../components/HighlightedText';
 import { useAuthStore } from '../store/authStore';
 
 export function ResetPasswordPage() {
-  const navigate = useNavigate();
   const requestPasswordReset = useAuthStore((state) => state.requestPasswordReset);
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [issuedToken, setIssuedToken] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const isDev = import.meta.env.DEV;
 
   const handleRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -23,11 +20,9 @@ export function ResetPasswordPage() {
       const request = await requestPasswordReset(email);
       setStatusMessage(request.detail);
       setErrorMessage(null);
-      setIssuedToken(request.token ?? null);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Could not request password reset.');
       setStatusMessage(null);
-      setIssuedToken(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -50,7 +45,7 @@ export function ResetPasswordPage() {
               <div className="metric-tile">
                 <span className="eyebrow">Action</span>
                 <strong>Request token</strong>
-                <p className="mt-2 text-sm text-slate-600">Enter the account email and generate a reset token.</p>
+                <p className="mt-2 text-sm text-slate-600">Enter the account email and request a reset code.</p>
               </div>
               <div className="metric-tile">
                 <span className="eyebrow">Next</span>
@@ -87,9 +82,9 @@ export function ResetPasswordPage() {
               <div className="auth-step-header">
                 <div>
                   <p className="section-label">Step 1</p>
-                  <h3 className="mt-2 text-2xl font-bold text-slate-900">Request reset token</h3>
+                  <h3 className="mt-2 text-2xl font-bold text-slate-900">Request reset code</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    The backend creates a short-lived token for the account recovery confirmation page.
+                    The backend creates a short-lived code for the account recovery confirmation page.
                   </p>
                 </div>
                 <span className="auth-step-number">
@@ -110,38 +105,14 @@ export function ResetPasswordPage() {
                   />
                 </label>
                 <Button type="submit" block icon={ArrowRight} disabled={isSubmitting}>
-                  {isSubmitting ? 'Requesting token...' : 'Request reset token'}
+                  {isSubmitting ? 'Requesting code...' : 'Request reset code'}
                 </Button>
               </form>
             </div>
 
             <div className="mt-4 auth-note-card">
-              Use the confirmation page to set a new password after you receive the reset token.
+              Use the confirmation page to set a new password after you receive the reset code by email.
             </div>
-
-            {issuedToken && isDev ? (
-              <div className="mt-4 rounded-[1.5rem] border border-amber-200 bg-amber-50/80 p-4 text-sm text-slate-700">
-                <p className="font-semibold text-slate-900">Development helper</p>
-                <p className="mt-2 leading-6">
-                  A token was issued in this local environment. You can continue to the confirmation page without
-                  exposing it in the UI.
-                </p>
-                <Button
-                  type="button"
-                  className="mt-4"
-                  onClick={() =>
-                    navigate('/reset-password/confirm', {
-                      state: {
-                        email,
-                        token: issuedToken,
-                      },
-                    })
-                  }
-                >
-                  Continue to confirmation
-                </Button>
-              </div>
-            ) : null}
           </div>
 
           {statusMessage ? <div className="mt-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{statusMessage}</div> : null}
