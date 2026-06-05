@@ -8,6 +8,7 @@ import {
   NotFoundPage,
   ProfilePage,
   ResetPasswordPage,
+  VerifyAccountPage,
   UseCasePage,
 } from './pages';
 
@@ -20,6 +21,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/reset-password/confirm" element={<ConfirmPasswordPage />} />
         <Route path="/create-account" element={<CreateAccountPage />} />
+        <Route path="/verify-account" element={<VerifyAccountPage />} />
         <Route path="/app" element={<ProtectedRoute />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
