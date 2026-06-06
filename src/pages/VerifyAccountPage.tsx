@@ -1,5 +1,5 @@
-import { FormEvent, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Mail, ShieldCheck } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
 import { Button } from '../components/Button';
@@ -14,22 +14,49 @@ type VerifyLocationState = {
 export function VerifyAccountPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const verifySignupOtp = useAuthStore((state) => state.verifySignupOtp);
+  const verifySignupToken = useAuthStore((state) => state.verifySignupToken);
   const resendSignupOtp = useAuthStore((state) => state.resendSignupOtp);
   const { email: initialEmail, detail } = (location.state ?? {}) as VerifyLocationState;
+  const token = searchParams.get('token') ?? '';
   const [email, setEmail] = useState(initialEmail ?? '');
   const [otp, setOtp] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isLinkVerifying, setIsLinkVerifying] = useState(Boolean(token));
   const [statusMessage, setStatusMessage] = useState<string | null>(detail ?? null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hasAutoVerified = useRef(false);
 
   const pageSubtitle = useMemo(() => {
-    if (email) {
-      return `Enter the verification code issued for ${email} to activate the account.`;
+    if (token) {
+      return 'The emailed verification link will activate the account automatically.';
     }
-    return 'Enter the verification code issued during signup to activate the account.';
-  }, [email]);
+    if (email) {
+      return `Enter the verification code issued for ${email} or use the link sent to that inbox.`;
+    }
+    return 'Use the emailed verification link or enter the 6-digit code issued during signup.';
+  }, [email, token]);
+
+  useEffect(() => {
+    if (!token || hasAutoVerified.current) {
+      return;
+    }
+    hasAutoVerified.current = true;
+    setIsLinkVerifying(true);
+    verifySignupToken(token)
+      .then((response) => {
+        setStatusMessage(response.detail);
+        setErrorMessage(null);
+        navigate('/app/dashboard', { replace: true });
+      })
+      .catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : 'Could not verify the account link.');
+        setStatusMessage(null);
+      })
+      .finally(() => setIsLinkVerifying(false));
+  }, [navigate, token, verifySignupToken]);
 
   const handleVerify = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,19 +104,19 @@ export function VerifyAccountPage() {
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600">
               Signup creates the account in an inactive state. The verification step confirms ownership of the email address
-              before the account is activated.
+              before the account is activated. You can verify with the emailed link or enter the code manually.
             </p>
 
             <div className="mt-8 grid gap-4 md:grid-cols-2">
               <div className="metric-tile">
-                <span className="eyebrow">Step 1</span>
-                <strong>Receive code</strong>
-                <p className="mt-2 text-sm text-slate-600">The verification code is delivered by email after signup.</p>
+                <span className="eyebrow">Option 1</span>
+                <strong>Click the email link</strong>
+                <p className="mt-2 text-sm text-slate-600">Open the verification link in the email to activate the account automatically.</p>
               </div>
               <div className="metric-tile">
-                <span className="eyebrow">Step 2</span>
-                <strong>Activate account</strong>
-                <p className="mt-2 text-sm text-slate-600">Verify the code to unlock the dashboard session.</p>
+                <span className="eyebrow">Option 2</span>
+                <strong>Enter the code</strong>
+                <p className="mt-2 text-sm text-slate-600">Use the 6-digit code from the same email on the form below.</p>
               </div>
             </div>
           </div>
@@ -119,15 +146,21 @@ export function VerifyAccountPage() {
               <div className="auth-step-header">
                 <div>
                   <p className="section-label">Verify account</p>
-                  <h3 className="mt-2 text-2xl font-bold text-slate-900">Enter the verification code</h3>
+                  <h3 className="mt-2 text-2xl font-bold text-slate-900">Use the link or enter the code</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    The account remains inactive until the code is confirmed.
+                    The account remains inactive until the link or code is confirmed.
                   </p>
                 </div>
                 <span className="auth-step-number">
                   <Mail size={14} />
                 </span>
               </div>
+
+              {token ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  {isLinkVerifying ? 'Verifying the emailed link...' : 'The emailed verification link has already been processed.'}
+                </div>
+              ) : null}
 
               <form onSubmit={handleVerify} className="mt-5 space-y-4">
                 <label className="form-group">
@@ -155,13 +188,13 @@ export function VerifyAccountPage() {
                 </label>
 
                 <Button type="submit" block icon={ArrowRight} disabled={isSubmitting}>
-                  {isSubmitting ? 'Verifying account...' : 'Verify and continue'}
+                  {isSubmitting ? 'Verifying account...' : 'Verify with code'}
                 </Button>
               </form>
             </div>
 
             <div className="mt-4 auth-note-card">
-              If you did not receive the code, request a new verification code using the resend action below.
+              If you clicked the link already, the account activates automatically. Otherwise, use the manual code or request a new one below.
             </div>
 
             <div className="mt-4 flex items-center justify-between gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
