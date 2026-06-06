@@ -38,6 +38,7 @@ interface AuthState {
   requestPasswordReset: (email: string) => Promise<PasswordResetRequestResponse>;
   confirmPasswordReset: (token: string, newPassword: string) => Promise<string>;
   verifySignupOtp: (email: string, otp: string) => Promise<SignupVerificationResponse>;
+  verifySignupToken: (token: string) => Promise<SignupVerificationResponse>;
   resendSignupOtp: (email: string) => Promise<SignupRegistrationResponse>;
 }
 
@@ -230,6 +231,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       method: 'POST',
       skipAuth: true,
       body: JSON.stringify({ email, otp }),
+    });
+
+    tokenStorage.set(response.access, response.refresh);
+    resetApplicationData();
+    set({
+      isAuthenticated: true,
+      currentProfile: toProfileFromUser(response.user),
+      loginError: null,
+      authReady: true,
+    });
+    return response;
+  },
+
+  verifySignupToken: async (token) => {
+    const response = await apiRequest<SignupVerificationResponse>('/auth/signup/verify-otp/', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ token }),
     });
 
     tokenStorage.set(response.access, response.refresh);
