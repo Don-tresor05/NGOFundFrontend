@@ -280,7 +280,7 @@ export function CreateAccountPage() {
             </div>
 
             <div className="auth-note-card">
-              After you submit this form, the account stays inactive until the verification code is confirmed on the next screen.
+              After you submit this form, the account stays inactive until you verify from the emailed link or enter the code on the next screen.
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
