@@ -7,7 +7,7 @@ import {
   Shield,
   UserRoundCog,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { AppHeader, HighlightedText, StatCard } from '../components';
 import { AreaMetricChart, BarMetricChart, PieMetricChart } from '../components/charts';
 import { ACTORS, PLATFORM_MODULES, USE_CASES } from '../constants/appModel';
@@ -21,53 +21,68 @@ export function DashboardPage() {
   const currentProfile = useAuthStore((state) => state.currentProfile);
   const dataReady = useAppDataStore((state) => state.dataReady);
   const systemSettingsSummary = useAppDataStore((state) => state.systemSettingsSummary);
-  const donorEngagementDashboard = useAppDataStore((state) => state.donorEngagementDashboard);
+  const actorId = currentProfile?.actor;
+  const actor = actorId ? ACTORS.find((entry) => entry.id === actorId) : undefined;
+  const actorUseCases = actorId ? USE_CASES.filter((entry) => entry.actors.includes(actorId)) : [];
+  const actorModules = actorId
+    ? PLATFORM_MODULES.map((module) => ({
+        ...module,
+        useCases: actorUseCases.filter((useCase) => useCase.moduleId === module.id),
+      })).filter((module) => module.useCases.length > 0)
+    : [];
+  const pendingRequisitionCount = useAppDataStore((state) => state.requisitions.filter((item) => item.status === 'pending').length);
+  const activeExpenseApprovalCount = useAppDataStore(
+    (state) => state.expenseApprovals.filter((item) => item.stage !== 'approved' && item.stage !== 'rejected').length
+  );
+  const pendingReallocationCount = useAppDataStore((state) => state.reallocationRequests.filter((item) => item.status === 'pending').length);
+  const openBugCount = useAppDataStore((state) => state.bugReports.filter((item) => item.status !== 'closed').length);
+  const unverifiedComplianceCount = useAppDataStore((state) => state.complianceItems.filter((item) => !item.verified).length);
+  const unreadNotificationCount = useAppDataStore((state) => state.notifications.filter((item) => !item.is_read).length);
+  const budgetLineCount = useAppDataStore((state) => state.budgetLines.length);
+  const reportCount = useAppDataStore((state) => state.reports.length);
+  const reportScheduleCount = useAppDataStore((state) => state.reportSchedules.length);
+  const reportDeliveryCount = useAppDataStore((state) => state.reportDeliveries.length);
+  const userCount = useAppDataStore((state) => state.users.length);
+
+  const activeApprovals = actorId ? pendingRequisitionCount + activeExpenseApprovalCount + pendingReallocationCount : 0;
+  const outstandingAlerts = actorId ? openBugCount + unverifiedComplianceCount + unreadNotificationCount : 0;
+  const workflowDistribution = actorId
+    ? [
+        {
+          label: 'Approvals',
+          value: pendingRequisitionCount + activeExpenseApprovalCount,
+        },
+        {
+          label: 'Monitoring',
+          value: budgetLineCount + unverifiedComplianceCount,
+        },
+        {
+          label: 'Reporting',
+          value: reportCount + reportScheduleCount + reportDeliveryCount,
+        },
+        {
+          label: 'Governance',
+          value: userCount + unreadNotificationCount,
+        },
+      ]
+    : [];
+
+  const stats: DashboardStat[] = actorId
+    ? [
+        { label: 'Role Modules', value: String(actorModules.length), trend: 'Module access mapped by role', trendDirection: 'up' },
+        { label: 'Role Workflows', value: String(actorUseCases.length), trend: 'Use cases grouped under modules', trendDirection: 'up' },
+        { label: 'Active Approvals', value: String(activeApprovals), trend: dataReady ? 'Live workflow queue from backend data' : 'Waiting on backend sync', trendDirection: 'neutral' },
+        { label: 'Outstanding Alerts', value: String(outstandingAlerts), trend: 'Open issues and unread notices', trendDirection: 'down' },
+      ]
+    : [];
 
   if (!currentProfile) {
     return null;
   }
 
-  const actor = ACTORS.find((entry) => entry.id === currentProfile.actor);
-  const actorUseCases = USE_CASES.filter((entry) => entry.actors.includes(currentProfile.actor));
-  const actorModules = PLATFORM_MODULES.map((module) => ({
-    ...module,
-    useCases: actorUseCases.filter((useCase) => useCase.moduleId === module.id),
-  })).filter((module) => module.useCases.length > 0);
-  const activeApprovals =
-    useAppDataStore((state) => state.requisitions.filter((item) => item.status === 'pending').length) +
-    useAppDataStore((state) => state.expenseApprovals.filter((item) => item.stage !== 'approved' && item.stage !== 'rejected').length) +
-    useAppDataStore((state) => state.reallocationRequests.filter((item) => item.status === 'pending').length);
-  const outstandingAlerts =
-    useAppDataStore((state) => state.bugReports.filter((item) => item.status !== 'closed').length) +
-    useAppDataStore((state) => state.complianceItems.filter((item) => !item.verified).length) +
-    useAppDataStore((state) => state.notifications.filter((item) => !item.is_read).length);
-  const workflowDistribution = [
-    {
-      label: 'Approvals',
-      value:
-        useAppDataStore((state) => state.requisitions.filter((item) => item.status === 'pending').length) +
-        useAppDataStore((state) => state.expenseApprovals.filter((item) => item.stage !== 'approved' && item.stage !== 'rejected').length),
-    },
-    {
-      label: 'Monitoring',
-      value: useAppDataStore((state) => state.budgetLines.length + state.complianceItems.filter((item) => !item.verified).length),
-    },
-    {
-      label: 'Reporting',
-      value: useAppDataStore((state) => state.reports.length + state.reportSchedules.length + state.reportDeliveries.length),
-    },
-    {
-      label: 'Governance',
-      value: useAppDataStore((state) => state.users.length + state.notifications.length),
-    },
-  ];
-
-  const stats: DashboardStat[] = [
-    { label: 'Role Modules', value: String(actorModules.length), trend: 'Module access mapped by role', trendDirection: 'up' },
-    { label: 'Role Workflows', value: String(actorUseCases.length), trend: 'Use cases grouped under modules', trendDirection: 'up' },
-    { label: 'Active Approvals', value: String(activeApprovals), trend: dataReady ? 'Live workflow queue from backend data' : 'Waiting on backend sync', trendDirection: 'neutral' },
-    { label: 'Outstanding Alerts', value: String(outstandingAlerts), trend: 'Open issues and unread notices', trendDirection: 'down' },
-  ];
+  if (currentProfile.actor === 'donor_user') {
+    return <Navigate to="/app/donor-portal" replace />;
+  }
 
   return (
     <>
@@ -146,7 +161,7 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {(systemSettingsSummary || donorEngagementDashboard) && (
+      {systemSettingsSummary && (
         <section className="mt-6 grid gap-6 xl:grid-cols-2">
           {systemSettingsSummary && (
             <div className="panel-card">
@@ -172,47 +187,6 @@ export function DashboardPage() {
                   <div key={group} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="text-xs uppercase tracking-[0.24em] text-slate-500">{group}</div>
                     <div className="mt-2 text-2xl font-bold text-slate-900">{count}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {donorEngagementDashboard && (
-            <div className="panel-card">
-              <h3 className="text-lg font-bold text-slate-900">
-                <HighlightedText text="Donor Engagement" />
-              </h3>
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <div className="metric-tile">
-                  <span className="eyebrow">Total Donors</span>
-                  <strong>{donorEngagementDashboard.total_donors}</strong>
-                </div>
-                <div className="metric-tile">
-                  <span className="eyebrow">Communications</span>
-                  <strong>{donorEngagementDashboard.total_communications}</strong>
-                </div>
-                <div className="metric-tile">
-                  <span className="eyebrow">Active</span>
-                  <strong>{donorEngagementDashboard.active_donors}</strong>
-                </div>
-                <div className="metric-tile">
-                  <span className="eyebrow">Inactive</span>
-                  <strong>{donorEngagementDashboard.inactive_donors}</strong>
-                </div>
-              </div>
-              <div className="mt-5 space-y-3">
-                {donorEngagementDashboard.top_donors.map((donor) => (
-                  <div key={donor.donor_id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div>
-                      <div className="font-semibold text-slate-900">{donor.organization_name}</div>
-                      <div className="text-sm text-slate-500">
-                        {donor.communication_count} communications · Last contact {donor.last_contact_date ?? 'none'}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Engagement</div>
-                      <div className="text-xl font-bold text-slate-900">{donor.engagement_score}</div>
-                    </div>
                   </div>
                 ))}
               </div>
