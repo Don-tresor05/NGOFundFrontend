@@ -46,6 +46,10 @@ export function AppSidebar() {
     ...module,
     useCases: useCases.filter((useCase) => useCase.moduleId === module.id),
   })).filter((module) => module.useCases.length > 0);
+  const homePath = currentProfile.actor === 'donor_user' ? '/app/donor-portal' : '/app/dashboard';
+  const homeLabel = currentProfile.actor === 'donor_user' ? 'Donor Portal' : 'Dashboard';
+  const homeIcon = currentProfile.actor === 'donor_user' ? HandCoins : LayoutDashboard;
+  const HomeIcon = homeIcon;
 
   return (
     <aside className="app-sidebar">
@@ -68,9 +72,9 @@ export function AppSidebar() {
       </div>
 
       <nav className="sidebar-primary-nav">
-        <NavLink to="/app/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
-          <LayoutDashboard size={18} />
-          <span>Dashboard</span>
+        <NavLink to={homePath} className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+          <HomeIcon size={18} />
+          <span>{homeLabel}</span>
         </NavLink>
         <NavLink to="/app/profile" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
           <UserRound size={18} />
