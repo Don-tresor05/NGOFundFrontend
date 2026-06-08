@@ -4,6 +4,7 @@ import {
   CreateAccountPage,
   ConfirmPasswordPage,
   DashboardPage,
+  DonorPortalPage,
   LoginPage,
   NotFoundPage,
   ProfilePage,
@@ -25,6 +26,7 @@ function App() {
         <Route path="/app" element={<ProtectedRoute />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="donor-portal" element={<DonorPortalPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="use-cases/:useCaseId" element={<UseCasePage />} />
         </Route>

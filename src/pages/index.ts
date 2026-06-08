@@ -1,6 +1,7 @@
 export { CreateAccountPage } from './CreateAccountPage';
 export { VerifyAccountPage } from './VerifyAccountPage';
 export { DashboardPage } from './DashboardPage';
+export { DonorPortalPage } from './DonorPortalPage';
 export { LoginPage } from './LoginPage';
 export { NotFoundPage } from './NotFoundPage';
 export { ProfilePage } from './ProfilePage';
