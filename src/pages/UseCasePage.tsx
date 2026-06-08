@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { Bug, Check, ClipboardCheck, Eye, Plus, RefreshCcw } from 'lucide-react';
 import { AppHeader, Button, DataTable, StatCard, StatusBadge } from '../components';
 import { DataEntryForm } from '../components/forms/DataEntryForm';
@@ -11,7 +11,6 @@ import {
   Actor,
   BugReport,
   DashboardStat,
-  DonorEngagementSummary,
   ReportSchedule,
   Role,
   UseCaseId,
@@ -52,7 +51,6 @@ export function UseCasePage() {
   const grantTitle = (id: number) => store.grants.find((grant) => grant.grant_id === id)?.grant_title ?? 'Unmapped Grant';
   const firstBudgetLine = store.budgetLines[0];
   const firstGrant = store.grants[0];
-  const firstDonor = store.donors[0];
   const staffRequirementTotal = store.staffRequirements.length;
   const staffRequirementInReview = store.staffRequirements.filter((requirement) => requirement.validation_status === 'in_review').length;
   const staffRequirementPending = store.staffRequirements.filter((requirement) => requirement.validation_status === 'pending').length;
@@ -77,7 +75,6 @@ export function UseCasePage() {
   const [requirementForm, setRequirementForm] = useState({ interviewee: '', process: '', feedback: '' });
   const [testCaseForm, setTestCaseForm] = useState({ title: '', scenario: '', environment: 'Staging', priority: 'medium' as TestCase['priority'] });
   const [uatForm, setUatForm] = useState({ testCase: '', feedback: '' });
-  const [donorEngagement, setDonorEngagement] = useState<DonorEngagementSummary | null>(null);
   const [reallocationForm, setReallocationForm] = useState({ source: '', target: '', amount: '0', reason: '' });
   const [expenseForm, setExpenseForm] = useState({ requisition: '', notes: '', decisionReason: '' });
   const [scheduleForm, setScheduleForm] = useState({ reportType: '', frequency: 'monthly', deliveryMethod: 'email', recipients: '', nextRunAt: '' });
@@ -1495,93 +1492,47 @@ export function UseCasePage() {
 
       case 'access-donor-portal':
         return (
-          <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-            <div className="space-y-6">
-              <div className="panel-card">
-                <h3 className="text-xl font-bold text-slate-900">Donor experience summary</h3>
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <div className="metric-tile">
-                    <span className="eyebrow">Lifetime Giving</span>
-                    <strong>{currency.format(store.transactions.reduce((sum, transaction) => sum + transaction.amount, 0))}</strong>
-                  </div>
-                  <div className="metric-tile">
-                    <span className="eyebrow">Active Projects</span>
-                    <strong>{store.projects.length} supported programs</strong>
-                  </div>
-                  <div className="metric-tile">
-                    <span className="eyebrow">Receipts Ready</span>
-                    <strong>{store.transactions.length} tax receipts</strong>
-                  </div>
-                  <div className="metric-tile">
-                    <span className="eyebrow">Impact Updates</span>
-                    <strong>{store.reportDeliveries.filter((delivery) => delivery.status === 'sent').length} delivered updates</strong>
-                  </div>
+          <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+            <div className="panel-card">
+              <h3 className="text-xl font-bold text-slate-900">Dedicated donor portal</h3>
+              <p className="mt-4 text-sm leading-6 text-slate-600">
+                This use case is now served by the dedicated donor portal route. The portal is read-only for donors and is
+                personalized from the donor record linked to the account.
+              </p>
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <div className="metric-tile">
+                  <span className="eyebrow">Portal Route</span>
+                  <strong>/app/donor-portal</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Access Mode</span>
+                  <strong>Read-only</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Personalization</span>
+                  <strong>Linked donor record</strong>
+                </div>
+                <div className="metric-tile">
+                  <span className="eyebrow">Primary Views</span>
+                  <strong>Giving, receipts, impact, communications</strong>
                 </div>
               </div>
-              <div className="panel-card">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xl font-bold text-slate-900">Engagement summary</h3>
-                  <Button
-                    variant="outline"
-                    disabled={!firstDonor}
-                    onClick={async () => {
-                      if (!firstDonor) {
-                        return;
-                      }
-                      setDonorEngagement(await store.fetchDonorEngagementSummary(firstDonor.donor_id));
-                    }}
-                  >
-                    Load Summary
-                  </Button>
-                </div>
-                <div className="mt-6 grid gap-4 md:grid-cols-3">
-                  <div className="metric-tile">
-                    <span className="eyebrow">Communication Count</span>
-                    <strong>{donorEngagement?.communication_count ?? 0}</strong>
-                  </div>
-                  <div className="metric-tile">
-                    <span className="eyebrow">Last Contact</span>
-                    <strong>{donorEngagement?.last_contact_date ?? 'None'}</strong>
-                  </div>
-                  <div className="metric-tile">
-                    <span className="eyebrow">Channels</span>
-                    <strong>{donorEngagement?.channels.length ?? 0}</strong>
-                  </div>
-                </div>
-                <div className="mt-4 text-sm text-slate-600">
-                  {donorEngagement?.last_contact_subject ? `Latest subject: ${donorEngagement.last_contact_subject}` : 'Load a donor summary to inspect acknowledgement history.'}
-                </div>
-              </div>
-              <div className="panel-card">
-                <h3 className="text-xl font-bold text-slate-900">Acknowledgment action</h3>
-                <div className="mt-4 text-sm text-slate-600">
-                  Trigger the donor acknowledgment endpoint for the selected donor record.
-                </div>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Button
-                    disabled={!firstDonor}
-                    onClick={async () => {
-                      if (!firstDonor) {
-                        return;
-                      }
-                      await store.acknowledgeDonor(firstDonor.donor_id, {
-                        channel: 'email',
-                        subject: 'Thank you for your support',
-                      });
-                      setDonorEngagement(await store.fetchDonorEngagementSummary(firstDonor.donor_id));
-                    }}
-                  >
-                    Send Acknowledgment
-                  </Button>
-                </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link to="/app/donor-portal" className="btn btn-primary">
+                  Open donor portal
+                </Link>
+                <Link to="/app/profile" className="btn btn-outline">
+                  Update portal profile
+                </Link>
               </div>
             </div>
             <PieMetricChart
-              title="Donation Interest Mix"
+              title="Donor Portal Focus"
               data={[
-                { label: 'Maternal Care', value: 45, color: '#f59e0b' },
-                { label: 'Water Access', value: 30, color: '#1f6f78' },
-                { label: 'Nutrition', value: 25, color: '#4caf50' },
+                { label: 'Giving', value: 35, color: '#1f6f78' },
+                { label: 'Receipts', value: 25, color: '#f59e0b' },
+                { label: 'Impact', value: 25, color: '#4caf50' },
+                { label: 'Messages', value: 15, color: '#ef4444' },
               ]}
             />
           </section>
@@ -1643,7 +1594,6 @@ export function UseCasePage() {
     reportForm.period,
     auditForm.action,
     auditForm.source,
-    donorEngagement,
     reallocationForm.amount,
     reallocationForm.reason,
     reallocationForm.source,
