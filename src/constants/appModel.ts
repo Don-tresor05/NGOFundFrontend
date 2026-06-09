@@ -1,4 +1,4 @@
-import { Actor, ActorDefinition, DemoAccount, PlatformModuleDefinition, RoleFormField, UseCaseDefinition } from '../types';
+import { Actor, ActorDefinition, PlatformModuleDefinition, RoleFormField, UseCaseDefinition } from '../types';
 
 export const ACTORS: ActorDefinition[] = [
   {
@@ -163,13 +163,13 @@ export const ACTOR_FORM_FIELDS: Record<Actor, RoleFormField[]> = {
 };
 
 export const ACTOR_LOGIN_IDS: Record<Actor, { label: string; placeholder: string }> = {
-  super_administrator: { label: 'Administrator Email', placeholder: 'superadmin@ngofund.org' },
-  finance_officer: { label: 'Finance Email', placeholder: 'finance@ngofund.org' },
-  field_staff: { label: 'Field Email', placeholder: 'field@ngofund.org' },
-  project_manager: { label: 'Project Manager Email', placeholder: 'manager@ngofund.org' },
-  executive_director: { label: 'Executive Email', placeholder: 'director@ngofund.org' },
-  external_auditor: { label: 'Auditor Email', placeholder: 'auditor@ngofund.org' },
-  donor_user: { label: 'Donor Email', placeholder: 'donor@ngofund.org' },
+  super_administrator: { label: 'Account Email', placeholder: 'name@organization.org' },
+  finance_officer: { label: 'Account Email', placeholder: 'name@organization.org' },
+  field_staff: { label: 'Account Email', placeholder: 'name@organization.org' },
+  project_manager: { label: 'Account Email', placeholder: 'name@organization.org' },
+  executive_director: { label: 'Account Email', placeholder: 'name@organization.org' },
+  external_auditor: { label: 'Account Email', placeholder: 'name@organization.org' },
+  donor_user: { label: 'Account Email', placeholder: 'name@organization.org' },
 };
 
 export const PLATFORM_MODULES: PlatformModuleDefinition[] = [
@@ -543,92 +543,5 @@ export const USE_CASES: UseCaseDefinition[] = [
     title: 'View Transaction Summaries',
     summary: 'Review personal donation history and transaction outcomes.',
     actors: ['donor_user'],
-  },
-];
-
-export const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    id: 'acct-001',
-    actor: 'super_administrator',
-    email: 'superadmin@ngofund.org',
-    password: 'demo12345',
-    name: 'Nadine Uwase',
-    metadata: {
-      organization_unit: 'Central Administration',
-      staff_id: 'ADM-204',
-      security_clearance: 'Tier 3',
-    },
-  },
-  {
-    id: 'acct-002',
-    actor: 'finance_officer',
-    email: 'finance@ngofund.org',
-    password: 'demo12345',
-    name: 'Michael Finance',
-    metadata: {
-      finance_unit: 'Treasury and Controls',
-      authorization_limit: 'USD 25,000',
-      payroll_code: 'FIN-7781',
-    },
-  },
-  {
-    id: 'acct-003',
-    actor: 'field_staff',
-    email: 'field@ngofund.org',
-    password: 'demo12345',
-    name: 'Grace Field',
-    metadata: {
-      operational_region: 'Eastern Province',
-      base_station: 'Kayonza Field Office',
-      supervisor_name: 'Regional Coordinator',
-    },
-  },
-  {
-    id: 'acct-004',
-    actor: 'project_manager',
-    email: 'manager@ngofund.org',
-    password: 'demo12345',
-    name: 'Patrick Manager',
-    metadata: {
-      project_portfolio: 'Health Systems Strengthening',
-      cost_center: 'CC-3304',
-      approval_tier: 'Tier B',
-    },
-  },
-  {
-    id: 'acct-005',
-    actor: 'executive_director',
-    email: 'director@ngofund.org',
-    password: 'demo12345',
-    name: 'Aline Director',
-    metadata: {
-      office_title: 'Executive Director',
-      approval_ceiling: 'USD 100,000',
-      board_liaison: 'Governance Committee',
-    },
-  },
-  {
-    id: 'acct-006',
-    actor: 'external_auditor',
-    email: 'auditor@ngofund.org',
-    password: 'demo12345',
-    name: 'Lisa Auditor',
-    metadata: {
-      audit_firm: 'Independent Assurance LLP',
-      engagement_code: 'AUD-2026-Q2',
-      certification_id: 'CPA-44721',
-    },
-  },
-  {
-    id: 'acct-007',
-    actor: 'donor_user',
-    email: 'donor@ngofund.org',
-    password: 'demo12345',
-    name: 'Sarah Donor',
-    metadata: {
-      donor_type: 'Individual',
-      preferred_cause: 'Maternal and Child Health',
-      tax_residence: 'Rwanda',
-    },
   },
 ];

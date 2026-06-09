@@ -130,15 +130,6 @@ export interface Profile {
   metadata: Record<string, string>;
 }
 
-export interface DemoAccount {
-  id: string;
-  actor: Actor;
-  email: string;
-  password: string;
-  name: string;
-  metadata: Record<string, string>;
-}
-
 export interface SystemSetting {
   id?: number;
   key: string;
