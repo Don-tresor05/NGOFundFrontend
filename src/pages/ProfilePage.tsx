@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AppHeader, Button } from '../components';
 import { useAuthStore } from '../store/authStore';
 
@@ -56,9 +57,31 @@ export function ProfilePage() {
               <strong>{currentProfile.department}</strong>
             </div>
           </div>
+
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Account Security</div>
+            <div className="mt-2 text-sm leading-6 text-slate-600">
+              Your profile updates stay tied to the backend account record. Password changes and session recovery are handled through the dedicated recovery flow.
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link to="/reset-password" className="btn btn-outline">
+                Reset password
+              </Link>
+              <Link to="/app/donor-portal" className="btn btn-ghost">
+                Open donor portal
+              </Link>
+            </div>
+          </div>
         </div>
 
         <div className="panel-card">
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Update profile details</h3>
+              <p className="mt-1 text-sm text-slate-600">Keep the backend account metadata aligned with how the user is represented in the platform.</p>
+            </div>
+            {saved ? <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Saved in backend</span> : null}
+          </div>
           <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <label className="form-group">
               <span className="form-label">Full Name</span>
@@ -102,7 +125,7 @@ export function ProfilePage() {
             </label>
             <div className="md:col-span-2 flex flex-wrap items-center gap-3">
               <Button type="submit">Save Profile Updates</Button>
-              {saved ? <span className="text-sm font-semibold text-emerald-700">Profile updated in the backend.</span> : null}
+              <span className="text-sm text-slate-500">Changes are applied to the authenticated account only.</span>
             </div>
           </form>
         </div>
