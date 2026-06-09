@@ -19,6 +19,30 @@ import {
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+const exportCsv = (filename: string, rows: Array<Record<string, string | number | null | undefined>>) => {
+  if (!rows.length) {
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const escape = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    const stringValue = String(value);
+    return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
+  };
+
+  const csv = [headers.join(','), ...rows.map((row) => headers.map((header) => escape(row[header])).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
 const actorToRole: Record<Actor, Role> = {
   super_administrator: 'SUPER_ADMIN',
   finance_officer: 'FINANCE_OFFICER',
@@ -49,6 +73,7 @@ export function UseCasePage() {
   const userName = (id: number) => store.users.find((user) => user.user_id === id)?.full_name ?? 'Unknown User';
   const budgetLineName = (id: number) => store.budgetLines.find((line) => line.budget_line_id === id)?.line_name ?? 'Unmapped Budget';
   const grantTitle = (id: number) => store.grants.find((grant) => grant.grant_id === id)?.grant_title ?? 'Unmapped Grant';
+  const allowedUseCases = USE_CASES.filter((entry) => entry.actors.includes(currentProfile.actor));
   const firstBudgetLine = store.budgetLines[0];
   const firstGrant = store.grants[0];
   const staffRequirementTotal = store.staffRequirements.length;
@@ -63,6 +88,37 @@ export function UseCasePage() {
     { label: 'Workflow State', value: store.dataReady ? 'Backend synced' : 'Syncing', trend: 'Connected to backend APIs', trendDirection: 'neutral' },
     { label: 'Access Policy', value: actor?.label ?? 'Role-aware', trend: 'Use-case permissions enforced', trendDirection: 'up' },
   ];
+
+  const reconciliationRows = store.transactions.map((transaction) => ({
+    transaction_id: transaction.transaction_id,
+    budget_line: budgetLineName(transaction.budget_line_id),
+    amount: currency.format(transaction.amount),
+    date: transaction.transaction_date,
+    reference: transaction.bank_reference_number,
+    status: transaction.status ?? 'pending',
+  }));
+  const reconciliationPendingCount = store.transactions.filter((transaction) => !transaction.status || transaction.status === 'pending').length;
+  const reconciliationClearedCount = store.transactions.filter((transaction) => transaction.status === 'cleared').length;
+  const reconciliationMatchedCount = store.transactions.filter((transaction) => transaction.status === 'reconciled').length;
+
+  const reportScheduleRows = store.reportSchedules.map((schedule) => ({
+    report_type: schedule.report_type,
+    frequency: schedule.frequency,
+    delivery_method: schedule.delivery_method,
+    recipients: schedule.recipient_emails,
+    status: schedule.is_active ? 'active' : 'inactive',
+    next_run_at: schedule.next_run_at ?? '-',
+    last_run_at: schedule.last_run_at ?? '-',
+  }));
+
+  const reportDeliveryRows = store.reportDeliveries.map((delivery) => ({
+    report_id: delivery.report,
+    destination: delivery.destination,
+    method: delivery.delivery_method,
+    status: delivery.status,
+    sent_at: delivery.sent_at ?? '-',
+  }));
+  const activeSchedules = store.reportSchedules.filter((schedule) => schedule.is_active).length;
 
   const [userForm, setUserForm] = useState({ name: '', email: '', actor: 'field_staff' });
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({});
@@ -120,6 +176,25 @@ export function UseCasePage() {
                 <div className="mt-6 space-y-3 text-sm text-slate-600">
                   <p>Security settings and account controls now load from the backend instead of local mock state.</p>
                   <p>Password reset, access governance, and user lifecycle checks are available through the accounts API.</p>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Current Role</div>
+                    <div className="mt-2 text-lg font-semibold text-slate-900">{roleLabels[actorToRole[currentProfile.actor]]}</div>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Access is governed by the backend role matrix. Sensitive controls stay hidden when the role is not permitted.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Allowed Use Cases</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {allowedUseCases.map((entry) => (
+                        <span key={entry.id} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                          {entry.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -514,35 +589,86 @@ export function UseCasePage() {
 
       case 'bank-reconciliation':
         return (
-          <div className="panel-card">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xl font-bold text-slate-900">Open bank matches</h3>
-              <Button variant="outline" icon={RefreshCcw}>Reload Statement</Button>
+          <section className="space-y-6">
+            <section className="grid gap-4 md:grid-cols-4">
+              <StatCard label="Pending Matches" value={String(reconciliationPendingCount)} trend="Require reconciliation" trendDirection="neutral" icon={ClipboardCheck} />
+              <StatCard label="Cleared" value={String(reconciliationClearedCount)} trend="Bank confirmed" trendDirection="up" icon={Check} />
+              <StatCard label="Reconciled" value={String(reconciliationMatchedCount)} trend="Matched to ledger" trendDirection="up" icon={Eye} />
+              <StatCard label="Total Lines" value={String(store.transactions.length)} trend="Current bank review set" trendDirection="neutral" icon={RefreshCcw} />
+            </section>
+
+            <div className="panel-card">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Bank reconciliation workbench</h3>
+                  <p className="mt-1 text-sm text-slate-500">Review bank lines, reconcile pending transactions, and export the current match set.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => exportCsv('bank-reconciliation.csv', reconciliationRows)}>
+                    Export CSV
+                  </Button>
+                  <Button variant="outline" icon={RefreshCcw}>Reload Statement</Button>
+                </div>
+              </div>
+              <div className="mt-6">
+                <DataTable
+                  rows={store.transactions}
+                  columns={[
+                    { key: 'reference', header: 'Bank Reference', render: (row) => row.bank_reference_number },
+                    { key: 'budget', header: 'Budget Line', render: (row) => budgetLineName(row.budget_line_id) },
+                    { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
+                    { key: 'date', header: 'Transaction Date', render: (row) => row.transaction_date },
+                    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status ?? 'pending'} /> },
+                    {
+                      key: 'action',
+                      header: 'Action',
+                      render: (row) =>
+                        row.status === 'reconciled' ? (
+                          <Button variant="ghost" icon={Check} />
+                        ) : (
+                          <Button variant="outline" onClick={() => store.reconcileTransaction(row.transaction_id)}>
+                            Reconcile
+                          </Button>
+                        ),
+                    },
+                  ]}
+                  emptyTitle="No bank lines available"
+                  emptyDescription="Once transactions are recorded, they can be reconciled here."
+                />
+              </div>
             </div>
-            <div className="mt-6">
-              <DataTable
-                rows={store.transactions}
-                columns={[
-                  { key: 'reference', header: 'Bank Reference', render: (row) => row.bank_reference_number },
-                  { key: 'budget', header: 'Budget Line', render: (row) => budgetLineName(row.budget_line_id) },
-                  { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
-                  { key: 'date', header: 'Transaction Date', render: (row) => row.transaction_date },
-                  {
-                    key: 'action',
-                    header: 'Action',
-                    render: (row) =>
-                      row.bank_reference_number === 'PENDING' ? (
-                        <Button variant="outline" onClick={() => store.reconcileTransaction(row.transaction_id)}>
-                          Reconcile
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" icon={Check} />
-                      ),
-                  },
+
+            <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+              <div className="panel-card">
+                <h3 className="text-xl font-bold text-slate-900">Reconciliation summary</h3>
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className="metric-tile">
+                    <span className="eyebrow">Pending</span>
+                    <strong>{reconciliationPendingCount}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Cleared</span>
+                    <strong>{reconciliationClearedCount}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Reconciled</span>
+                    <strong>{reconciliationMatchedCount}</strong>
+                  </div>
+                </div>
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  The workbench is permission-aware: only finance and leadership roles can reconcile transactions, while auditors can review status changes.
+                </div>
+              </div>
+              <BarMetricChart
+                title="Match Distribution"
+                data={[
+                  { label: 'Pending', value: reconciliationPendingCount },
+                  { label: 'Cleared', value: reconciliationClearedCount },
+                  { label: 'Reconciled', value: reconciliationMatchedCount },
                 ]}
               />
-            </div>
-          </div>
+            </section>
+          </section>
         );
 
       case 'generate-financial-reports':
@@ -618,10 +744,39 @@ export function UseCasePage() {
                 </label>
               </DataEntryForm>
             </div>
+            <section className="grid gap-4 md:grid-cols-4 xl:col-span-2">
+              <StatCard label="Reports" value={String(store.reports.length)} trend="Generated report records" trendDirection="up" icon={Eye} />
+              <StatCard label="Schedules" value={String(store.reportSchedules.length)} trend={`${activeSchedules} active schedules`} trendDirection="neutral" icon={RefreshCcw} />
+              <StatCard label="Deliveries" value={String(store.reportDeliveries.length)} trend="Dispatched report copies" trendDirection="up" icon={ClipboardCheck} />
+              <StatCard label="Exports" value="CSV" trend="Current output format" trendDirection="neutral" icon={Plus} />
+            </section>
             <div className="panel-card">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-xl font-bold text-slate-900">Generated reports</h3>
-                <Button variant="outline" onClick={() => store.fetchAll()}>Refresh</Button>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Generated reports</h3>
+                  <p className="mt-1 text-sm text-slate-500">Track generated reports, schedule them, and export the current operational snapshot.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      exportCsv(
+                        'generated-reports.csv',
+                        store.reports.map((report) => ({
+                          report_type: report.report_type,
+                          grant: grantTitle(report.grant_id),
+                          format: report.format,
+                          created_at: report.created_at,
+                        }))
+                      )
+                    }
+                  >
+                    Export Reports
+                  </Button>
+                  <Button variant="outline" onClick={() => store.fetchAll()}>
+                    Refresh
+                  </Button>
+                </div>
               </div>
               <div className="mt-6">
                 <DataTable
@@ -645,7 +800,12 @@ export function UseCasePage() {
                 />
               </div>
               <div className="mt-6 border-t border-slate-200 pt-6">
-                <h4 className="text-lg font-semibold text-slate-900">Scheduled report runs</h4>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h4 className="text-lg font-semibold text-slate-900">Scheduled report runs</h4>
+                  <Button variant="outline" onClick={() => exportCsv('report-schedules.csv', reportScheduleRows)}>
+                    Export Schedules
+                  </Button>
+                </div>
                 <div className="mt-4">
                   <DataTable
                     rows={store.reportSchedules}
@@ -658,9 +818,10 @@ export function UseCasePage() {
                         key: 'actions',
                         header: 'Actions',
                         render: (row) => (
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button variant="outline" onClick={() => store.activateReportSchedule(row.id)}>Activate</Button>
                             <Button variant="ghost" onClick={() => store.deactivateReportSchedule(row.id)}>Deactivate</Button>
+                            <Button variant="outline" onClick={() => store.runReportSchedule(row.id)}>Run Now</Button>
                           </div>
                         ),
                       },
@@ -669,32 +830,37 @@ export function UseCasePage() {
                 </div>
               </div>
               <div className="mt-6 border-t border-slate-200 pt-6">
-                <h4 className="text-lg font-semibold text-slate-900">Delivered copies</h4>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h4 className="text-lg font-semibold text-slate-900">Delivered copies</h4>
+                  <Button variant="outline" onClick={() => exportCsv('report-deliveries.csv', reportDeliveryRows)}>
+                    Export Deliveries
+                  </Button>
+                </div>
                 <div className="mt-4">
                   <DataTable
-                  rows={store.reportDeliveries}
-                  columns={[
-                    { key: 'report', header: 'Report', render: (row) => row.report },
-                    { key: 'destination', header: 'Destination', render: (row) => row.destination },
-                    { key: 'method', header: 'Method', render: (row) => row.delivery_method },
-                    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
-                    {
-                      key: 'dispatch',
-                      header: 'Dispatch',
-                      render: (row) => (
-                        <Button
-                          variant="outline"
-                          disabled={row.status === 'sent'}
-                          onClick={() => store.dispatchReportDelivery(row.id)}
-                        >
-                          Dispatch
-                        </Button>
-                      ),
-                    },
-                  ]}
-                />
+                    rows={store.reportDeliveries}
+                    columns={[
+                      { key: 'report', header: 'Report', render: (row) => row.report },
+                      { key: 'destination', header: 'Destination', render: (row) => row.destination },
+                      { key: 'method', header: 'Method', render: (row) => row.delivery_method },
+                      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                      {
+                        key: 'dispatch',
+                        header: 'Dispatch',
+                        render: (row) => (
+                          <Button
+                            variant="outline"
+                            disabled={row.status === 'sent'}
+                            onClick={() => store.dispatchReportDelivery(row.id)}
+                          >
+                            Dispatch
+                          </Button>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
               </div>
-            </div>
             </div>
           </section>
         );
