@@ -108,6 +108,7 @@ interface AppDataState {
   createReportSchedule: (payload: { report_type: string; grant: number | null; frequency: ReportSchedule['frequency']; delivery_method: ReportSchedule['delivery_method']; recipient_emails: string; next_run_at?: string | null }) => Promise<void>;
   activateReportSchedule: (id: number) => Promise<void>;
   deactivateReportSchedule: (id: number) => Promise<void>;
+  runReportSchedule: (id: number) => Promise<void>;
   deliverReport: (reportId: number, payload?: { destination?: string; delivery_method?: string }) => Promise<void>;
   dispatchReportDelivery: (id: number) => Promise<void>;
   createProcessDocument: (payload: { title: string; version: string; summary: string; content: string }) => Promise<void>;
@@ -1060,6 +1061,18 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     });
     set((state) => ({
       reportSchedules: state.reportSchedules.map((schedule) => (schedule.id === id ? mapReportSchedule(updated) : schedule)),
+    }));
+  },
+
+  runReportSchedule: async (id) => {
+    const response = await apiRequest<{ schedule: ApiReportSchedule; deliveries: ApiReportDelivery[] }>(`/report-schedules/${id}/run/`, {
+      method: 'POST',
+    });
+    const schedule = mapReportSchedule(response.schedule);
+    const deliveries = response.deliveries.map(mapReportDelivery);
+    set((state) => ({
+      reportSchedules: state.reportSchedules.map((entry) => (entry.id === schedule.id ? schedule : entry)),
+      reportDeliveries: [...deliveries, ...state.reportDeliveries],
     }));
   },
 
