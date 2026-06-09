@@ -1140,6 +1140,12 @@ export function UseCasePage() {
         return (
           <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
             <div className="space-y-6">
+              <section className="grid gap-4 md:grid-cols-4">
+                <StatCard label="Test Cases" value={String(store.testCases.length)} trend="Validation scenarios" trendDirection="up" icon={ClipboardCheck} />
+                <StatCard label="Open Bugs" value={String(openBugCount)} trend="Unclosed defects" trendDirection="neutral" icon={Bug} />
+                <StatCard label="UAT Issues" value={String(openUatCount)} trend="Feedback items" trendDirection="neutral" icon={Eye} />
+                <StatCard label="Released" value={String(publishedReleaseCount)} trend="Published versions" trendDirection="up" icon={Check} />
+              </section>
               <DataEntryForm
                 title="Create a test case"
                 description="Capture test coverage before UAT and release validation."
@@ -1186,7 +1192,12 @@ export function UseCasePage() {
               <div className="panel-card">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xl font-bold text-slate-900">Test case management</h3>
-                  <Button variant="outline" icon={Bug}>Open Bug Board</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => exportCsv('test-cases.csv', testCaseRows)}>
+                      Export Test Cases
+                    </Button>
+                    <Button variant="outline" icon={Bug}>Open Bug Board</Button>
+                  </div>
                 </div>
                 <div className="mt-6">
                   <DataTable
@@ -1258,6 +1269,12 @@ export function UseCasePage() {
                   </DataEntryForm>
                 </div>
                 <div className="mt-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h4 className="text-lg font-semibold text-slate-900">Published releases</h4>
+                    <Button variant="outline" onClick={() => exportCsv('release-notes.csv', releaseRows)}>
+                      Export Releases
+                    </Button>
+                  </div>
                   <DataTable
                     rows={store.releaseNotes}
                     columns={[
@@ -1283,6 +1300,28 @@ export function UseCasePage() {
             </div>
 
             <div className="space-y-6">
+              <div className="panel-card">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold text-slate-900">Validation overview</h3>
+                  <Button variant="outline" onClick={() => store.fetchAll()}>
+                    Refresh
+                  </Button>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className="metric-tile">
+                    <span className="eyebrow">Open Test Cases</span>
+                    <strong>{openTestCaseCount}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Open Bugs</span>
+                    <strong>{openBugCount}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Published</span>
+                    <strong>{publishedReleaseCount}</strong>
+                  </div>
+                </div>
+              </div>
               <DataEntryForm
                 title="Capture UAT feedback"
                 description="Record testing feedback against a test case and keep release readiness traceable."
