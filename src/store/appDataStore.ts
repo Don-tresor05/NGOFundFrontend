@@ -4,6 +4,9 @@ import {
   AuditLog,
   BugReport,
   BudgetLine,
+  BankAccount,
+  BankStatement,
+  BankStatementLine,
   ComplianceItem,
   Donor,
   DonorEngagementDashboard,
@@ -18,6 +21,9 @@ import {
   ReportSchedule,
   ReallocationRequest,
   Requisition,
+  PermissionRecord,
+  RolePermissionRecord,
+  RoleRecord,
   Role,
   StaffRequirement,
   SecuritySummary,
@@ -40,6 +46,12 @@ interface AppDataState {
   grants: Grant[];
   budgetLines: BudgetLine[];
   projects: Project[];
+  roles: RoleRecord[];
+  permissions: PermissionRecord[];
+  rolePermissions: RolePermissionRecord[];
+  bankAccounts: BankAccount[];
+  bankStatements: BankStatement[];
+  bankStatementLines: BankStatementLine[];
   requisitions: Requisition[];
   auditLogs: AuditLog[];
   transactions: Transaction[];
@@ -64,6 +76,7 @@ interface AppDataState {
   fetchSecuritySummary: () => Promise<SecuritySummary | null>;
   fetchDonorEngagementDashboard: () => Promise<DonorEngagementDashboard | null>;
   fetchSystemSettingsSummary: () => Promise<SystemSettingsSummary | null>;
+  updateDonorProfile: (payload: { organization_name: string; contact_person: string; contact_email: string; country: string; category: string }) => Promise<void>;
   createUser: (payload: Omit<User, 'user_id' | 'created_at' | 'is_active'>) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<string | null>;
   confirmPasswordReset: (token: string, newPassword: string) => Promise<string>;
@@ -74,6 +87,8 @@ interface AppDataState {
   acknowledgeDonor: (donorId: number, payload?: { channel?: string; subject?: string; message?: string }) => Promise<void>;
   createGrant: (payload: Omit<Grant, 'grant_id' | 'status' | 'compliance_notes'>) => Promise<void>;
   createBudgetLine: (payload: Omit<BudgetLine, 'budget_line_id' | 'spent_amount'>) => Promise<void>;
+  createBankStatement: (payload: { bank_account: number; statement_number: string; period_start: string; period_end: string; opening_balance: number; closing_balance: number; statement_file?: File | null }) => Promise<number>;
+  importBankStatementLines: (bankStatementId: number, payload: { statement_number: string; period_start: string; period_end: string; opening_balance: number; closing_balance: number; statement_file?: File | null; lines: Array<{ transaction_date: string; description: string; reference_number?: string; amount: number }> }) => Promise<void>;
   createRequisition: (payload: Omit<Requisition, 'requisition_id' | 'status' | 'rejection_reason' | 'created_at'>) => Promise<void>;
   approveRequisition: (id: number) => Promise<void>;
   rejectRequisition: (id: number, reason: string) => Promise<void>;
@@ -153,6 +168,15 @@ type ApiUser = {
   department?: string;
   location?: string;
 };
+type ApiRole = RoleRecord;
+type ApiPermission = PermissionRecord;
+type ApiRolePermission = RolePermissionRecord;
+type ApiBankAccount = BankAccount;
+type ApiBankStatement = Omit<BankStatement, 'bank_account' | 'imported_by'> & {
+  bank_account: number;
+  imported_by: number;
+};
+type ApiBankStatementLine = Omit<BankStatementLine, 'bank_statement'> & { bank_statement: number };
 
 type ApiSystemSetting = {
   id: number;
@@ -262,6 +286,10 @@ const mapUser = (user: ApiUser): User => ({
   created_at: user.created_at,
 });
 
+const mapRole = (role: ApiRole): RoleRecord => role;
+const mapPermission = (permission: ApiPermission): PermissionRecord => permission;
+const mapRolePermission = (rolePermission: ApiRolePermission): RolePermissionRecord => rolePermission;
+
 const mapSetting = (setting: ApiSystemSetting): SystemSetting => ({
   id: setting.id,
   key: setting.setting_key,
@@ -280,6 +308,19 @@ const mapBudgetLine = (line: ApiBudgetLine): BudgetLine => ({
   spent_amount: toNumber(line.spent_amount),
 });
 const mapProject = (project: ApiProject): Project => ({ ...project, project_id: project.id, grant_id: project.grant });
+const mapBankAccount = (account: ApiBankAccount): BankAccount => account;
+const mapBankStatement = (statement: ApiBankStatement): BankStatement => ({
+  ...statement,
+  bank_account: statement.bank_account,
+  imported_by: statement.imported_by,
+  opening_balance: toNumber(statement.opening_balance),
+  closing_balance: toNumber(statement.closing_balance),
+});
+const mapBankStatementLine = (line: ApiBankStatementLine): BankStatementLine => ({
+  ...line,
+  bank_statement: line.bank_statement,
+  amount: toNumber(line.amount),
+});
 const mapRequisition = (requisition: ApiRequisition): Requisition => ({
   requisition_id: requisition.id,
   submitted_by_user_id: requisition.submitted_by,
@@ -468,6 +509,12 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
   grants: [],
   budgetLines: [],
   projects: [],
+  roles: [],
+  permissions: [],
+  rolePermissions: [],
+  bankAccounts: [],
+  bankStatements: [],
+  bankStatementLines: [],
   requisitions: [],
   auditLogs: [],
   transactions: [],
@@ -499,6 +546,12 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       grants: [],
       budgetLines: [],
       projects: [],
+      roles: [],
+      permissions: [],
+      rolePermissions: [],
+      bankAccounts: [],
+      bankStatements: [],
+      bankStatementLines: [],
       requisitions: [],
       auditLogs: [],
       transactions: [],
@@ -524,11 +577,17 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     set({ isLoading: true, apiError: null, dataReady: false });
     try {
       const [
-        users,
-        donors,
-        notifications,
-        grants,
-        budgetLines,
+      users,
+      donors,
+      notifications,
+      roles,
+      permissions,
+      rolePermissions,
+      grants,
+      bankAccounts,
+      bankStatements,
+      bankStatementLines,
+      budgetLines,
         projects,
         requisitions,
         auditLogs,
@@ -550,11 +609,17 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         bugReports,
         releaseNotes,
       ] = await Promise.all([
-        emptyOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser))),
-        emptyOnForbidden(apiList<ApiDonor>('/donors/').then((rows) => rows.map(mapDonor))),
-        emptyOnForbidden(apiList<ApiNotification>('/notifications/').then((rows) => rows.map(mapNotification))),
-        emptyOnForbidden(apiList<ApiGrant>('/grants/').then((rows) => rows.map(mapGrant))),
-        emptyOnForbidden(apiList<ApiBudgetLine>('/budget-lines/').then((rows) => rows.map(mapBudgetLine))),
+      emptyOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser))),
+      emptyOnForbidden(apiList<ApiDonor>('/donors/').then((rows) => rows.map(mapDonor))),
+      emptyOnForbidden(apiList<ApiNotification>('/notifications/').then((rows) => rows.map(mapNotification))),
+      emptyOnForbidden(apiList<ApiRole>('/roles/').then((rows) => rows.map(mapRole))),
+      emptyOnForbidden(apiList<ApiPermission>('/permissions/').then((rows) => rows.map(mapPermission))),
+      emptyOnForbidden(apiList<ApiRolePermission>('/role-permissions/').then((rows) => rows.map(mapRolePermission))),
+      emptyOnForbidden(apiList<ApiGrant>('/grants/').then((rows) => rows.map(mapGrant))),
+      emptyOnForbidden(apiList<ApiBankAccount>('/bank-accounts/').then((rows) => rows.map(mapBankAccount))),
+      emptyOnForbidden(apiList<ApiBankStatement>('/bank-statements/').then((rows) => rows.map(mapBankStatement))),
+      emptyOnForbidden(apiList<ApiBankStatementLine>('/bank-statement-lines/').then((rows) => rows.map(mapBankStatementLine))),
+      emptyOnForbidden(apiList<ApiBudgetLine>('/budget-lines/').then((rows) => rows.map(mapBudgetLine))),
         emptyOnForbidden(apiList<ApiProject>('/projects/').then((rows) => rows.map(mapProject))),
         emptyOnForbidden(apiList<ApiRequisition>('/requisitions/').then((rows) => rows.map(mapRequisition))),
         emptyOnForbidden(apiList<ApiAuditLog>('/audit-logs/').then((rows) => rows.map(mapAuditLog))),
@@ -578,11 +643,17 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       ]);
 
       set({
-        users,
-        donors,
-        notifications,
-        grants,
-        budgetLines,
+      users,
+      donors,
+      notifications,
+      roles,
+      permissions,
+      rolePermissions,
+      grants,
+      bankAccounts,
+      bankStatements,
+      bankStatementLines,
+      budgetLines,
         projects,
         requisitions,
         auditLogs,
@@ -644,6 +715,14 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
     const summary = await emptyOnForbiddenValue(apiRequest<ApiSystemSettingsSummary>('/system-settings/summary/'));
     set({ systemSettingsSummary: summary });
     return summary;
+  },
+
+  updateDonorProfile: async (payload) => {
+    await apiRequest('/donors/me/', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    await get().fetchAll();
   },
 
   requestPasswordReset: async (email) => {
@@ -756,6 +835,39 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       }),
     });
     set((state) => ({ budgetLines: [...state.budgetLines, mapBudgetLine(created)] }));
+  },
+
+  createBankStatement: async (payload) => {
+    const formData = new FormData();
+    formData.append('bank_account', String(payload.bank_account));
+    formData.append('statement_number', payload.statement_number);
+    formData.append('period_start', payload.period_start);
+    formData.append('period_end', payload.period_end);
+    formData.append('opening_balance', String(payload.opening_balance));
+    formData.append('closing_balance', String(payload.closing_balance));
+    if (payload.statement_file) {
+      formData.append('statement_file', payload.statement_file);
+    }
+
+    const response = await apiRequest<ApiBankStatement>('/bank-statements/', {
+      method: 'POST',
+      body: formData,
+    });
+    set((state) => ({ bankStatements: [mapBankStatement(response), ...state.bankStatements] }));
+    return response.id;
+  },
+
+  importBankStatementLines: async (bankStatementId, payload) => {
+    const response = await apiRequest<{ statement: ApiBankStatement; lines: ApiBankStatementLine[] }>(`/bank-statements/${bankStatementId}/import-lines/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const statement = mapBankStatement(response.statement);
+    const lines = response.lines.map(mapBankStatementLine);
+    set((state) => ({
+      bankStatements: state.bankStatements.map((entry) => (entry.id === statement.id ? statement : entry)),
+      bankStatementLines: [...lines, ...state.bankStatementLines],
+    }));
   },
 
   createReallocationRequest: async (payload) => {

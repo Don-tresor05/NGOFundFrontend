@@ -16,6 +16,27 @@ export type Role =
   | 'EXTERNAL_AUDITOR'
   | 'DONOR_USER';
 
+export interface RoleRecord {
+  role_key: Role;
+  role_name: string;
+  description: string;
+  is_active: boolean;
+}
+
+export interface PermissionRecord {
+  id: number;
+  permission_key: string;
+  permission_name: string;
+  description: string;
+}
+
+export interface RolePermissionRecord {
+  id: number;
+  role: Role;
+  permission: number;
+  granted_at: string;
+}
+
 export type UseCaseId =
   | 'manage-user-accounts'
   | 'manage-system-settings'
@@ -332,6 +353,51 @@ export interface Project {
   start_date: string;
   end_date: string;
   status: 'active' | 'pending' | 'completed';
+}
+
+export interface BankAccount {
+  id: number;
+  account_name: string;
+  bank_name: string;
+  account_number: string;
+  currency: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface BankStatement {
+  id: number;
+  bank_account: number;
+  statement_number: string;
+  period_start: string;
+  period_end: string;
+  opening_balance: number;
+  closing_balance: number;
+  imported_by: number;
+  statement_file: string | null;
+  created_at: string;
+}
+
+export interface BankStatementLine {
+  id: number;
+  bank_statement: number;
+  transaction_date: string;
+  description: string;
+  reference_number: string;
+  amount: number;
+  matched: boolean;
+}
+
+export interface Reconciliation {
+  id: number;
+  transaction: number;
+  bank_statement_line: number;
+  reviewed_by: number;
+  status: 'matched' | 'unmatched' | 'exception';
+  difference_amount: number;
+  notes: string;
+  matched_at: string | null;
+  created_at: string;
 }
 
 export interface AuditLog {

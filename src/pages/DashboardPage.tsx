@@ -21,6 +21,10 @@ export function DashboardPage() {
   const currentProfile = useAuthStore((state) => state.currentProfile);
   const dataReady = useAppDataStore((state) => state.dataReady);
   const systemSettingsSummary = useAppDataStore((state) => state.systemSettingsSummary);
+  const transactions = useAppDataStore((state) => state.transactions);
+  const requisitions = useAppDataStore((state) => state.requisitions);
+  const reports = useAppDataStore((state) => state.reports);
+  const bugReports = useAppDataStore((state) => state.bugReports);
   const actorId = currentProfile?.actor;
   const actor = actorId ? ACTORS.find((entry) => entry.id === actorId) : undefined;
   const actorUseCases = actorId ? USE_CASES.filter((entry) => entry.actors.includes(actorId)) : [];
@@ -43,6 +47,18 @@ export function DashboardPage() {
   const reportScheduleCount = useAppDataStore((state) => state.reportSchedules.length);
   const reportDeliveryCount = useAppDataStore((state) => state.reportDeliveries.length);
   const userCount = useAppDataStore((state) => state.users.length);
+  const weeklyActivity = Array.from({ length: 5 }, (_, index) => {
+    const day = new Date();
+    day.setDate(day.getDate() - (4 - index));
+    const label = day.toLocaleDateString('en-US', { weekday: 'short' });
+    const dayKey = day.toISOString().slice(0, 10);
+    const value =
+      transactions.filter((transaction) => transaction.created_at.startsWith(dayKey)).length +
+      requisitions.filter((requisition) => requisition.created_at.startsWith(dayKey)).length +
+      reports.filter((report) => report.created_at.startsWith(dayKey)).length +
+      bugReports.filter((bug) => bug.created_at.startsWith(dayKey)).length;
+    return { label, value };
+  });
 
   const activeApprovals = actorId ? pendingRequisitionCount + activeExpenseApprovalCount + pendingReallocationCount : 0;
   const outstandingAlerts = actorId ? openBugCount + unverifiedComplianceCount + unreadNotificationCount : 0;
@@ -124,13 +140,7 @@ export function DashboardPage() {
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <BarMetricChart
           title="Weekly Completion Pattern"
-          data={[
-            { label: 'Mon', value: 9 },
-            { label: 'Tue', value: 12 },
-            { label: 'Wed', value: 15 },
-            { label: 'Thu', value: 11 },
-            { label: 'Fri', value: 14 },
-          ]}
+          data={weeklyActivity}
         />
 
         <div className="panel-card">

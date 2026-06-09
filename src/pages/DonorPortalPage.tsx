@@ -42,9 +42,19 @@ export function DonorPortalPage() {
   const transactions = useAppDataStore((state) => state.transactions);
   const reports = useAppDataStore((state) => state.reports);
   const reportDeliveries = useAppDataStore((state) => state.reportDeliveries);
+  const updateDonorProfile = useAppDataStore((state) => state.updateDonorProfile);
   const fetchDonorEngagementSummary = useAppDataStore((state) => state.fetchDonorEngagementSummary);
   const [donorSummary, setDonorSummary] = useState<DonorEngagementSummary | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({
+    organization_name: '',
+    contact_person: '',
+    contact_email: '',
+    country: '',
+    category: '',
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileStatus, setProfileStatus] = useState<string | null>(null);
 
   const actor = currentProfile?.actor;
   const matchedDonor = useMemo(() => {
@@ -134,6 +144,18 @@ export function DonorPortalPage() {
       mounted = false;
     };
   }, [actor, fetchDonorEngagementSummary, matchedDonor]);
+
+  useEffect(() => {
+    if (matchedDonor) {
+      setProfileDraft({
+        organization_name: matchedDonor.organization_name,
+        contact_person: matchedDonor.contact_person,
+        contact_email: matchedDonor.contact_email,
+        country: matchedDonor.country,
+        category: matchedDonor.category,
+      });
+    }
+  }, [matchedDonor]);
 
   if (!currentProfile) {
     return null;
@@ -284,6 +306,79 @@ export function DonorPortalPage() {
                 <strong>{donorSummary?.engagement_score ?? 'Loading...'}</strong>
               </div>
             </div>
+          </div>
+
+          <div className="panel-card">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Update donor profile</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Keep the donor-side contact details current. Internal status and financial records remain controlled by the platform team.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                disabled={!matchedDonor || profileSaving}
+                onClick={async () => {
+                  if (!matchedDonor) {
+                    return;
+                  }
+                  setProfileSaving(true);
+                  try {
+                    await updateDonorProfile(profileDraft);
+                    setProfileStatus('Donor profile updated successfully.');
+                  } finally {
+                    setProfileSaving(false);
+                  }
+                }}
+              >
+                {profileSaving ? 'Saving...' : 'Save Profile'}
+              </Button>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <label className="form-group">
+                <span className="form-label">Organization Name</span>
+                <input
+                  className="form-control"
+                  value={profileDraft.organization_name}
+                  onChange={(event) => setProfileDraft((state) => ({ ...state, organization_name: event.target.value }))}
+                />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Contact Person</span>
+                <input
+                  className="form-control"
+                  value={profileDraft.contact_person}
+                  onChange={(event) => setProfileDraft((state) => ({ ...state, contact_person: event.target.value }))}
+                />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Contact Email</span>
+                <input
+                  className="form-control"
+                  type="email"
+                  value={profileDraft.contact_email}
+                  onChange={(event) => setProfileDraft((state) => ({ ...state, contact_email: event.target.value }))}
+                />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Country</span>
+                <input
+                  className="form-control"
+                  value={profileDraft.country}
+                  onChange={(event) => setProfileDraft((state) => ({ ...state, country: event.target.value }))}
+                />
+              </label>
+              <label className="form-group md:col-span-2">
+                <span className="form-label">Category</span>
+                <input
+                  className="form-control"
+                  value={profileDraft.category}
+                  onChange={(event) => setProfileDraft((state) => ({ ...state, category: event.target.value }))}
+                />
+              </label>
+            </div>
+            {profileStatus ? <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{profileStatus}</div> : null}
           </div>
 
           <div className="panel-card">

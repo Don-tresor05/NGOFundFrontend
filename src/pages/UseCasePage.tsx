@@ -58,6 +58,22 @@ const generateTemporaryPassword = () => {
   return `${token}A!`;
 };
 
+const parseBankStatementLines = (input: string) =>
+  input
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [transaction_date, description, reference_number = '', amount] = line.split(',').map((part) => part.trim());
+      return {
+        transaction_date,
+        description,
+        reference_number,
+        amount: Number(amount),
+      };
+    })
+    .filter((line) => line.transaction_date && line.description && Number.isFinite(line.amount));
+
 export function UseCasePage() {
   const { useCaseId } = useParams<{ useCaseId: UseCaseId }>();
   const currentProfile = useAuthStore((state) => state.currentProfile);
@@ -87,6 +103,12 @@ export function UseCasePage() {
   const mappedProcessAreas = new Set(store.staffRequirements.map((requirement) => requirement.process_area.trim().toLowerCase()).filter(Boolean));
   const openTestCaseCount = store.testCases.filter((testCase) => testCase.status !== 'approved' && testCase.status !== 'rejected').length;
   const uatOpenCount = store.uatFeedback.filter((feedback) => feedback.status !== 'closed').length;
+  const permissionByRole = new Map<Role, Set<number>>();
+  store.rolePermissions.forEach((entry) => {
+    const current = permissionByRole.get(entry.role) ?? new Set<number>();
+    current.add(entry.permission);
+    permissionByRole.set(entry.role, current);
+  });
 
   const commonStats: DashboardStat[] = [
     { label: 'Responsible Actor', value: actor?.shortLabel ?? 'Actor', trend: 'Directly mapped from diagram', trendDirection: 'up' },
@@ -172,6 +194,21 @@ export function UseCasePage() {
   const [reallocationForm, setReallocationForm] = useState({ source: '', target: '', amount: '0', reason: '' });
   const [expenseForm, setExpenseForm] = useState({ requisition: '', notes: '', decisionReason: '' });
   const [scheduleForm, setScheduleForm] = useState({ reportType: '', frequency: 'monthly', deliveryMethod: 'email', recipients: '', nextRunAt: '' });
+  const [bankStatementForm, setBankStatementForm] = useState({
+    bankAccount: '',
+    statementNumber: '',
+    periodStart: '',
+    periodEnd: '',
+    openingBalance: '',
+    closingBalance: '',
+    csvLines: '',
+  });
+  const [fxForm, setFxForm] = useState({
+    amount: '0',
+    fromCurrency: 'USD',
+    toCurrency: 'RWF',
+    rate: '1300',
+  });
   const [documentForm, setDocumentForm] = useState({ title: '', version: 'v1', summary: '', content: '' });
   const [bugForm, setBugForm] = useState({ title: '', description: '', reproductionSteps: '', environment: 'UAT', severity: 'medium' as BugReport['severity'] });
   const [releaseForm, setReleaseForm] = useState({ version: '', title: '', summary: '', changelog: '', environment: 'Production' });
@@ -234,6 +271,46 @@ export function UseCasePage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </section>
+            <section className="panel-card">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Permission matrix</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    The matrix below is driven from the backend role-permission tables, not a hardcoded UI mock.
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => store.fetchAll()}>
+                  Refresh Access Data
+                </Button>
+              </div>
+              <div className="mt-6 overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-y-2 text-left text-sm">
+                  <thead>
+                    <tr className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                      <th className="px-3 py-2">Role</th>
+                      {store.permissions.map((permission) => (
+                        <th key={permission.id} className="px-3 py-2">
+                          <div>{permission.permission_name}</div>
+                          <div className="mt-1 text-[10px] normal-case tracking-normal text-slate-400">{permission.permission_key}</div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {store.roles.map((role) => (
+                      <tr key={role.role_key} className="rounded-2xl bg-slate-50">
+                        <td className="rounded-l-2xl px-3 py-3 font-semibold text-slate-900">{roleLabels[role.role_key]}</td>
+                        {store.permissions.map((permission) => (
+                          <td key={`${role.role_key}-${permission.id}`} className="px-3 py-3">
+                            <StatusBadge label={permissionByRole.get(role.role_key)?.has(permission.id) ? 'allowed' : 'blocked'} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
             <section className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
@@ -635,6 +712,129 @@ export function UseCasePage() {
               <StatCard label="Total Lines" value={String(store.transactions.length)} trend="Current bank review set" trendDirection="neutral" icon={RefreshCcw} />
             </section>
 
+            <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+              <DataEntryForm
+                title="Import bank statement"
+                description="Create a statement header and upload CSV-style line items for review."
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const bankAccountId = Number(bankStatementForm.bankAccount || store.bankAccounts[0]?.id || 0);
+                  if (!bankAccountId) {
+                    return;
+                  }
+                  const statementId = await store.createBankStatement({
+                    bank_account: bankAccountId,
+                    statement_number: bankStatementForm.statementNumber,
+                    period_start: bankStatementForm.periodStart,
+                    period_end: bankStatementForm.periodEnd,
+                    opening_balance: Number(bankStatementForm.openingBalance),
+                    closing_balance: Number(bankStatementForm.closingBalance),
+                  });
+                  await store.importBankStatementLines(statementId, {
+                    statement_number: bankStatementForm.statementNumber,
+                    period_start: bankStatementForm.periodStart,
+                    period_end: bankStatementForm.periodEnd,
+                    opening_balance: Number(bankStatementForm.openingBalance),
+                    closing_balance: Number(bankStatementForm.closingBalance),
+                    lines: parseBankStatementLines(bankStatementForm.csvLines),
+                  });
+                  setBankStatementForm({
+                    bankAccount: '',
+                    statementNumber: '',
+                    periodStart: '',
+                    periodEnd: '',
+                    openingBalance: '',
+                    closingBalance: '',
+                    csvLines: '',
+                  });
+                }}
+                actions={<Button type="submit">Import Statement</Button>}
+              >
+                <label className="form-group">
+                  <span className="form-label">Bank Account</span>
+                  <select
+                    className="form-control"
+                    value={bankStatementForm.bankAccount}
+                    onChange={(event) => setBankStatementForm((state) => ({ ...state, bankAccount: event.target.value }))}
+                  >
+                    <option value="">Select account</option>
+                    {store.bankAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.bank_name} - {account.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="form-group">
+                  <span className="form-label">Statement Number</span>
+                  <input className="form-control" value={bankStatementForm.statementNumber} onChange={(event) => setBankStatementForm((state) => ({ ...state, statementNumber: event.target.value }))} />
+                </label>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="form-group">
+                    <span className="form-label">Period Start</span>
+                    <input className="form-control" type="date" value={bankStatementForm.periodStart} onChange={(event) => setBankStatementForm((state) => ({ ...state, periodStart: event.target.value }))} />
+                  </label>
+                  <label className="form-group">
+                    <span className="form-label">Period End</span>
+                    <input className="form-control" type="date" value={bankStatementForm.periodEnd} onChange={(event) => setBankStatementForm((state) => ({ ...state, periodEnd: event.target.value }))} />
+                  </label>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="form-group">
+                    <span className="form-label">Opening Balance</span>
+                    <input className="form-control" type="number" value={bankStatementForm.openingBalance} onChange={(event) => setBankStatementForm((state) => ({ ...state, openingBalance: event.target.value }))} />
+                  </label>
+                  <label className="form-group">
+                    <span className="form-label">Closing Balance</span>
+                    <input className="form-control" type="number" value={bankStatementForm.closingBalance} onChange={(event) => setBankStatementForm((state) => ({ ...state, closingBalance: event.target.value }))} />
+                  </label>
+                </div>
+                <label className="form-group">
+                  <span className="form-label">CSV Lines</span>
+                  <textarea
+                    className="form-control min-h-32"
+                    placeholder="2026-06-01,Transfer from donor,REF-001,1500"
+                    value={bankStatementForm.csvLines}
+                    onChange={(event) => setBankStatementForm((state) => ({ ...state, csvLines: event.target.value }))}
+                  />
+                </label>
+              </DataEntryForm>
+
+              <div className="panel-card space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Currency converter</h3>
+                  <p className="mt-1 text-sm text-slate-600">A simple working converter for multi-currency reconciliation review.</p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="form-group">
+                    <span className="form-label">Amount</span>
+                    <input className="form-control" type="number" value={fxForm.amount} onChange={(event) => setFxForm((state) => ({ ...state, amount: event.target.value }))} />
+                  </label>
+                  <label className="form-group">
+                    <span className="form-label">Rate</span>
+                    <input className="form-control" type="number" value={fxForm.rate} onChange={(event) => setFxForm((state) => ({ ...state, rate: event.target.value }))} />
+                  </label>
+                  <label className="form-group">
+                    <span className="form-label">From</span>
+                    <input className="form-control" value={fxForm.fromCurrency} onChange={(event) => setFxForm((state) => ({ ...state, fromCurrency: event.target.value }))} />
+                  </label>
+                  <label className="form-group">
+                    <span className="form-label">To</span>
+                    <input className="form-control" value={fxForm.toCurrency} onChange={(event) => setFxForm((state) => ({ ...state, toCurrency: event.target.value }))} />
+                  </label>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Converted Amount</div>
+                  <div className="mt-2 text-2xl font-bold text-slate-900">
+                    {currency.format(Number(fxForm.amount || 0) * Number(fxForm.rate || 0))}
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {fxForm.amount || 0} {fxForm.fromCurrency} at rate {fxForm.rate} = {fxForm.toCurrency}
+                  </p>
+                </div>
+              </div>
+            </section>
+
             <div className="panel-card">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -645,7 +845,9 @@ export function UseCasePage() {
                   <Button variant="outline" onClick={() => exportCsv('bank-reconciliation.csv', reconciliationRows)}>
                     Export CSV
                   </Button>
-                  <Button variant="outline" icon={RefreshCcw}>Reload Statement</Button>
+                  <Button variant="outline" icon={RefreshCcw} onClick={() => store.fetchAll()}>
+                    Reload Statement
+                  </Button>
                 </div>
               </div>
               <div className="mt-6">
