@@ -53,6 +53,11 @@ const actorToRole: Record<Actor, Role> = {
   donor_user: 'DONOR_USER',
 };
 
+const generateTemporaryPassword = () => {
+  const token = globalThis.crypto?.randomUUID?.().replace(/-/g, '').slice(0, 12) ?? `temp${Date.now().toString(36)}`;
+  return `${token}A!`;
+};
+
 export function UseCasePage() {
   const { useCaseId } = useParams<{ useCaseId: UseCaseId }>();
   const currentProfile = useAuthStore((state) => state.currentProfile);
@@ -240,7 +245,7 @@ export function UseCasePage() {
                   store.createUser({
                     full_name: userForm.name,
                     email: userForm.email,
-                    password: 'demo12345',
+                    password: generateTemporaryPassword(),
                     role: actorToRole[userForm.actor as Actor],
                   });
                   setUserForm({ name: '', email: '', actor: 'field_staff' });
