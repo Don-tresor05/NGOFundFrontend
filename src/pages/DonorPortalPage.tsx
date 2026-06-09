@@ -9,6 +9,30 @@ import { DonorEngagementSummary } from '../types';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+const exportCsv = (filename: string, rows: Array<Record<string, string | number | null | undefined>>) => {
+  if (!rows.length) {
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const escape = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    const stringValue = String(value);
+    return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
+  };
+
+  const csv = [headers.join(','), ...rows.map((row) => headers.map((header) => escape(row[header])).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
 export function DonorPortalPage() {
   const currentProfile = useAuthStore((state) => state.currentProfile);
   const donors = useAppDataStore((state) => state.donors);
@@ -55,6 +79,33 @@ export function DonorPortalPage() {
     () => reportDeliveries.filter((delivery) => donorReports.some((report) => report.report_id === delivery.report)),
     [donorReports, reportDeliveries]
   );
+  const donorCommunications = donorSummary?.recent_communications ?? [];
+  const donorExportRows = useMemo(
+    () => [
+      ...donorTransactions.map((transaction) => ({
+        type: 'transaction',
+        reference: transaction.bank_reference_number,
+        amount: transaction.amount,
+        date: transaction.transaction_date,
+        status: transaction.status ?? 'pending',
+      })),
+      ...donorDeliveries.map((delivery) => ({
+        type: 'report_delivery',
+        reference: delivery.report,
+        amount: '',
+        date: delivery.sent_at ?? '',
+        status: delivery.status,
+      })),
+      ...donorCommunications.map((communication) => ({
+        type: 'communication',
+        reference: communication.subject,
+        amount: '',
+        date: communication.communication_date,
+        status: communication.channel,
+      })),
+    ],
+    [donorCommunications, donorDeliveries, donorTransactions]
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -93,6 +144,7 @@ export function DonorPortalPage() {
   }
 
   const lifetimeGiving = donorTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const activeGrantCount = donorGrantIds.length;
   const communicationChannels = Object.entries(
     (donorSummary?.channels ?? []).reduce<Record<string, number>>((counts, channel) => {
       counts[channel] = (counts[channel] ?? 0) + 1;
@@ -145,6 +197,60 @@ export function DonorPortalPage() {
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <div className="space-y-6">
           <div className="panel-card">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Donor portal overview</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  This workspace is read-only. It is linked to the donor record and shows only portfolio, receipt, and impact information.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    exportCsv(
+                      `${matchedDonor?.organization_name?.toLowerCase().replace(/\s+/g, '-') ?? 'donor'}-portal.csv`,
+                      donorExportRows
+                    )
+                  }
+                >
+                  Export Portal Data
+                </Button>
+                <Button
+                  variant="outline"
+                  icon={RefreshCcw}
+                  onClick={() => matchedDonor && fetchDonorEngagementSummary(matchedDonor.donor_id).then(setDonorSummary)}
+                  disabled={!matchedDonor || isRefreshing}
+                >
+                  {isRefreshing ? 'Refreshing...' : 'Refresh summary'}
+                </Button>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="metric-tile">
+                <span className="eyebrow">Active Grants</span>
+                <strong>{activeGrantCount}</strong>
+              </div>
+              <div className="metric-tile">
+                <span className="eyebrow">Recent Communications</span>
+                <strong>{donorCommunications.length}</strong>
+              </div>
+              <div className="metric-tile">
+                <span className="eyebrow">Linked Status</span>
+                <strong>{matchedDonor ? 'Verified' : 'Pending match'}</strong>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link to="/app/profile" className="btn btn-outline">
+                Update profile
+              </Link>
+              <Link to="/app/dashboard" className="btn btn-ghost">
+                Back to workspace
+              </Link>
+            </div>
+          </div>
+
+          <div className="panel-card">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Donor profile snapshot</h3>
@@ -183,18 +289,13 @@ export function DonorPortalPage() {
           <div className="panel-card">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-xl font-bold text-slate-900">Recent communications</h3>
-              <Button
-                variant="outline"
-                icon={RefreshCcw}
-                onClick={() => matchedDonor && fetchDonorEngagementSummary(matchedDonor.donor_id).then(setDonorSummary)}
-                disabled={!matchedDonor || isRefreshing}
-              >
-                {isRefreshing ? 'Refreshing...' : 'Refresh summary'}
-              </Button>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                {donorSummary?.next_action ?? 'No follow-up needed'}
+              </span>
             </div>
             <div className="mt-5 space-y-3">
-              {(donorSummary?.recent_communications ?? []).length > 0 ? (
-                donorSummary?.recent_communications?.map((communication) => (
+              {donorCommunications.length > 0 ? (
+                donorCommunications.map((communication) => (
                   <div key={communication.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
