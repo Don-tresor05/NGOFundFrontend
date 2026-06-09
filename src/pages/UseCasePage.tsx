@@ -119,6 +119,39 @@ export function UseCasePage() {
     sent_at: delivery.sent_at ?? '-',
   }));
   const activeSchedules = store.reportSchedules.filter((schedule) => schedule.is_active).length;
+  const auditRows = store.auditLogs.map((log) => ({
+    action_type: log.action_type,
+    user: userName(log.user_id),
+    target_entity_type: log.target_entity_type,
+    timestamp: log.timestamp,
+    ip_address: log.ip_address || '-',
+  }));
+  const auditActionCount = new Set(store.auditLogs.map((log) => log.action_type)).size;
+  const auditTargetCount = new Set(store.auditLogs.map((log) => log.target_entity_type)).size;
+  const verifiedComplianceCount = store.complianceItems.filter((item) => item.verified).length;
+  const pendingComplianceCount = store.complianceItems.length - verifiedComplianceCount;
+  const complianceRows = store.complianceItems.map((item) => ({
+    title: item.title,
+    owner: item.owner,
+    verified: item.verified ? 'verified' : 'pending',
+  }));
+  const testCaseRows = store.testCases.map((testCase) => ({
+    title: testCase.title,
+    environment: testCase.environment,
+    status: testCase.status,
+    priority: testCase.priority,
+    created_at: testCase.created_at,
+  }));
+  const openBugCount = store.bugReports.filter((bug) => bug.status !== 'closed').length;
+  const openUatCount = store.uatFeedback.filter((feedback) => feedback.status !== 'closed').length;
+  const publishedReleaseCount = store.releaseNotes.filter((note) => note.status === 'published').length;
+  const releaseRows = store.releaseNotes.map((note) => ({
+    version: note.version,
+    title: note.title,
+    environment: note.environment,
+    status: note.status,
+    created_at: note.created_at,
+  }));
 
   const [userForm, setUserForm] = useState({ name: '', email: '', actor: 'field_staff' });
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({});
@@ -1355,7 +1388,17 @@ export function UseCasePage() {
               <div className="panel-card">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xl font-bold text-slate-900">Bug board</h3>
-                  <Button variant="outline" icon={Bug}>Open Bug Board</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => exportCsv('bug-reports.csv', store.bugReports.map((bug) => ({
+                      title: bug.title,
+                      environment: bug.environment,
+                      severity: bug.severity,
+                      status: bug.status,
+                    })))}>
+                      Export Bugs
+                    </Button>
+                    <Button variant="outline" icon={Bug}>Open Bug Board</Button>
+                  </div>
                 </div>
                 <div className="mt-6">
                   <DataTable
@@ -1615,45 +1658,90 @@ export function UseCasePage() {
 
       case 'view-audit-trail':
         return (
-          <div className="panel-card">
-            <h3 className="text-xl font-bold text-slate-900">Traceable audit evidence</h3>
-            <div className="mt-6">
-              <DataTable
-                rows={store.auditLogs}
-                columns={[
-                  { key: 'action', header: 'Action', render: (row) => row.action_type },
-                  { key: 'owner', header: 'User', render: (row) => userName(row.user_id) },
-                  { key: 'source', header: 'Target Entity', render: (row) => row.target_entity_type },
-                  { key: 'timestamp', header: 'Timestamp', render: (row) => row.timestamp },
-                ]}
-              />
+          <section className="space-y-6">
+            <section className="grid gap-4 md:grid-cols-4">
+              <StatCard label="Audit Events" value={String(store.auditLogs.length)} trend="Immutable trace records" trendDirection="up" icon={Eye} />
+              <StatCard label="Action Types" value={String(auditActionCount)} trend="Distinct operations observed" trendDirection="neutral" icon={ClipboardCheck} />
+              <StatCard label="Target Types" value={String(auditTargetCount)} trend="Tracked entities" trendDirection="neutral" icon={Check} />
+              <StatCard label="Exports" value="CSV" trend="Downloadable audit feed" trendDirection="neutral" icon={Plus} />
+            </section>
+            <div className="panel-card">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Traceable audit evidence</h3>
+                  <p className="mt-1 text-sm text-slate-500">Review the immutable action trail, filter patterns, and export evidence for compliance reviews.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => exportCsv('audit-logs.csv', auditRows)}>
+                    Export Audit Log
+                  </Button>
+                  <Button variant="outline" onClick={() => store.fetchAll()}>
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-6">
+                <DataTable
+                  rows={store.auditLogs}
+                  columns={[
+                    { key: 'action', header: 'Action', render: (row) => row.action_type },
+                    { key: 'owner', header: 'User', render: (row) => userName(row.user_id) },
+                    { key: 'source', header: 'Target Entity', render: (row) => row.target_entity_type },
+                    { key: 'timestamp', header: 'Timestamp', render: (row) => row.timestamp },
+                    { key: 'ip', header: 'IP Address', render: (row) => row.ip_address || '-' },
+                  ]}
+                  emptyTitle="No audit entries yet"
+                  emptyDescription="Audit records will appear here as users perform platform actions."
+                />
+              </div>
             </div>
-          </div>
+          </section>
         );
 
       case 'verify-compliance-checklist':
         return (
-          <div className="panel-card">
-            <h3 className="text-xl font-bold text-slate-900">Checklist verification</h3>
-            <div className="mt-6 space-y-4">
-              {store.complianceItems.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-slate-900">{item.title}</div>
-                      <div className="text-sm text-slate-500">{item.owner}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge label={item.verified ? 'approved' : 'pending'} />
-                      <Button variant="outline" onClick={() => store.toggleComplianceItem(item.id)}>
-                        Verify Compliance Checklist
-                      </Button>
+          <section className="space-y-6">
+            <section className="grid gap-4 md:grid-cols-4">
+              <StatCard label="Checklist Items" value={String(store.complianceItems.length)} trend="Current compliance scope" trendDirection="neutral" icon={ClipboardCheck} />
+              <StatCard label="Verified" value={String(verifiedComplianceCount)} trend="Approved controls" trendDirection="up" icon={Check} />
+              <StatCard label="Pending" value={String(pendingComplianceCount)} trend="Needs review" trendDirection="neutral" icon={Eye} />
+              <StatCard label="Exports" value="CSV" trend="Compliance evidence package" trendDirection="neutral" icon={Plus} />
+            </section>
+            <div className="panel-card">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Checklist verification</h3>
+                  <p className="mt-1 text-sm text-slate-500">Track the verification state of each control and export the current checklist view.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => exportCsv('compliance-checklist.csv', complianceRows)}>
+                    Export Checklist
+                  </Button>
+                  <Button variant="outline" onClick={() => store.fetchAll()}>
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-6 space-y-4">
+                {store.complianceItems.map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900">{item.title}</div>
+                        <div className="text-sm text-slate-500">{item.owner}</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <StatusBadge label={item.verified ? 'approved' : 'pending'} />
+                        <Button variant="outline" onClick={() => store.toggleComplianceItem(item.id)}>
+                          {item.verified ? 'Unverify' : 'Verify Compliance Checklist'}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          </section>
         );
 
       case 'access-donor-portal':
