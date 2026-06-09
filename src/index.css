@@ -363,10 +363,6 @@
     @apply flex h-[50px] items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm;
   }
 
-  .demo-credential-card {
-    @apply flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-amber-100 bg-amber-50/70 px-5 py-4;
-  }
-
   .auth-workflow-card {
     @apply rounded-[1.75rem] border border-slate-200 bg-slate-50/80 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)];
   }
