@@ -8,6 +8,7 @@ import {
   BankStatement,
   BankStatementLine,
   ComplianceItem,
+  DocumentRecord,
   Donor,
   DonorEngagementDashboard,
   DonorEngagementSummary,
@@ -20,6 +21,7 @@ import {
   ReportDelivery,
   ReportSchedule,
   ReallocationRequest,
+  Reconciliation,
   Requisition,
   PermissionRecord,
   RolePermissionRecord,
@@ -58,6 +60,7 @@ interface AppDataState {
   reports: Report[];
   systemSettings: SystemSetting[];
   complianceItems: ComplianceItem[];
+  documents: DocumentRecord[];
   securitySummary: SecuritySummary | null;
   donorEngagementDashboard: DonorEngagementDashboard | null;
   systemSettingsSummary: SystemSettingsSummary | null;
@@ -65,6 +68,7 @@ interface AppDataState {
   expenseApprovals: ExpenseApproval[];
   reportSchedules: ReportSchedule[];
   reportDeliveries: ReportDelivery[];
+  reconciliations: Reconciliation[];
   processDocuments: ProcessDocument[];
   staffRequirements: StaffRequirement[];
   testCases: TestCase[];
@@ -88,7 +92,8 @@ interface AppDataState {
   createGrant: (payload: Omit<Grant, 'grant_id' | 'status' | 'compliance_notes'>) => Promise<void>;
   createBudgetLine: (payload: Omit<BudgetLine, 'budget_line_id' | 'spent_amount'>) => Promise<void>;
   createBankStatement: (payload: { bank_account: number; statement_number: string; period_start: string; period_end: string; opening_balance: number; closing_balance: number; statement_file?: File | null }) => Promise<number>;
-  importBankStatementLines: (bankStatementId: number, payload: { statement_number: string; period_start: string; period_end: string; opening_balance: number; closing_balance: number; statement_file?: File | null; lines: Array<{ transaction_date: string; description: string; reference_number?: string; amount: number }> }) => Promise<void>;
+  importBankStatementLines: (bankStatementId: number, payload: { statement_number: string; period_start: string; period_end: string; opening_balance: number; closing_balance: number; statement_file?: File | null; lines?: Array<{ transaction_date: string; description: string; reference_number?: string; amount: number }> }) => Promise<void>;
+  autoMatchBankStatement: (bankStatementId: number) => Promise<void>;
   createRequisition: (payload: Omit<Requisition, 'requisition_id' | 'status' | 'rejection_reason' | 'created_at'>) => Promise<void>;
   approveRequisition: (id: number) => Promise<void>;
   rejectRequisition: (id: number, reason: string) => Promise<void>;
@@ -102,6 +107,10 @@ interface AppDataState {
   approveExpenseApproval: (id: number, notes?: string) => Promise<void>;
   rejectExpenseApproval: (id: number, decisionReason: string) => Promise<void>;
   createAuditLog: (payload: Omit<AuditLog, 'log_id' | 'timestamp'>) => Promise<void>;
+  createDocument: (payload: { related_entity_type: string; related_entity_id: number; document_type: string; file: File }) => Promise<void>;
+  createReconciliation: (payload: { transaction: number; bank_statement_line: number; status?: Reconciliation['status']; difference_amount?: number; notes?: string }) => Promise<void>;
+  matchReconciliation: (id: number, payload?: { difference_amount?: number; notes?: string }) => Promise<void>;
+  markReconciliationException: (id: number, payload?: { difference_amount?: number; notes?: string }) => Promise<void>;
   createStaffRequirement: (payload: { interviewee_name: string; process_area: string; feedback?: string }) => Promise<void>;
   reviewStaffRequirement: (id: number) => Promise<void>;
   signOffStaffRequirement: (id: number) => Promise<void>;
@@ -213,6 +222,7 @@ type ApiReport = Omit<Report, 'report_id' | 'grant_id' | 'generated_by_user_id' 
 };
 type ApiNotification = Omit<Notification, 'notification_id' | 'user_id'> & { id: number; user: number };
 type ApiComplianceItem = Omit<ComplianceItem, 'id'> & { id: number };
+type ApiDocument = Omit<DocumentRecord, 'id'> & { id: number };
 type ApiSecuritySummary = SecuritySummary;
 type ApiDonorEngagementSummary = DonorEngagementSummary;
 type ApiPasswordResetRequestResponse = {
@@ -241,6 +251,12 @@ type ApiReportDelivery = Omit<ReportDelivery, 'id' | 'report' | 'created_by'> & 
   id: number;
   report: number;
   created_by: number;
+};
+type ApiReconciliation = Omit<Reconciliation, 'id'> & {
+  id: number;
+  transaction: number;
+  bank_statement_line: number;
+  reviewed_by: number;
 };
 type ApiProcessDocument = Omit<ProcessDocument, 'id' | 'created_by' | 'approved_by'> & {
   id: number;
@@ -363,6 +379,15 @@ const mapNotification = (notification: ApiNotification): Notification => ({
   created_at: notification.created_at,
 });
 const mapComplianceItem = (item: ApiComplianceItem): ComplianceItem => ({ ...item, id: String(item.id) });
+const mapDocument = (document: ApiDocument): DocumentRecord => ({
+  id: document.id,
+  uploaded_by: document.uploaded_by,
+  related_entity_type: document.related_entity_type,
+  related_entity_id: document.related_entity_id,
+  document_type: document.document_type,
+  file: document.file,
+  uploaded_at: document.uploaded_at,
+});
 const mapReallocationRequest = (request: ApiReallocationRequest): ReallocationRequest => ({
   id: request.id,
   source_budget_line: request.source_budget_line,
@@ -408,6 +433,17 @@ const mapReportDelivery = (delivery: ApiReportDelivery): ReportDelivery => ({
   status: delivery.status,
   sent_at: delivery.sent_at,
   created_at: delivery.created_at,
+});
+const mapReconciliation = (reconciliation: ApiReconciliation): Reconciliation => ({
+  id: reconciliation.id,
+  transaction: reconciliation.transaction,
+  bank_statement_line: reconciliation.bank_statement_line,
+  reviewed_by: reconciliation.reviewed_by,
+  status: reconciliation.status,
+  difference_amount: toNumber(reconciliation.difference_amount),
+  notes: reconciliation.notes,
+  matched_at: reconciliation.matched_at,
+  created_at: reconciliation.created_at,
 });
 const mapProcessDocument = (document: ApiProcessDocument): ProcessDocument => ({
   id: document.id,
@@ -521,6 +557,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
   reports: [],
   systemSettings: [],
   complianceItems: [],
+  documents: [],
   securitySummary: null,
   donorEngagementDashboard: null,
   systemSettingsSummary: null,
@@ -528,6 +565,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
   expenseApprovals: [],
   reportSchedules: [],
   reportDeliveries: [],
+  reconciliations: [],
   processDocuments: [],
   staffRequirements: [],
   testCases: [],
@@ -558,6 +596,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       reports: [],
       systemSettings: [],
       complianceItems: [],
+      documents: [],
       securitySummary: null,
       donorEngagementDashboard: null,
       systemSettingsSummary: null,
@@ -565,6 +604,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       expenseApprovals: [],
       reportSchedules: [],
       reportDeliveries: [],
+      reconciliations: [],
       processDocuments: [],
       staffRequirements: [],
       testCases: [],
@@ -592,18 +632,20 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         requisitions,
         auditLogs,
         transactions,
-        reports,
-        systemSettings,
-        complianceItems,
-        securitySummary,
-        donorEngagementDashboard,
-        systemSettingsSummary,
-        reallocationRequests,
-        expenseApprovals,
-        reportSchedules,
-        reportDeliveries,
-        processDocuments,
-        staffRequirements,
+      reports,
+      systemSettings,
+      complianceItems,
+      documents,
+      securitySummary,
+      donorEngagementDashboard,
+      systemSettingsSummary,
+      reallocationRequests,
+      expenseApprovals,
+      reportSchedules,
+      reportDeliveries,
+      reconciliations,
+      processDocuments,
+      staffRequirements,
         testCases,
         uatFeedback,
         bugReports,
@@ -625,16 +667,18 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         emptyOnForbidden(apiList<ApiAuditLog>('/audit-logs/').then((rows) => rows.map(mapAuditLog))),
         emptyOnForbidden(apiList<ApiTransaction>('/transactions/').then((rows) => rows.map(mapTransaction))),
         emptyOnForbidden(apiList<ApiReport>('/reports/').then((rows) => rows.map(mapReport))),
-        emptyOnForbidden(apiList<ApiSystemSetting>('/system-settings/').then((rows) => rows.map(mapSetting))),
-        emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
-        emptyOnForbiddenValue(apiRequest<ApiSecuritySummary>('/users/security-summary/')),
-        emptyOnForbiddenValue(apiRequest<ApiDonorEngagementDashboard>('/donors/engagement-dashboard/')),
-        emptyOnForbiddenValue(apiRequest<ApiSystemSettingsSummary>('/system-settings/summary/')),
-        emptyOnForbidden(apiList<ApiReallocationRequest>('/reallocation-requests/').then((rows) => rows.map(mapReallocationRequest))),
-        emptyOnForbidden(apiList<ApiExpenseApproval>('/expense-approvals/').then((rows) => rows.map(mapExpenseApproval))),
-        emptyOnForbidden(apiList<ApiReportSchedule>('/report-schedules/').then((rows) => rows.map(mapReportSchedule))),
-        emptyOnForbidden(apiList<ApiReportDelivery>('/report-deliveries/').then((rows) => rows.map(mapReportDelivery))),
-        emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
+      emptyOnForbidden(apiList<ApiSystemSetting>('/system-settings/').then((rows) => rows.map(mapSetting))),
+      emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
+      emptyOnForbidden(apiList<ApiDocument>('/documents/').then((rows) => rows.map(mapDocument))),
+      emptyOnForbiddenValue(apiRequest<ApiSecuritySummary>('/users/security-summary/')),
+      emptyOnForbiddenValue(apiRequest<ApiDonorEngagementDashboard>('/donors/engagement-dashboard/')),
+      emptyOnForbiddenValue(apiRequest<ApiSystemSettingsSummary>('/system-settings/summary/')),
+      emptyOnForbidden(apiList<ApiReallocationRequest>('/reallocation-requests/').then((rows) => rows.map(mapReallocationRequest))),
+      emptyOnForbidden(apiList<ApiExpenseApproval>('/expense-approvals/').then((rows) => rows.map(mapExpenseApproval))),
+      emptyOnForbidden(apiList<ApiReportSchedule>('/report-schedules/').then((rows) => rows.map(mapReportSchedule))),
+      emptyOnForbidden(apiList<ApiReportDelivery>('/report-deliveries/').then((rows) => rows.map(mapReportDelivery))),
+      emptyOnForbidden(apiList<ApiReconciliation>('/reconciliations/').then((rows) => rows.map(mapReconciliation))),
+      emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
         emptyOnForbidden(apiList<ApiStaffRequirement>('/staff-requirements/').then((rows) => rows.map(mapStaffRequirement))),
         emptyOnForbidden(apiList<ApiTestCase>('/test-cases/').then((rows) => rows.map(mapTestCase))),
         emptyOnForbidden(apiList<ApiUATFeedback>('/uat-feedback/').then((rows) => rows.map(mapUATFeedback))),
@@ -643,17 +687,17 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       ]);
 
       set({
-      users,
-      donors,
-      notifications,
-      roles,
-      permissions,
-      rolePermissions,
-      grants,
-      bankAccounts,
-      bankStatements,
-      bankStatementLines,
-      budgetLines,
+        users,
+        donors,
+        notifications,
+        roles,
+        permissions,
+        rolePermissions,
+        grants,
+        bankAccounts,
+        bankStatements,
+        bankStatementLines,
+        budgetLines,
         projects,
         requisitions,
         auditLogs,
@@ -661,6 +705,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         reports,
         systemSettings,
         complianceItems,
+        documents,
         securitySummary,
         donorEngagementDashboard,
         systemSettingsSummary,
@@ -668,6 +713,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         expenseApprovals,
         reportSchedules,
         reportDeliveries,
+        reconciliations,
         processDocuments,
         staffRequirements,
         testCases,
@@ -858,15 +904,67 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
   },
 
   importBankStatementLines: async (bankStatementId, payload) => {
+    const body =
+      payload.statement_file || !payload.lines
+        ? (() => {
+            const formData = new FormData();
+            formData.append('statement_number', payload.statement_number);
+            formData.append('period_start', payload.period_start);
+            formData.append('period_end', payload.period_end);
+            formData.append('opening_balance', String(payload.opening_balance));
+            formData.append('closing_balance', String(payload.closing_balance));
+            if (payload.statement_file) {
+              formData.append('statement_file', payload.statement_file);
+            }
+            return formData;
+          })()
+        : JSON.stringify(payload);
+
     const response = await apiRequest<{ statement: ApiBankStatement; lines: ApiBankStatementLine[] }>(`/bank-statements/${bankStatementId}/import-lines/`, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body,
     });
     const statement = mapBankStatement(response.statement);
     const lines = response.lines.map(mapBankStatementLine);
     set((state) => ({
       bankStatements: state.bankStatements.map((entry) => (entry.id === statement.id ? statement : entry)),
       bankStatementLines: [...lines, ...state.bankStatementLines],
+    }));
+  },
+
+  autoMatchBankStatement: async (bankStatementId) => {
+    await apiRequest<{ matched: number; created: number }>('/reconciliations/auto-match/', {
+      method: 'POST',
+      body: JSON.stringify({ bank_statement: bankStatementId }),
+    });
+    await get().fetchAll();
+  },
+
+  createReconciliation: async (payload) => {
+    const created = await apiRequest<ApiReconciliation>('/reconciliations/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({ reconciliations: [mapReconciliation(created), ...state.reconciliations] }));
+  },
+
+  matchReconciliation: async (id, payload = {}) => {
+    const updated = await apiRequest<ApiReconciliation>(`/reconciliations/${id}/match/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({
+      reconciliations: state.reconciliations.map((entry) => (entry.id === id ? mapReconciliation(updated) : entry)),
+    }));
+  },
+
+  markReconciliationException: async (id, payload = {}) => {
+    const updated = await apiRequest<ApiReconciliation>(`/reconciliations/${id}/mark-exception/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    set((state) => ({
+      reconciliations: state.reconciliations.map((entry) => (entry.id === id ? mapReconciliation(updated) : entry)),
     }));
   },
 
@@ -1034,6 +1132,20 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       }),
     });
     set((state) => ({ auditLogs: [mapAuditLog(created), ...state.auditLogs] }));
+  },
+
+  createDocument: async (payload) => {
+    const formData = new FormData();
+    formData.append('related_entity_type', payload.related_entity_type);
+    formData.append('related_entity_id', String(payload.related_entity_id));
+    formData.append('document_type', payload.document_type);
+    formData.append('file', payload.file);
+
+    const created = await apiRequest<ApiDocument>('/documents/', {
+      method: 'POST',
+      body: formData,
+    });
+    set((state) => ({ documents: [mapDocument(created), ...state.documents] }));
   },
 
   createStaffRequirement: async (payload) => {

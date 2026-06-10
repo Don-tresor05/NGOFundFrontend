@@ -47,6 +47,25 @@ export function DashboardPage() {
   const reportScheduleCount = useAppDataStore((state) => state.reportSchedules.length);
   const reportDeliveryCount = useAppDataStore((state) => state.reportDeliveries.length);
   const userCount = useAppDataStore((state) => state.users.length);
+  const approvedRequisitionCount = useAppDataStore((state) => state.requisitions.filter((item) => item.status === 'approved').length);
+  const approvedExpenseApprovalCount = useAppDataStore((state) => state.expenseApprovals.filter((item) => item.stage === 'approved').length);
+  const matchedStatementLines = useAppDataStore((state) => state.bankStatementLines.filter((line) => line.matched).length);
+  const approvedTestCaseCount = useAppDataStore((state) => state.testCases.filter((testCase) => testCase.status === 'approved').length);
+  const approvedUatFeedbackCount = useAppDataStore((state) => state.uatFeedback.filter((feedback) => feedback.status === 'closed').length);
+  const deliverySuccessCount = useAppDataStore((state) => state.reportDeliveries.filter((delivery) => delivery.status === 'sent').length);
+  const deliveryFailureCount = useAppDataStore((state) => state.reportDeliveries.filter((delivery) => delivery.status === 'failed').length);
+  const reconciliationSuccessRate = useAppDataStore((state) => {
+    const total = state.bankStatementLines.length;
+    return total ? Math.round((state.bankStatementLines.filter((line) => line.matched).length / total) * 100) : 0;
+  });
+  const deliverySuccessRate = useAppDataStore((state) => {
+    const total = state.reportDeliveries.length;
+    return total ? Math.round((state.reportDeliveries.filter((delivery) => delivery.status === 'sent').length / total) * 100) : 0;
+  });
+  const qaReadinessRate = useAppDataStore((state) => {
+    const total = state.testCases.length;
+    return total ? Math.round((state.testCases.filter((testCase) => testCase.status === 'approved').length / total) * 100) : 0;
+  });
   const weeklyActivity = Array.from({ length: 5 }, (_, index) => {
     const day = new Date();
     day.setDate(day.getDate() - (4 - index));
@@ -109,6 +128,37 @@ export function DashboardPage() {
           const Icon = dashboardIcons[index % dashboardIcons.length];
           return <StatCard key={stat.label} {...stat} icon={Icon} />;
         })}
+      </section>
+
+      <section className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Approval Clearance"
+          value={String(approvedRequisitionCount + approvedExpenseApprovalCount)}
+          trend="Approved requisitions and expense approvals"
+          trendDirection="up"
+          icon={CheckCircle2}
+        />
+        <StatCard
+          label="Reconciliation Success"
+          value={`${reconciliationSuccessRate}%`}
+          trend={`${matchedStatementLines} matched statement lines`}
+          trendDirection="up"
+          icon={Landmark}
+        />
+        <StatCard
+          label="Delivery Success"
+          value={`${deliverySuccessRate}%`}
+          trend={`${deliverySuccessCount} sent · ${deliveryFailureCount} failed`}
+          trendDirection="up"
+          icon={Activity}
+        />
+        <StatCard
+          label="QA Readiness"
+          value={`${qaReadinessRate}%`}
+          trend={`${approvedTestCaseCount} approved test cases · ${approvedUatFeedbackCount} closed UAT items`}
+          trendDirection="up"
+          icon={Shield}
+        />
       </section>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-2">
