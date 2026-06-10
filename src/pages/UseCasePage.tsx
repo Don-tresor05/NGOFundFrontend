@@ -74,6 +74,19 @@ const parseBankStatementLines = (input: string) =>
     })
     .filter((line) => line.transaction_date && line.description && Number.isFinite(line.amount));
 
+const percentage = (value: number, total: number) => (total === 0 ? 0 : Math.round((value / total) * 100));
+
+const REPORT_SECTION_OPTIONS = [
+  { key: 'financial-summary', label: 'Financial Summary' },
+  { key: 'donor-impact', label: 'Donor Impact' },
+  { key: 'project-progress', label: 'Project Progress' },
+  { key: 'budget-utilization', label: 'Budget Utilization' },
+  { key: 'audit-highlights', label: 'Audit Highlights' },
+  { key: 'compliance-status', label: 'Compliance Status' },
+  { key: 'approval-queue', label: 'Approval Queue' },
+  { key: 'delivery-log', label: 'Delivery Log' },
+];
+
 export function UseCasePage() {
   const { useCaseId } = useParams<{ useCaseId: UseCaseId }>();
   const currentProfile = useAuthStore((state) => state.currentProfile);
@@ -102,7 +115,6 @@ export function UseCasePage() {
   const staffRequirementPending = store.staffRequirements.filter((requirement) => requirement.validation_status === 'pending').length;
   const mappedProcessAreas = new Set(store.staffRequirements.map((requirement) => requirement.process_area.trim().toLowerCase()).filter(Boolean));
   const openTestCaseCount = store.testCases.filter((testCase) => testCase.status !== 'approved' && testCase.status !== 'rejected').length;
-  const uatOpenCount = store.uatFeedback.filter((feedback) => feedback.status !== 'closed').length;
   const permissionByRole = new Map<Role, Set<number>>();
   store.rolePermissions.forEach((entry) => {
     const current = permissionByRole.get(entry.role) ?? new Set<number>();
@@ -115,18 +127,6 @@ export function UseCasePage() {
     { label: 'Workflow State', value: store.dataReady ? 'Backend synced' : 'Syncing', trend: 'Connected to backend APIs', trendDirection: 'neutral' },
     { label: 'Access Policy', value: actor?.label ?? 'Role-aware', trend: 'Use-case permissions enforced', trendDirection: 'up' },
   ];
-
-  const reconciliationRows = store.transactions.map((transaction) => ({
-    transaction_id: transaction.transaction_id,
-    budget_line: budgetLineName(transaction.budget_line_id),
-    amount: currency.format(transaction.amount),
-    date: transaction.transaction_date,
-    reference: transaction.bank_reference_number,
-    status: transaction.status ?? 'pending',
-  }));
-  const reconciliationPendingCount = store.transactions.filter((transaction) => !transaction.status || transaction.status === 'pending').length;
-  const reconciliationClearedCount = store.transactions.filter((transaction) => transaction.status === 'cleared').length;
-  const reconciliationMatchedCount = store.transactions.filter((transaction) => transaction.status === 'reconciled').length;
 
   const reportScheduleRows = store.reportSchedules.map((schedule) => ({
     report_type: schedule.report_type,
@@ -155,6 +155,13 @@ export function UseCasePage() {
   }));
   const auditActionCount = new Set(store.auditLogs.map((log) => log.action_type)).size;
   const auditTargetCount = new Set(store.auditLogs.map((log) => log.target_entity_type)).size;
+  const documentRows = store.documents.map((document) => ({
+    document_type: document.document_type,
+    entity: `${document.related_entity_type} #${document.related_entity_id}`,
+    uploaded_by: userName(document.uploaded_by),
+    uploaded_at: document.uploaded_at,
+    file: document.file,
+  }));
   const verifiedComplianceCount = store.complianceItems.filter((item) => item.verified).length;
   const pendingComplianceCount = store.complianceItems.length - verifiedComplianceCount;
   const complianceRows = store.complianceItems.map((item) => ({
@@ -162,6 +169,19 @@ export function UseCasePage() {
     owner: item.owner,
     verified: item.verified ? 'verified' : 'pending',
   }));
+  const reconciliationRows = store.reconciliations.map((reconciliation) => ({
+    transaction: store.transactions.find((transaction) => transaction.transaction_id === reconciliation.transaction)?.bank_reference_number ?? String(reconciliation.transaction),
+    statement_line: store.bankStatementLines.find((line) => line.id === reconciliation.bank_statement_line)?.reference_number ?? String(reconciliation.bank_statement_line),
+    status: reconciliation.status,
+    difference_amount: currency.format(reconciliation.difference_amount),
+    reviewed_by: userName(reconciliation.reviewed_by),
+    notes: reconciliation.notes || '-',
+  }));
+  const reconciliationExceptionCount = store.reconciliations.filter((reconciliation) => reconciliation.status === 'exception').length;
+  const bankStatementLineOpenCount = store.bankStatementLines.filter((line) => !line.matched).length;
+  const reconciliationPendingCount = bankStatementLineOpenCount;
+  const reconciliationClearedCount = store.bankStatementLines.length - bankStatementLineOpenCount;
+  const reconciliationMatchedCount = store.reconciliations.filter((reconciliation) => reconciliation.status === 'matched').length;
   const testCaseRows = store.testCases.map((testCase) => ({
     title: testCase.title,
     environment: testCase.environment,
@@ -179,6 +199,82 @@ export function UseCasePage() {
     status: note.status,
     created_at: note.created_at,
   }));
+  const monthlyContributionTrend = Array.from({ length: 5 }, (_, index) => {
+    const monthDate = new Date();
+    monthDate.setMonth(monthDate.getMonth() - (4 - index));
+    const label = monthDate.toLocaleString('en-US', { month: 'short' });
+    const total = store.transactions
+      .filter((transaction) => {
+        const date = new Date(`${transaction.transaction_date}T00:00:00`);
+        return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
+      })
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
+    return { label, value: Math.round(total / 1000) };
+  });
+  const portfolioPerformanceData = (() => {
+    const buckets = { onTrack: 0, watchList: 0, escalated: 0 };
+    store.budgetLines.forEach((budgetLine) => {
+      const burnRate = budgetLine.allocated_amount > 0 ? budgetLine.spent_amount / budgetLine.allocated_amount : 0;
+      if (burnRate < 0.7) {
+        buckets.onTrack += 1;
+        return;
+      }
+      if (burnRate < 0.9) {
+        buckets.watchList += 1;
+        return;
+      }
+      buckets.escalated += 1;
+    });
+    return [
+      { label: 'On Track', value: buckets.onTrack, color: '#4caf50' },
+      { label: 'Watch List', value: buckets.watchList, color: '#f59e0b' },
+      { label: 'Escalated', value: buckets.escalated, color: '#ef4444' },
+    ];
+  })();
+  const strategicOutcomeData = [
+    { label: 'Coverage', value: percentage(verifiedComplianceCount, store.complianceItems.length), color: '#1f6f78' },
+    { label: 'Uptime', value: percentage(store.testCases.filter((testCase) => testCase.status === 'approved').length, store.testCases.length), color: '#f59e0b' },
+    {
+      label: 'Approval Pace',
+      value: percentage(
+        store.requisitions.filter((requisition) => requisition.status === 'approved').length +
+          store.expenseApprovals.filter((approval) => approval.stage === 'approved').length,
+        store.requisitions.length + store.expenseApprovals.length
+      ),
+      color: '#4caf50',
+    },
+    { label: 'Audit Readiness', value: percentage(verifiedComplianceCount + publishedReleaseCount, store.complianceItems.length + store.releaseNotes.length), color: '#ef4444' },
+  ];
+  const leadershipPriorityData = [
+    { label: 'Programs', value: store.donors.length + store.grants.length + store.projects.length, color: '#1f6f78' },
+    { label: 'Finance', value: store.requisitions.length + store.transactions.length + store.reallocationRequests.length, color: '#f59e0b' },
+    { label: 'Governance', value: store.auditLogs.length + store.complianceItems.length + store.rolePermissions.length, color: '#4caf50' },
+    { label: 'Donor Trust', value: store.notifications.length + store.reportDeliveries.length + store.documents.length, color: '#ef4444' },
+  ];
+  const qaReadinessRate = percentage(
+    store.testCases.filter((testCase) => testCase.status === 'approved').length +
+      store.bugReports.filter((bug) => bug.status === 'closed').length +
+      store.uatFeedback.filter((feedback) => feedback.status === 'closed').length +
+      store.releaseNotes.filter((note) => note.status === 'published').length,
+    store.testCases.length + store.bugReports.length + store.uatFeedback.length + store.releaseNotes.length
+  );
+  const validationEnvironmentData = ['Staging', 'UAT', 'Pre-release', 'Production Smoke'].map((environment) => ({
+    label: environment,
+    value: store.testCases.filter((testCase) => testCase.environment === environment).length,
+  }));
+  const bugSeverityData = [
+    { label: 'Low', value: store.bugReports.filter((bug) => bug.severity === 'low').length, color: '#94a3b8' },
+    { label: 'Medium', value: store.bugReports.filter((bug) => bug.severity === 'medium').length, color: '#1f6f78' },
+    { label: 'High', value: store.bugReports.filter((bug) => bug.severity === 'high').length, color: '#f59e0b' },
+    { label: 'Critical', value: store.bugReports.filter((bug) => bug.severity === 'critical').length, color: '#ef4444' },
+  ];
+  const bugStatusData = [
+    { label: 'Open', value: store.bugReports.filter((bug) => bug.status === 'open').length, color: '#f59e0b' },
+    { label: 'Triaged', value: store.bugReports.filter((bug) => bug.status === 'triaged').length, color: '#1f6f78' },
+    { label: 'In Progress', value: store.bugReports.filter((bug) => bug.status === 'in_progress').length, color: '#4caf50' },
+    { label: 'Resolved', value: store.bugReports.filter((bug) => bug.status === 'resolved').length, color: '#94a3b8' },
+    { label: 'Closed', value: store.bugReports.filter((bug) => bug.status === 'closed').length, color: '#0f766e' },
+  ];
 
   const [userForm, setUserForm] = useState({ name: '', email: '', actor: 'field_staff' });
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({});
@@ -194,6 +290,11 @@ export function UseCasePage() {
   const [reallocationForm, setReallocationForm] = useState({ source: '', target: '', amount: '0', reason: '' });
   const [expenseForm, setExpenseForm] = useState({ requisition: '', notes: '', decisionReason: '' });
   const [scheduleForm, setScheduleForm] = useState({ reportType: '', frequency: 'monthly', deliveryMethod: 'email', recipients: '', nextRunAt: '' });
+  const [reportBuilderForm, setReportBuilderForm] = useState({
+    title: '',
+    audience: 'finance',
+    sections: ['financial-summary', 'donor-impact'] as string[],
+  });
   const [bankStatementForm, setBankStatementForm] = useState({
     bankAccount: '',
     statementNumber: '',
@@ -202,6 +303,13 @@ export function UseCasePage() {
     openingBalance: '',
     closingBalance: '',
     csvLines: '',
+    statementFile: null as File | null,
+  });
+  const [reconciliationForm, setReconciliationForm] = useState({
+    transaction: '',
+    bankStatementLine: '',
+    differenceAmount: '0',
+    notes: '',
   });
   const [fxForm, setFxForm] = useState({
     amount: '0',
