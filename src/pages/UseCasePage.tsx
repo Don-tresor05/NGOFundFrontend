@@ -608,21 +608,11 @@ export function UseCasePage() {
             <section className="grid gap-6 xl:grid-cols-2">
               <AreaMetricChart
                 title="Cross-Program Contribution Trend"
-                data={[
-                  { label: 'Jan', value: 21 },
-                  { label: 'Feb', value: 26 },
-                  { label: 'Mar', value: 33 },
-                  { label: 'Apr', value: 29 },
-                  { label: 'May', value: 37 },
-                ]}
+                data={monthlyContributionTrend}
               />
               <PieMetricChart
                 title="Portfolio Performance"
-                data={[
-                  { label: 'On Track', value: 58, color: '#4caf50' },
-                  { label: 'Watch List', value: 27, color: '#f59e0b' },
-                  { label: 'Escalated', value: 15, color: '#ef4444' },
-                ]}
+                data={portfolioPerformanceData}
               />
             </section>
           </>
@@ -2422,21 +2412,11 @@ export function UseCasePage() {
           <section className="grid gap-6 xl:grid-cols-2">
             <BarMetricChart
               title="Strategic Outcome Mix"
-              data={[
-                { label: 'Coverage', value: 78 },
-                { label: 'Uptime', value: 96 },
-                { label: 'Approval Pace', value: 82 },
-                { label: 'Audit Readiness', value: 91 },
-              ]}
+              data={strategicOutcomeData}
             />
             <PieMetricChart
               title="Leadership Priorities"
-              data={[
-                { label: 'Programs', value: 42, color: '#1f6f78' },
-                { label: 'Finance', value: 24, color: '#f59e0b' },
-                { label: 'Governance', value: 20, color: '#4caf50' },
-                { label: 'Donor Trust', value: 14, color: '#ef4444' },
-              ]}
+              data={leadershipPriorityData}
             />
           </section>
         );
