@@ -317,6 +317,13 @@ export function UseCasePage() {
     toCurrency: 'RWF',
     rate: '1300',
   });
+  const [documentRepositoryForm, setDocumentRepositoryForm] = useState({
+    relatedEntityType: 'audit-log',
+    relatedEntityId: '',
+    documentType: 'receipt',
+    file: null as File | null,
+  });
+  const [documentRepositoryStatus, setDocumentRepositoryStatus] = useState<string | null>(null);
   const [documentForm, setDocumentForm] = useState({ title: '', version: 'v1', summary: '', content: '' });
   const [bugForm, setBugForm] = useState({ title: '', description: '', reproductionSteps: '', environment: 'UAT', severity: 'medium' as BugReport['severity'] });
   const [releaseForm, setReleaseForm] = useState({ version: '', title: '', summary: '', changelog: '', environment: 'Production' });
