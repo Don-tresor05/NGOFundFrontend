@@ -917,6 +917,20 @@ export function UseCasePage() {
                     onChange={(event) => setBankStatementForm((state) => ({ ...state, csvLines: event.target.value }))}
                   />
                 </label>
+                <label className="form-group">
+                  <span className="form-label">Statement File</span>
+                  <input
+                    className="form-control"
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={(event) =>
+                      setBankStatementForm((state) => ({ ...state, statementFile: event.target.files?.[0] ?? null }))
+                    }
+                  />
+                </label>
+                <p className="form-help">
+                  Upload a CSV statement file or paste lines manually. If a file is provided, the parser reads and imports the lines automatically.
+                </p>
               </DataEntryForm>
 
               <div className="panel-card space-y-6">
@@ -950,6 +964,82 @@ export function UseCasePage() {
                   <p className="mt-2 text-sm text-slate-600">
                     {fxForm.amount || 0} {fxForm.fromCurrency} at rate {fxForm.rate} = {fxForm.toCurrency}
                   </p>
+                </div>
+
+                <div className="border-t border-slate-200 pt-6">
+                  <DataEntryForm
+                    title="Manual reconciliation"
+                    description="Create a reconciliation record for a selected transaction and statement line."
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (!reconciliationForm.transaction || !reconciliationForm.bankStatementLine) {
+                        return;
+                      }
+                      store.createReconciliation({
+                        transaction: Number(reconciliationForm.transaction),
+                        bank_statement_line: Number(reconciliationForm.bankStatementLine),
+                        difference_amount: Number(reconciliationForm.differenceAmount),
+                        notes: reconciliationForm.notes,
+                      });
+                      setReconciliationForm({
+                        transaction: '',
+                        bankStatementLine: '',
+                        differenceAmount: '0',
+                        notes: '',
+                      });
+                    }}
+                    actions={<Button type="submit">Create Reconciliation</Button>}
+                  >
+                    <label className="form-group">
+                      <span className="form-label">Transaction</span>
+                      <select
+                        className="form-control"
+                        value={reconciliationForm.transaction}
+                        onChange={(event) => setReconciliationForm((state) => ({ ...state, transaction: event.target.value }))}
+                      >
+                        <option value="">Select transaction</option>
+                        {store.transactions.map((transaction) => (
+                          <option key={transaction.transaction_id} value={transaction.transaction_id}>
+                            {transaction.bank_reference_number} - {currency.format(transaction.amount)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="form-group">
+                      <span className="form-label">Bank Statement Line</span>
+                      <select
+                        className="form-control"
+                        value={reconciliationForm.bankStatementLine}
+                        onChange={(event) => setReconciliationForm((state) => ({ ...state, bankStatementLine: event.target.value }))}
+                      >
+                        <option value="">Select line</option>
+                        {store.bankStatementLines.map((line) => (
+                          <option key={line.id} value={line.id}>
+                            {line.reference_number || line.description} - {currency.format(line.amount)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="form-group">
+                        <span className="form-label">Difference Amount</span>
+                        <input
+                          className="form-control"
+                          type="number"
+                          value={reconciliationForm.differenceAmount}
+                          onChange={(event) => setReconciliationForm((state) => ({ ...state, differenceAmount: event.target.value }))}
+                        />
+                      </label>
+                      <label className="form-group">
+                        <span className="form-label">Notes</span>
+                        <input
+                          className="form-control"
+                          value={reconciliationForm.notes}
+                          onChange={(event) => setReconciliationForm((state) => ({ ...state, notes: event.target.value }))}
+                        />
+                      </label>
+                    </div>
+                  </DataEntryForm>
                 </div>
               </div>
             </section>
@@ -997,6 +1087,58 @@ export function UseCasePage() {
               </div>
             </div>
 
+            <div className="panel-card">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Reconciliation ledger</h3>
+                  <p className="mt-1 text-sm text-slate-500">Track matched items, exceptions, and reviewer notes as separate reconciliation records.</p>
+                </div>
+                <Button variant="outline" onClick={() => exportCsv('reconciliations.csv', reconciliationRows)}>
+                  Export Ledger
+                </Button>
+              </div>
+              <div className="mt-6">
+                <DataTable
+                  rows={store.reconciliations}
+                  columns={[
+                    {
+                      key: 'transaction',
+                      header: 'Transaction',
+                      render: (row) =>
+                        store.transactions.find((transaction) => transaction.transaction_id === row.transaction)?.bank_reference_number ??
+                        String(row.transaction),
+                    },
+                    {
+                      key: 'statementLine',
+                      header: 'Statement Line',
+                      render: (row) =>
+                        store.bankStatementLines.find((line) => line.id === row.bank_statement_line)?.reference_number ??
+                        String(row.bank_statement_line),
+                    },
+                    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                    { key: 'difference', header: 'Difference', render: (row) => currency.format(row.difference_amount) },
+                    { key: 'reviewedBy', header: 'Reviewed By', render: (row) => userName(row.reviewed_by) },
+                    {
+                      key: 'actions',
+                      header: 'Actions',
+                      render: (row) => (
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={() => store.matchReconciliation(row.id, { difference_amount: row.difference_amount, notes: row.notes })}>
+                            Match
+                          </Button>
+                          <Button variant="ghost" onClick={() => store.markReconciliationException(row.id, { difference_amount: row.difference_amount, notes: row.notes })}>
+                            Exception
+                          </Button>
+                        </div>
+                      ),
+                    },
+                  ]}
+                  emptyTitle="No reconciliation records yet"
+                  emptyDescription="Auto-match or manual reconciliation will populate this ledger."
+                />
+              </div>
+            </div>
+
             <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
               <div className="panel-card">
                 <h3 className="text-xl font-bold text-slate-900">Reconciliation summary</h3>
@@ -1039,7 +1181,8 @@ export function UseCasePage() {
                 description="Produce reporting output for a selected period."
                 onSubmit={(event) => {
                   event.preventDefault();
-                  store.generateReport(reportForm.name || reportForm.period, firstGrant.grant_id, currentUserId, 'PDF');
+                  const reportTitle = reportBuilderForm.title || reportForm.name || reportForm.period || 'Financial Report';
+                  store.generateReport(reportTitle, firstGrant.grant_id, currentUserId, 'PDF');
                   setReportForm({ name: '', period: '' });
                 }}
                 actions={<Button type="submit">Generate Financial Reports</Button>}
@@ -1102,6 +1245,134 @@ export function UseCasePage() {
                   <input className="form-control" type="datetime-local" value={scheduleForm.nextRunAt} onChange={(event) => setScheduleForm((state) => ({ ...state, nextRunAt: event.target.value }))} />
                 </label>
               </DataEntryForm>
+
+              <div className="panel-card">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Report builder</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Build an ordered report blueprint before generation. Sections can be added, removed, and reordered.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setReportBuilderForm({
+                        title: '',
+                        audience: 'finance',
+                        sections: ['financial-summary', 'donor-impact'],
+                      })
+                    }
+                  >
+                    Reset Builder
+                  </Button>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <label className="form-group">
+                    <span className="form-label">Blueprint Title</span>
+                    <input
+                      className="form-control"
+                      value={reportBuilderForm.title}
+                      onChange={(event) => setReportBuilderForm((state) => ({ ...state, title: event.target.value }))}
+                    />
+                  </label>
+                  <label className="form-group">
+                    <span className="form-label">Audience</span>
+                    <select
+                      className="form-control"
+                      value={reportBuilderForm.audience}
+                      onChange={(event) => setReportBuilderForm((state) => ({ ...state, audience: event.target.value }))}
+                    >
+                      <option value="finance">Finance</option>
+                      <option value="donor">Donor</option>
+                      <option value="project">Project</option>
+                      <option value="audit">Audit</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {REPORT_SECTION_OPTIONS.map((section) => {
+                    const activeIndex = reportBuilderForm.sections.indexOf(section.key);
+                    const isActive = activeIndex >= 0;
+                    return (
+                      <div key={section.key} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div>
+                          <div className="font-semibold text-slate-900">{section.label}</div>
+                          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">{section.key}</div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant={isActive ? 'ghost' : 'outline'}
+                            onClick={() =>
+                              setReportBuilderForm((state) => ({
+                                ...state,
+                                sections: isActive
+                                  ? state.sections.filter((entry) => entry !== section.key)
+                                  : [...state.sections, section.key],
+                              }))
+                            }
+                          >
+                            {isActive ? 'Remove' : 'Add'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={!isActive || activeIndex === 0}
+                            onClick={() =>
+                              setReportBuilderForm((state) => {
+                                const nextSections = [...state.sections];
+                                const currentIndex = nextSections.indexOf(section.key);
+                                if (currentIndex <= 0) {
+                                  return state;
+                                }
+                                [nextSections[currentIndex - 1], nextSections[currentIndex]] = [
+                                  nextSections[currentIndex],
+                                  nextSections[currentIndex - 1],
+                                ];
+                                return { ...state, sections: nextSections };
+                              })
+                            }
+                          >
+                            Up
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={!isActive || activeIndex === reportBuilderForm.sections.length - 1}
+                            onClick={() =>
+                              setReportBuilderForm((state) => {
+                                const nextSections = [...state.sections];
+                                const currentIndex = nextSections.indexOf(section.key);
+                                if (currentIndex < 0 || currentIndex === nextSections.length - 1) {
+                                  return state;
+                                }
+                                [nextSections[currentIndex + 1], nextSections[currentIndex]] = [
+                                  nextSections[currentIndex],
+                                  nextSections[currentIndex + 1],
+                                ];
+                                return { ...state, sections: nextSections };
+                              })
+                            }
+                          >
+                            Down
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Preview</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {reportBuilderForm.sections.map((section) => (
+                      <span key={section} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                        {REPORT_SECTION_OPTIONS.find((entry) => entry.key === section)?.label ?? section}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">
+                    This keeps the report structure explicit and ordered before generation and scheduling.
+                  </p>
+                </div>
+              </div>
             </div>
             <section className="grid gap-4 md:grid-cols-4 xl:col-span-2">
               <StatCard label="Reports" value={String(store.reports.length)} trend="Generated report records" trendDirection="up" icon={Eye} />
