@@ -1538,6 +1538,125 @@ export function UseCasePage() {
                 />
               </div>
             </div>
+            <div className="panel-card">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Document repository</h3>
+                  <p className="mt-1 text-sm text-slate-500">Store supporting evidence and governance files against an entity record.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => exportCsv('audit-documents.csv', documentRows)}>
+                    Export Documents
+                  </Button>
+                  <Button variant="outline" onClick={() => store.fetchAll()}>
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-6">
+                <DataEntryForm
+                  title="Upload document"
+                  description="Attach evidence, receipts, or governance files to an entity."
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    if (!documentRepositoryForm.file || !documentRepositoryForm.relatedEntityId) {
+                      return;
+                    }
+                    await store.createDocument({
+                      related_entity_type: documentRepositoryForm.relatedEntityType,
+                      related_entity_id: Number(documentRepositoryForm.relatedEntityId),
+                      document_type: documentRepositoryForm.documentType,
+                      file: documentRepositoryForm.file,
+                    });
+                    setDocumentRepositoryStatus('Document uploaded successfully.');
+                    setDocumentRepositoryForm({
+                      relatedEntityType: 'audit-log',
+                      relatedEntityId: '',
+                      documentType: 'receipt',
+                      file: null,
+                    });
+                  }}
+                  actions={<Button type="submit">Upload Document</Button>}
+                >
+                  <label className="form-group">
+                    <span className="form-label">Related Entity</span>
+                    <select
+                      className="form-control"
+                      value={documentRepositoryForm.relatedEntityType}
+                      onChange={(event) =>
+                        setDocumentRepositoryForm((state) => ({ ...state, relatedEntityType: event.target.value }))
+                      }
+                    >
+                      <option value="audit-log">Audit Log</option>
+                      <option value="compliance-item">Compliance Item</option>
+                      <option value="requisition">Requisition</option>
+                      <option value="project">Project</option>
+                      <option value="report">Report</option>
+                    </select>
+                  </label>
+                  <label className="form-group">
+                    <span className="form-label">Entity ID</span>
+                    <input
+                      className="form-control"
+                      type="number"
+                      value={documentRepositoryForm.relatedEntityId}
+                      onChange={(event) =>
+                        setDocumentRepositoryForm((state) => ({ ...state, relatedEntityId: event.target.value }))
+                      }
+                    />
+                  </label>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="form-group">
+                      <span className="form-label">Document Type</span>
+                      <input
+                        className="form-control"
+                        value={documentRepositoryForm.documentType}
+                        onChange={(event) =>
+                          setDocumentRepositoryForm((state) => ({ ...state, documentType: event.target.value }))
+                        }
+                      />
+                    </label>
+                    <label className="form-group">
+                      <span className="form-label">File</span>
+                      <input
+                        className="form-control"
+                        type="file"
+                        onChange={(event) =>
+                          setDocumentRepositoryForm((state) => ({ ...state, file: event.target.files?.[0] ?? null }))
+                        }
+                      />
+                    </label>
+                  </div>
+                  {documentRepositoryStatus ? <p className="form-help text-emerald-700">{documentRepositoryStatus}</p> : null}
+                </DataEntryForm>
+              </div>
+              <div className="mt-6">
+                <DataTable
+                  rows={store.documents}
+                  columns={[
+                    { key: 'document_type', header: 'Type', render: (row) => row.document_type },
+                    {
+                      key: 'entity',
+                      header: 'Entity',
+                      render: (row) => `${row.related_entity_type} #${row.related_entity_id}`,
+                    },
+                    { key: 'uploaded_by', header: 'Uploaded By', render: (row) => userName(row.uploaded_by) },
+                    { key: 'uploaded_at', header: 'Uploaded At', render: (row) => row.uploaded_at },
+                    {
+                      key: 'file',
+                      header: 'File',
+                      render: (row) => (
+                        <a className="text-brand-600 hover:underline" href={row.file} target="_blank" rel="noreferrer">
+                          Open file
+                        </a>
+                      ),
+                    },
+                  ]}
+                  emptyTitle="No documents uploaded yet"
+                  emptyDescription="Audit evidence and governance files will appear here after upload."
+                />
+              </div>
+            </div>
           </section>
         );
 
