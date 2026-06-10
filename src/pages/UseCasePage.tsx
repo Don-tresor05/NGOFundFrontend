@@ -1862,6 +1862,36 @@ export function UseCasePage() {
                 <StatCard label="UAT Issues" value={String(openUatCount)} trend="Feedback items" trendDirection="neutral" icon={Eye} />
                 <StatCard label="Released" value={String(publishedReleaseCount)} trend="Published versions" trendDirection="up" icon={Check} />
               </section>
+              <section className="panel-card">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">QA readiness telemetry</h3>
+                    <p className="mt-1 text-sm text-slate-500">Readiness metrics derived from test, defect, UAT, and release records.</p>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Readiness Score</span>
+                    <strong>{qaReadinessRate}%</strong>
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-4">
+                  <div className="metric-tile">
+                    <span className="eyebrow">Approved Tests</span>
+                    <strong>{percentage(store.testCases.filter((testCase) => testCase.status === 'approved').length, store.testCases.length)}%</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Closed Bugs</span>
+                    <strong>{percentage(store.bugReports.filter((bug) => bug.status === 'closed').length, store.bugReports.length)}%</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Open UAT</span>
+                    <strong>{openUatCount}</strong>
+                  </div>
+                  <div className="metric-tile">
+                    <span className="eyebrow">Published Releases</span>
+                    <strong>{percentage(store.releaseNotes.filter((note) => note.status === 'published').length, store.releaseNotes.length)}%</strong>
+                  </div>
+                </div>
+              </section>
               <DataEntryForm
                 title="Create a test case"
                 description="Capture test coverage before UAT and release validation."
