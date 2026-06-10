@@ -821,10 +821,10 @@ export function UseCasePage() {
         return (
           <section className="space-y-6">
             <section className="grid gap-4 md:grid-cols-4">
-              <StatCard label="Pending Matches" value={String(reconciliationPendingCount)} trend="Require reconciliation" trendDirection="neutral" icon={ClipboardCheck} />
-              <StatCard label="Cleared" value={String(reconciliationClearedCount)} trend="Bank confirmed" trendDirection="up" icon={Check} />
-              <StatCard label="Reconciled" value={String(reconciliationMatchedCount)} trend="Matched to ledger" trendDirection="up" icon={Eye} />
-              <StatCard label="Total Lines" value={String(store.transactions.length)} trend="Current bank review set" trendDirection="neutral" icon={RefreshCcw} />
+              <StatCard label="Open Lines" value={String(reconciliationPendingCount)} trend="Awaiting match" trendDirection="neutral" icon={ClipboardCheck} />
+              <StatCard label="Matched" value={String(reconciliationMatchedCount)} trend="Matched to ledger" trendDirection="up" icon={Check} />
+              <StatCard label="Exceptions" value={String(reconciliationExceptionCount)} trend="Escalated review items" trendDirection="down" icon={Eye} />
+              <StatCard label="Imported Lines" value={String(store.bankStatementLines.length)} trend="Current bank review set" trendDirection="neutral" icon={RefreshCcw} />
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -844,6 +844,7 @@ export function UseCasePage() {
                     period_end: bankStatementForm.periodEnd,
                     opening_balance: Number(bankStatementForm.openingBalance),
                     closing_balance: Number(bankStatementForm.closingBalance),
+                    statement_file: bankStatementForm.statementFile,
                   });
                   await store.importBankStatementLines(statementId, {
                     statement_number: bankStatementForm.statementNumber,
@@ -851,8 +852,10 @@ export function UseCasePage() {
                     period_end: bankStatementForm.periodEnd,
                     opening_balance: Number(bankStatementForm.openingBalance),
                     closing_balance: Number(bankStatementForm.closingBalance),
-                    lines: parseBankStatementLines(bankStatementForm.csvLines),
+                    statement_file: bankStatementForm.statementFile,
+                    lines: bankStatementForm.statementFile ? undefined : parseBankStatementLines(bankStatementForm.csvLines),
                   });
+                  await store.autoMatchBankStatement(statementId);
                   setBankStatementForm({
                     bankAccount: '',
                     statementNumber: '',
@@ -861,6 +864,7 @@ export function UseCasePage() {
                     openingBalance: '',
                     closingBalance: '',
                     csvLines: '',
+                    statementFile: null,
                   });
                 }}
                 actions={<Button type="submit">Import Statement</Button>}
