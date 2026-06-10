@@ -262,6 +262,16 @@ export interface ComplianceItem {
   verified: boolean;
 }
 
+export interface DocumentRecord {
+  id: number;
+  uploaded_by: number;
+  related_entity_type: string;
+  related_entity_id: number;
+  document_type: string;
+  file: string;
+  uploaded_at: string;
+}
+
 export interface StaffRequirement {
   id: number;
   captured_by: number;
