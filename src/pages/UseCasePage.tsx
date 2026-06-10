@@ -1973,15 +1973,10 @@ export function UseCasePage() {
                 </div>
               </div>
 
-              <AreaMetricChart
-                title="Validation Status"
-                data={[
-                  { label: 'Open Cases', value: openTestCaseCount },
-                  { label: 'Bugs', value: store.bugReports.filter((bug) => bug.status !== 'closed').length },
-                  { label: 'UAT', value: uatOpenCount },
-                  { label: 'Release', value: store.releaseNotes.filter((note) => note.status === 'published').length },
-                ]}
-              />
+              <section className="grid gap-6 xl:grid-cols-2">
+                <BarMetricChart title="Validation coverage by environment" data={validationEnvironmentData} />
+                <PieMetricChart title="Bug severity mix" data={bugSeverityData} />
+              </section>
 
               <div className="panel-card">
                 <h3 className="text-xl font-bold text-slate-900">Release notes</h3>
@@ -2211,6 +2206,11 @@ export function UseCasePage() {
                   />
                 </div>
               </div>
+
+              <section className="grid gap-6 xl:grid-cols-2">
+                <BarMetricChart title="Bug lifecycle spread" data={bugStatusData.map((entry) => ({ label: entry.label, value: entry.value }))} />
+                <PieMetricChart title="Bug lifecycle mix" data={bugStatusData} />
+              </section>
             </div>
           </section>
         );
