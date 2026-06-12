@@ -31,12 +31,13 @@ export default function PermissionsManagementPage() {
 
   const fetchData = async () => {
     try {
+      const token = localStorage.getItem('ngofund_access_token');
       const [rolesRes, permsRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_BASE_URL}/roles/`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+          headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(`${import.meta.env.VITE_API_BASE_URL}/permissions/`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+          headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
 
@@ -48,7 +49,7 @@ export default function PermissionsManagementPage() {
         rolesData.map(async (role: any) => {
           const rpRes = await fetch(
             `${import.meta.env.VITE_API_BASE_URL}/role-permissions/?role=${role.role_key}`,
-            { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+            { headers: { Authorization: `Bearer ${token}` } }
           );
           const rpData = await rpRes.json();
           return {
@@ -77,17 +78,19 @@ export default function PermissionsManagementPage() {
     setMessage(null);
 
     try {
+      const token = localStorage.getItem('ngofund_access_token');
+      
       if (hasPermission) {
         // Remove permission
         const rpRes = await fetch(
           `${import.meta.env.VITE_API_BASE_URL}/role-permissions/?role=${selectedRole}&permission=${permissionKey}`,
-          { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         const rpData = await rpRes.json();
         if (rpData.length > 0) {
           await fetch(`${import.meta.env.VITE_API_BASE_URL}/role-permissions/${rpData[0].id}/`, {
             method: 'DELETE',
-            headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+            headers: { Authorization: `Bearer ${token}` },
           });
         }
       } else {
@@ -96,7 +99,7 @@ export default function PermissionsManagementPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ role: selectedRole, permission: permissionKey }),
         });

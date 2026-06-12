@@ -38,11 +38,12 @@ export default function UserManagementPage() {
     setMessage(null);
 
     try {
+      const token = localStorage.getItem('ngofund_access_token');
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           full_name: name,
