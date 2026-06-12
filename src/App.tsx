@@ -13,6 +13,7 @@ import {
   UseCasePage,
 } from './pages';
 import TestApiPage from './pages/TestApiPage';
+import UserManagementPage from './pages/UserManagementPage';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="donor-portal" element={<DonorPortalPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="user-management" element={<UserManagementPage />} />
           <Route path="use-cases/:useCaseId" element={<UseCasePage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
