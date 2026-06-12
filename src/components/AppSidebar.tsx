@@ -81,10 +81,16 @@ export function AppSidebar() {
           <span>Profile</span>
         </NavLink>
         {currentProfile.actor === 'super_administrator' && (
-          <NavLink to="/app/user-management" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
-            <UsersRound size={18} />
-            <span>User Management</span>
-          </NavLink>
+          <>
+            <NavLink to="/app/user-management" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <UsersRound size={18} />
+              <span>User Management</span>
+            </NavLink>
+            <NavLink to="/app/permissions" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <ShieldCheck size={18} />
+              <span>Permissions</span>
+            </NavLink>
+          </>
         )}
       </nav>
 

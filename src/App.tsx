@@ -14,6 +14,7 @@ import {
 } from './pages';
 import TestApiPage from './pages/TestApiPage';
 import UserManagementPage from './pages/UserManagementPage';
+import PermissionsManagementPage from './pages/PermissionsManagementPage';
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="donor-portal" element={<DonorPortalPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="user-management" element={<UserManagementPage />} />
+          <Route path="permissions" element={<PermissionsManagementPage />} />
           <Route path="use-cases/:useCaseId" element={<UseCasePage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
