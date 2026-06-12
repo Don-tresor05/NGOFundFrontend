@@ -32,6 +32,13 @@ export default function PermissionsManagementPage() {
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('ngofund_access_token');
+      
+      if (!token) {
+        setMessage({ type: 'error', text: 'Not authenticated. Please login again.' });
+        setLoading(false);
+        return;
+      }
+
       const [rolesRes, permsRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_BASE_URL}/roles/`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -41,29 +48,42 @@ export default function PermissionsManagementPage() {
         }),
       ]);
 
+      if (!rolesRes.ok || !permsRes.ok) {
+        setMessage({ type: 'error', text: 'Failed to fetch data. Check permissions.' });
+        setLoading(false);
+        return;
+      }
+
       const rolesData = await rolesRes.json();
       const permsData = await permsRes.json();
 
+      // Handle paginated responses
+      const roles = Array.isArray(rolesData) ? rolesData : rolesData.results || [];
+      const permissions = Array.isArray(permsData) ? permsData : permsData.results || [];
+
       // Fetch role permissions for each role
       const rolesWithPerms = await Promise.all(
-        rolesData.map(async (role: any) => {
+        roles.map(async (role: any) => {
           const rpRes = await fetch(
             `${import.meta.env.VITE_API_BASE_URL}/role-permissions/?role=${role.role_key}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
+          if (!rpRes.ok) return { ...role, permissions: [] };
           const rpData = await rpRes.json();
+          const rps = Array.isArray(rpData) ? rpData : rpData.results || [];
           return {
             ...role,
-            permissions: rpData.map((rp: any) => rp.permission.permission_key),
+            permissions: rps.map((rp: any) => rp.permission.permission_key),
           };
         })
       );
 
       setRoles(rolesWithPerms);
-      setPermissions(permsData);
+      setPermissions(permissions);
       if (rolesWithPerms.length > 0) setSelectedRole(rolesWithPerms[0].role_key);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to load data' });
+      console.error('Fetch error:', error);
+      setMessage({ type: 'error', text: `Failed to load data: ${error}` });
     } finally {
       setLoading(false);
     }
