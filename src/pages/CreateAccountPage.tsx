@@ -17,7 +17,7 @@ const defaultRoleValues = (actor: Actor) =>
 export function CreateAccountPage() {
   const navigate = useNavigate();
   const register = useAuthStore((state) => state.register);
-  const [actor, setActor] = useState<Actor>('donor_user');
+  const actor: Actor = 'donor_user'; // Fixed to donor_user only
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,12 +34,6 @@ export function CreateAccountPage() {
     [actor]
   );
   const actorFields = ACTOR_FORM_FIELDS[actor];
-
-  const handleActorChange = (nextActor: Actor) => {
-    setActor(nextActor);
-    setRoleValues(defaultRoleValues(nextActor));
-    setFormError(null);
-  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -103,35 +97,38 @@ export function CreateAccountPage() {
         <section className="auth-hero">
           <div className="auth-hero-card">
             <BrandLogo />
-            <p className="eyebrow">Create Account</p>
+            <p className="eyebrow">Create Donor Account</p>
             <h1 className="mt-3 text-5xl font-bold text-slate-950">
-              <HighlightedText text="Each actor now has its own intake form." />
+              <HighlightedText text="Register as a Donor to track your contributions" />
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600">
-              Registration is no longer generic. The fields below change with the selected role so the account
-              captures the identity details that matter for that actor’s workflow.
+              Create a donor account to access your donor portal, view transaction history, and track the impact of your contributions. 
+              Other roles (Staff, Finance, etc.) are created by administrators.
             </p>
 
-            <div className="mt-8 space-y-3">
-              {ACTORS.map((entry) => {
-                const isActive = entry.id === actor;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => handleActorChange(entry.id)}
-                    className={`actor-selector actor-selector-compact ${isActive ? 'actor-selector-active' : ''}`}
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="text-left">
-                        <div className="font-bold text-slate-900">{entry.label}</div>
-                        <div className="mt-1 text-sm text-slate-600">{entry.registrationSummary}</div>
-                      </div>
-                      <span className="actor-chip">{entry.accessLabel}</span>
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="mt-8 rounded-2xl border-2 border-green-200 bg-green-50 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <span className="actor-chip" style={{ background: actorDefinition.accentColor, color: 'white' }}>
+                    {actorDefinition.accessLabel}
+                  </span>
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">{actorDefinition.label}</div>
+                  <div className="mt-2 text-sm text-slate-600">{actorDefinition.registrationSummary}</div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {actorDefinition.highlights.map((item) => (
+                      <span key={item} className="role-highlight-pill">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+              <strong className="font-semibold">Note:</strong> Staff accounts (Finance Officer, Project Manager, etc.) must be created by system administrators with proper permissions.
             </div>
           </div>
         </section>
@@ -146,7 +143,7 @@ export function CreateAccountPage() {
             </div>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/70">{actorDefinition.label}</p>
             <h2 className="mt-3 text-3xl font-bold text-white">
-              <HighlightedText text="Role-specific account intake" />
+              <HighlightedText text="Donor account registration" />
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">{actorDefinition.registrationSummary}</p>
             <div className="mt-6 flex flex-wrap gap-2">
