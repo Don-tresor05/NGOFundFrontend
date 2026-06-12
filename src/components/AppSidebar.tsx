@@ -80,6 +80,12 @@ export function AppSidebar() {
           <UserRound size={18} />
           <span>Profile</span>
         </NavLink>
+        {currentProfile.actor === 'super_administrator' && (
+          <NavLink to="/app/user-management" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+            <UsersRound size={18} />
+            <span>User Management</span>
+          </NavLink>
+        )}
       </nav>
 
       <div className="sidebar-use-cases">
