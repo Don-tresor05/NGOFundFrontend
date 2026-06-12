@@ -30,6 +30,7 @@ export default function PermissionsManagementPage() {
   }, []);
 
   const fetchData = async () => {
+    setMessage(null); // Clear any previous errors
     try {
       const token = localStorage.getItem('ngofund_access_token');
       
