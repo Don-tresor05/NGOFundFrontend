@@ -86,9 +86,13 @@ export function AppSidebar() {
               <UsersRound size={18} />
               <span>User Management</span>
             </NavLink>
+            <NavLink to="/app/user-permissions" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <ShieldCheck size={18} />
+              <span>User Permissions</span>
+            </NavLink>
             <NavLink to="/app/permissions" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
               <ShieldCheck size={18} />
-              <span>Permissions</span>
+              <span>Role Permissions</span>
             </NavLink>
           </>
         )}

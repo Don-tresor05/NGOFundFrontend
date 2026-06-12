@@ -15,6 +15,7 @@ import {
 import TestApiPage from './pages/TestApiPage';
 import UserManagementPage from './pages/UserManagementPage';
 import PermissionsManagementPage from './pages/PermissionsManagementPage';
+import UserPermissionsPage from './pages/UserPermissionsPage';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="user-management" element={<UserManagementPage />} />
           <Route path="permissions" element={<PermissionsManagementPage />} />
+          <Route path="user-permissions" element={<UserPermissionsPage />} />
           <Route path="use-cases/:useCaseId" element={<UseCasePage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
