@@ -12,6 +12,7 @@ import {
   VerifyAccountPage,
   UseCasePage,
 } from './pages';
+import TestApiPage from './pages/TestApiPage';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/test-api" element={<TestApiPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/reset-password/confirm" element={<ConfirmPasswordPage />} />
         <Route path="/create-account" element={<CreateAccountPage />} />
