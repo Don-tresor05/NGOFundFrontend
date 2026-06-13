@@ -226,7 +226,7 @@
   }
 
   .auth-layout {
-    @apply grid w-full max-w-[1520px] gap-6 xl:grid-cols-[1.15fr_0.85fr];
+    @apply grid w-full max-w-[1520px] gap-6 xl:grid-cols-[1.15fr_0.85fr] mx-auto;
   }
 
   .auth-hero {
