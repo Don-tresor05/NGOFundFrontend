@@ -76,35 +76,37 @@ export function LoginPage() {
               Select the workspace that matches your role, then sign in with your own account. The page stays focused on one action and one authenticated entry path.
             </p>
 
-            <div className="mt-8 grid gap-3 md:grid-cols-2">
-              {ACTORS.map((entry) => {
-                const Icon = actorIcons[entry.id];
-                const isActive = entry.id === actor;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => handleActorSelect(entry.id)}
-                    className={`actor-selector ${isActive ? 'actor-selector-active' : ''}`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="actor-selector-icon"
-                        style={{ backgroundColor: `${entry.accentColor}18`, color: entry.accentColor }}
-                      >
-                        <Icon size={18} />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="font-bold text-slate-900">{entry.label}</span>
-                          <span className="actor-chip">{entry.accessLabel}</span>
+            <div className="mt-8 flex justify-center">
+              <div className="grid gap-3 md:grid-cols-2 max-w-4xl">
+                {ACTORS.map((entry) => {
+                  const Icon = actorIcons[entry.id];
+                  const isActive = entry.id === actor;
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      onClick={() => handleActorSelect(entry.id)}
+                      className={`actor-selector ${isActive ? 'actor-selector-active' : ''}`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div
+                          className="actor-selector-icon"
+                          style={{ backgroundColor: `${entry.accentColor}18`, color: entry.accentColor }}
+                        >
+                          <Icon size={18} />
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">{entry.loginSummary}</p>
+                        <div className="flex-1 text-left">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-bold text-slate-900">{entry.label}</span>
+                            <span className="actor-chip">{entry.accessLabel}</span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">{entry.loginSummary}</p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>
