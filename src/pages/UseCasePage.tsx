@@ -697,7 +697,36 @@ export function UseCasePage() {
                 </label>
               </DataEntryForm>
               <div className="panel-card">
-                <h3 className="text-xl font-bold text-slate-900">Donor register</h3>
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <h3 className="text-xl font-bold text-slate-900">Donor register</h3>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      const csv = 'organization_name,contact_person,contact_email,country,category,status,notes\nExample Org,John Doe,john@example.com,Rwanda,Corporate,active,Sample notes\n';
+                      const blob = new Blob([csv], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'donor_template.csv';
+                      a.click();
+                    }}>
+                      Download Template
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => document.getElementById('donor-import-file')?.click()}>
+                      Bulk Import
+                    </Button>
+                    <input id="donor-import-file" type="file" accept=".csv" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        alert(`Import functionality: ${file.name} selected. Backend endpoint: POST /api/donors/bulk-import/`);
+                      }
+                    }} />
+                    <Button variant="outline" size="sm" onClick={() => {
+                      alert('Export functionality: Backend endpoint: GET /api/donors/export/');
+                    }}>
+                      Export CSV
+                    </Button>
+                  </div>
+                </div>
                 <div className="mt-6">
                   <DataTable
                     rows={store.donors}
