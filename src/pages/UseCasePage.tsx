@@ -290,7 +290,6 @@ export function UseCasePage() {
   const [requirementForm, setRequirementForm] = useState({ interviewee: '', process: '', feedback: '' });
   const [testCaseForm, setTestCaseForm] = useState({ title: '', scenario: '', environment: 'Staging', priority: 'medium' as TestCase['priority'] });
   const [uatForm, setUatForm] = useState({ testCase: '', feedback: '' });
-  const [reallocationForm, setReallocationForm] = useState({ source: '', target: '', amount: '0', reason: '' });
   const [expenseForm, setExpenseForm] = useState({ requisition: '', notes: '', decisionReason: '' });
   const [scheduleForm, setScheduleForm] = useState({ reportType: '', frequency: 'monthly', deliveryMethod: 'email', recipients: '', nextRunAt: '' });
   const [reportBuilderForm, setReportBuilderForm] = useState({
