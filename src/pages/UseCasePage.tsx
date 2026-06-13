@@ -849,11 +849,12 @@ export function UseCasePage() {
                 const firstDonor = store.donors[0];
                 await store.createGrant({
                   donor_id: Number(grantForm.donor_id) || firstDonor?.id || 1,
-                  title: grantForm.title,
+                  grant_title: grantForm.title,
                   total_amount: Number(grantForm.amount),
+                  currency: 'RWF',
                   start_date: grantForm.start_date,
                   end_date: grantForm.end_date,
-                  compliance_requirements: grantForm.requirements,
+                  compliance_notes: grantForm.requirements,
                 });
                 setGrantForm({ title: '', donor_id: '', amount: '0', start_date: '', end_date: '', requirements: '' });
               }}
