@@ -281,6 +281,9 @@ export function UseCasePage() {
   const [donorForm, setDonorForm] = useState({ name: '', email: '', type: 'individual' });
   const [receiptForm, setReceiptForm] = useState({ donorName: '', project: '', amount: '0', receivedOn: '2026-05-25' });
   const [allocationForm, setAllocationForm] = useState({ project: '', amount: '0' });
+  const [grantForm, setGrantForm] = useState({ title: '', donor_id: '', amount: '0', start_date: '', end_date: '', requirements: '' });
+  const [projectForm, setProjectForm] = useState({ name: '', grant_id: '', start_date: '', description: '' });
+  const [reallocationForm, setReallocationForm] = useState({ from_budget_line_id: '', to_budget_line_id: '', amount: '0', reason: '' });
   const [reportForm, setReportForm] = useState({ name: '', period: '' });
   const [auditForm, setAuditForm] = useState({ action: '', source: '' });
   const [claimForm, setClaimForm] = useState({ category: '', amount: '0' });
@@ -842,19 +845,28 @@ export function UseCasePage() {
             <DataEntryForm
               title="Register grant agreement"
               description="Create grant with compliance requirements and expiration tracking."
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
-                alert('Grant created successfully!');
+                const firstDonor = store.donors[0];
+                await store.createGrant({
+                  donor_id: Number(grantForm.donor_id) || firstDonor?.id || 1,
+                  title: grantForm.title,
+                  total_amount: Number(grantForm.amount),
+                  start_date: grantForm.start_date,
+                  end_date: grantForm.end_date,
+                  compliance_requirements: grantForm.requirements,
+                });
+                setGrantForm({ title: '', donor_id: '', amount: '0', start_date: '', end_date: '', requirements: '' });
               }}
               actions={<Button type="submit">Create Grant</Button>}
             >
               <label className="form-group">
                 <span className="form-label">Grant Title</span>
-                <input className="form-control" placeholder="e.g., Global Health Initiative 2026" />
+                <input className="form-control" placeholder="e.g., Global Health Initiative 2026" value={grantForm.title} onChange={(e) => setGrantForm(s => ({ ...s, title: e.target.value }))} />
               </label>
               <label className="form-group">
                 <span className="form-label">Donor Organization</span>
-                <select className="form-control">
+                <select className="form-control" value={grantForm.donor_id} onChange={(e) => setGrantForm(s => ({ ...s, donor_id: e.target.value }))}>
                   <option value="">Select donor</option>
                   {store.donors.map((donor) => (
                     <option key={donor.id} value={donor.id}>{donor.organization_name}</option>
@@ -863,19 +875,19 @@ export function UseCasePage() {
               </label>
               <label className="form-group">
                 <span className="form-label">Total Amount</span>
-                <input className="form-control" type="number" placeholder="5000000" />
+                <input className="form-control" type="number" placeholder="5000000" value={grantForm.amount} onChange={(e) => setGrantForm(s => ({ ...s, amount: e.target.value }))} />
               </label>
               <label className="form-group">
                 <span className="form-label">Start Date</span>
-                <input className="form-control" type="date" />
+                <input className="form-control" type="date" value={grantForm.start_date} onChange={(e) => setGrantForm(s => ({ ...s, start_date: e.target.value }))} />
               </label>
               <label className="form-group">
                 <span className="form-label">End Date</span>
-                <input className="form-control" type="date" />
+                <input className="form-control" type="date" value={grantForm.end_date} onChange={(e) => setGrantForm(s => ({ ...s, end_date: e.target.value }))} />
               </label>
               <label className="form-group">
                 <span className="form-label">Compliance Requirements</span>
-                <textarea className="form-control" rows={3} placeholder="Quarterly reporting, EBM receipts required..." />
+                <textarea className="form-control" rows={3} placeholder="Quarterly reporting, EBM receipts required..." value={grantForm.requirements} onChange={(e) => setGrantForm(s => ({ ...s, requirements: e.target.value }))} />
               </label>
             </DataEntryForm>
             <div className="panel-card">
