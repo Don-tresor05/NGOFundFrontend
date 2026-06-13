@@ -218,12 +218,6 @@ export function CreateAccountPage() {
                   />
                 </label>
               </div>
-
-            <div className="flex justify-end">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setShowPassword((value) => !value)}>
-                {showPassword ? 'Hide password' : 'Show password'}
-              </Button>
-            </div>
             </div>
 
             <div>
@@ -284,6 +278,13 @@ export function CreateAccountPage() {
 
             <div className="auth-note-card">
               After you submit this form, the account stays inactive until you verify from the emailed link or enter the code on the next screen.
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+              <span>Use a unique password and confirm it before submitting.</span>
+              <Button type="button" variant="ghost" onClick={() => setShowPassword((value) => !value)}>
+                {showPassword ? 'Hide password' : 'Show password'}
+              </Button>
             </div>
 
             {formError ? <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{formError}</div> : null}
