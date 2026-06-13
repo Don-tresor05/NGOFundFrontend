@@ -846,17 +846,22 @@ export function UseCasePage() {
               description="Create grant with compliance requirements and expiration tracking."
               onSubmit={async (event) => {
                 event.preventDefault();
-                const firstDonor = store.donors[0];
-                await store.createGrant({
-                  donor_id: Number(grantForm.donor_id) || firstDonor?.id || 1,
-                  grant_title: grantForm.title,
-                  total_amount: Number(grantForm.amount),
-                  currency: 'RWF',
-                  start_date: grantForm.start_date,
-                  end_date: grantForm.end_date,
-                  compliance_notes: grantForm.requirements,
-                });
-                setGrantForm({ title: '', donor_id: '', amount: '0', start_date: '', end_date: '', requirements: '' });
+                try {
+                  const firstDonor = store.donors[0];
+                  await store.createGrant({
+                    donor_id: Number(grantForm.donor_id) || firstDonor?.id || 1,
+                    grant_title: grantForm.title,
+                    total_amount: Number(grantForm.amount),
+                    currency: 'RWF',
+                    start_date: grantForm.start_date,
+                    end_date: grantForm.end_date,
+                    compliance_notes: grantForm.requirements,
+                  });
+                  setGrantForm({ title: '', donor_id: '', amount: '0', start_date: '', end_date: '', requirements: '' });
+                  alert('✅ Grant created successfully!');
+                } catch (error) {
+                  alert('❌ Error: ' + (error instanceof Error ? error.message : 'Failed to create grant'));
+                }
               }}
               actions={<Button type="submit">Create Grant</Button>}
             >
@@ -899,7 +904,7 @@ export function UseCasePage() {
                   days_remaining: Math.floor((new Date(grant.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
                 }))}
                 columns={[
-                  { key: 'title', header: 'Grant Title', render: (row) => row.title },
+                  { key: 'title', header: 'Grant Title', render: (row) => row.grant_title },
                   { key: 'amount', header: 'Total Amount', render: (row) => `${row.total_amount.toLocaleString()} RWF` },
                   { key: 'dates', header: 'Period', render: (row) => `${row.start_date} to ${row.end_date}` },
                   { key: 'days', header: 'Days Left', render: (row) => row.days_remaining > 0 ? `${row.days_remaining} days` : 'Expired' },
