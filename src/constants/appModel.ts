@@ -489,6 +489,27 @@ export const USE_CASES: UseCaseDefinition[] = [
     actors: ['field_staff', 'project_manager', 'external_auditor', 'donor_user'],
   },
   {
+    id: 'register-grant',
+    moduleId: 'project-fund-allocation',
+    title: 'Register Grant',
+    summary: 'Create grant agreements with compliance requirements and expiration tracking.',
+    actors: ['finance_officer'],
+  },
+  {
+    id: 'manage-projects',
+    moduleId: 'project-fund-allocation',
+    title: 'Manage Projects',
+    summary: 'Create and manage project details, budget lines, and team assignments.',
+    actors: ['finance_officer', 'project_manager'],
+  },
+  {
+    id: 'budget-reallocation',
+    moduleId: 'project-fund-allocation',
+    title: 'Budget Reallocation',
+    summary: 'Submit and approve budget reallocation requests between budget lines.',
+    actors: ['project_manager', 'finance_officer'],
+  },
+  {
     id: 'review-budget-requests',
     moduleId: 'project-fund-allocation',
     title: 'Review Budget Requests',

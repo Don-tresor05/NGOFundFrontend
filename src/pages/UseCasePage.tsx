@@ -836,6 +836,191 @@ export function UseCasePage() {
           </section>
         );
 
+      case 'register-grant':
+        return (
+          <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <DataEntryForm
+              title="Register grant agreement"
+              description="Create grant with compliance requirements and expiration tracking."
+              onSubmit={(event) => {
+                event.preventDefault();
+                alert('Grant created successfully!');
+              }}
+              actions={<Button type="submit">Create Grant</Button>}
+            >
+              <label className="form-group">
+                <span className="form-label">Grant Title</span>
+                <input className="form-control" placeholder="e.g., Global Health Initiative 2026" />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Donor Organization</span>
+                <select className="form-control">
+                  <option value="">Select donor</option>
+                  {store.donors.map((donor) => (
+                    <option key={donor.id} value={donor.id}>{donor.organization_name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="form-group">
+                <span className="form-label">Total Amount</span>
+                <input className="form-control" type="number" placeholder="5000000" />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Start Date</span>
+                <input className="form-control" type="date" />
+              </label>
+              <label className="form-group">
+                <span className="form-label">End Date</span>
+                <input className="form-control" type="date" />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Compliance Requirements</span>
+                <textarea className="form-control" rows={3} placeholder="Quarterly reporting, EBM receipts required..." />
+              </label>
+            </DataEntryForm>
+            <div className="panel-card">
+              <h3 className="text-xl font-bold text-slate-900 mb-6">Active Grants</h3>
+              <DataTable
+                rows={store.grants.map((grant) => ({
+                  ...grant,
+                  status_badge: grant.status === 'active' ? 'Active' : grant.status === 'pending' ? 'Pending' : 'Closed',
+                  days_remaining: Math.floor((new Date(grant.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+                }))}
+                columns={[
+                  { key: 'title', header: 'Grant Title', render: (row) => row.title },
+                  { key: 'amount', header: 'Total Amount', render: (row) => `${row.total_amount.toLocaleString()} RWF` },
+                  { key: 'dates', header: 'Period', render: (row) => `${row.start_date} to ${row.end_date}` },
+                  { key: 'days', header: 'Days Left', render: (row) => row.days_remaining > 0 ? `${row.days_remaining} days` : 'Expired' },
+                  { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status_badge} /> },
+                ]}
+              />
+            </div>
+          </section>
+        );
+
+      case 'manage-projects':
+        return (
+          <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <DataEntryForm
+              title="Create project"
+              description="Set up project with budget lines and team assignments."
+              onSubmit={(event) => {
+                event.preventDefault();
+                alert('Project created successfully!');
+              }}
+              actions={<Button type="submit">Create Project</Button>}
+            >
+              <label className="form-group">
+                <span className="form-label">Project Name</span>
+                <input className="form-control" placeholder="e.g., Maternal Health Campaign" />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Grant</span>
+                <select className="form-control">
+                  <option value="">Select grant</option>
+                  {store.grants.map((grant) => (
+                    <option key={grant.grant_id} value={grant.grant_id}>{grant.title}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="form-group">
+                <span className="form-label">Start Date</span>
+                <input className="form-control" type="date" />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Description</span>
+                <textarea className="form-control" rows={3} placeholder="Project objectives and deliverables..." />
+              </label>
+            </DataEntryForm>
+            <div className="panel-card">
+              <h3 className="text-xl font-bold text-slate-900 mb-6">Projects & Budget Lines</h3>
+              <DataTable
+                rows={store.projects.map((project) => {
+                  const projectBudgetLines = store.budgetLines.filter((bl) => bl.grant_id === project.grant_id);
+                  const totalAllocated = projectBudgetLines.reduce((sum, bl) => sum + bl.allocated_amount, 0);
+                  const totalSpent = projectBudgetLines.reduce((sum, bl) => sum + bl.spent_amount, 0);
+                  return {
+                    ...project,
+                    allocated: totalAllocated,
+                    spent: totalSpent,
+                    remaining: totalAllocated - totalSpent,
+                    utilization: totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0,
+                  };
+                })}
+                columns={[
+                  { key: 'name', header: 'Project Name', render: (row) => row.name },
+                  { key: 'allocated', header: 'Allocated', render: (row) => `${row.allocated.toLocaleString()} RWF` },
+                  { key: 'spent', header: 'Spent', render: (row) => `${row.spent.toLocaleString()} RWF` },
+                  { key: 'remaining', header: 'Remaining', render: (row) => `${row.remaining.toLocaleString()} RWF` },
+                  { key: 'utilization', header: 'Utilization', render: (row) => `${row.utilization}%` },
+                  { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                ]}
+              />
+            </div>
+          </section>
+        );
+
+      case 'budget-reallocation':
+        return (
+          <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <DataEntryForm
+              title="Request budget reallocation"
+              description="Move funds between budget lines with justification."
+              onSubmit={(event) => {
+                event.preventDefault();
+                alert('Reallocation request submitted for approval!');
+              }}
+              actions={<Button type="submit">Submit Reallocation Request</Button>}
+            >
+              <label className="form-group">
+                <span className="form-label">From Budget Line</span>
+                <select className="form-control">
+                  <option value="">Select source budget line</option>
+                  {store.budgetLines.map((line) => (
+                    <option key={line.budget_line_id} value={line.budget_line_id}>
+                      {line.line_name} (Available: {(line.allocated_amount - line.spent_amount).toLocaleString()} RWF)
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="form-group">
+                <span className="form-label">To Budget Line</span>
+                <select className="form-control">
+                  <option value="">Select destination budget line</option>
+                  {store.budgetLines.map((line) => (
+                    <option key={line.budget_line_id} value={line.budget_line_id}>{line.line_name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="form-group">
+                <span className="form-label">Amount to Reallocate</span>
+                <input className="form-control" type="number" placeholder="50000" />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Justification</span>
+                <textarea className="form-control" rows={4} placeholder="Explain why this reallocation is necessary..." />
+              </label>
+            </DataEntryForm>
+            <div className="panel-card">
+              <h3 className="text-xl font-bold text-slate-900 mb-6">Reallocation Requests</h3>
+              <DataTable
+                rows={store.reallocationRequests.map((req) => ({
+                  ...req,
+                  from_line: store.budgetLines.find((bl) => bl.budget_line_id === req.from_budget_line_id)?.line_name || 'Unknown',
+                  to_line: store.budgetLines.find((bl) => bl.budget_line_id === req.to_budget_line_id)?.line_name || 'Unknown',
+                }))}
+                columns={[
+                  { key: 'from', header: 'From', render: (row) => row.from_line },
+                  { key: 'to', header: 'To', render: (row) => row.to_line },
+                  { key: 'amount', header: 'Amount', render: (row) => `${row.amount.toLocaleString()} RWF` },
+                  { key: 'reason', header: 'Justification', render: (row) => row.reason },
+                  { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                ]}
+              />
+            </div>
+          </section>
+        );
+
       case 'bank-reconciliation':
         return (
           <section className="space-y-6">
