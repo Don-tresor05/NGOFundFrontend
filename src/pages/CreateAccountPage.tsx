@@ -209,13 +209,16 @@ export function CreateAccountPage() {
                 <label className="form-group">
                   <span className="form-label">Confirm Password</span>
                   <input
-                    className="form-control"
+                    className={`form-control ${confirmPassword && password && confirmPassword !== password.slice(0, confirmPassword.length) ? 'text-red-600' : ''}`}
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     placeholder="Repeat the password"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                   />
+                  {confirmPassword && password && confirmPassword !== password.slice(0, confirmPassword.length) && (
+                    <span className="mt-1 text-xs text-red-600">Password does not match</span>
+                  )}
                 </label>
               </div>
 
