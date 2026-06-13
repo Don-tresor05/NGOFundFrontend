@@ -936,7 +936,7 @@ export function UseCasePage() {
                 <select className="form-control">
                   <option value="">Select grant</option>
                   {store.grants.map((grant) => (
-                    <option key={grant.grant_id} value={grant.grant_id}>{grant.title}</option>
+                    <option key={grant.grant_id} value={grant.grant_id}>{grant.grant_title}</option>
                   ))}
                 </select>
               </label>
