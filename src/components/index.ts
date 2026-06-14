@@ -7,7 +7,7 @@ export { CurrencyConverter } from './CurrencyConverter';
 export { DataTable } from './DataTable';
 export { DonorBulkImport } from './DonorBulkImport';
 export { FileUpload } from './FileUpload';
-// export { FlowchartViewer } from './FlowchartViewer'; // Requires: npm install mermaid
+export { FlowchartViewer } from './FlowchartViewer';
 export { HighlightedText } from './HighlightedText';
 export { ProtectedRoute } from './ProtectedRoute';
 export { ReportBuilder } from './ReportBuilder';
