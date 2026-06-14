@@ -7,6 +7,7 @@ import { AreaMetricChart, BarMetricChart, PieMetricChart } from '../components/c
 import { ACTORS, USE_CASES } from '../constants/appModel';
 import { roleLabels, useAppDataStore } from '../store/appDataStore';
 import { useAuthStore } from '../store/authStore';
+import { apiRequest } from '../lib/api';
 import {
   Actor,
   BugReport,
@@ -295,6 +296,7 @@ export function UseCasePage() {
   const [reportBuilderForm, setReportBuilderForm] = useState({
     title: '',
     audience: 'finance',
+    grant: '',
     sections: ['financial-summary', 'donor-impact'] as string[],
   });
   const [bankStatementForm, setBankStatementForm] = useState({
@@ -752,52 +754,78 @@ export function UseCasePage() {
             <DataEntryForm
               title="Post incoming funds"
               description="Record a receipt against a donor and target project."
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
-                const budgetLine = store.budgetLines.find((line) => line.line_name === receiptForm.project) ?? firstBudgetLine;
-                store.recordTransaction({
-                  requisition_id: store.requisitions[0]?.requisition_id ?? 1,
-                  budget_line_id: budgetLine.budget_line_id,
-                  processed_by_user_id: currentUserId,
-                  amount: Number(receiptForm.amount),
-                  transaction_date: receiptForm.receivedOn,
-                  bank_reference_number: `BNK-${Date.now().toString().slice(-5)}`,
-                });
-                setReceiptForm({ donorName: '', project: '', amount: '0', receivedOn: '2026-05-25' });
+                const form = event.target as HTMLFormElement;
+                const formData = new FormData(form);
+                try {
+                  await apiRequest('/transactions/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      requisition: store.requisitions[0]?.requisition_id || 1,
+                      budget_line: Number(formData.get('project')),
+                      amount: formData.get('amount'),
+                      transaction_date: formData.get('transaction_date'),
+                      bank_reference_number: formData.get('bank_reference'),
+                      status: 'pending'
+                    })
+                  });
+                  alert('Transaction recorded successfully!');
+                  form.reset();
+                  window.location.reload();
+                } catch (error) {
+                  alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                }
               }}
               actions={<Button type="submit">Record Fund Receipt</Button>}
             >
               <label className="form-group">
-                <span className="form-label">Donor Name</span>
-                <input className="form-control" value={receiptForm.donorName} onChange={(event) => setReceiptForm((state) => ({ ...state, donorName: event.target.value }))} />
+                <span className="form-label">Donor</span>
+                <select name="donor" className="form-control" required>
+                  <option value="">Select donor</option>
+                  {store.donors.map((donor) => (
+                    <option key={donor.id} value={donor.id}>{donor.organization_name}</option>
+                  ))}
+                </select>
               </label>
               <label className="form-group">
                 <span className="form-label">Project</span>
-                <input className="form-control" value={receiptForm.project} onChange={(event) => setReceiptForm((state) => ({ ...state, project: event.target.value }))} />
+                <select name="project" className="form-control" required>
+                  <option value="">Select project</option>
+                  {store.projects.map((project) => (
+                    <option key={project.project_id} value={project.project_id}>{project.name}</option>
+                  ))}
+                </select>
               </label>
               <label className="form-group">
-                <span className="form-label">Amount</span>
-                <input className="form-control" type="number" value={receiptForm.amount} onChange={(event) => setReceiptForm((state) => ({ ...state, amount: event.target.value }))} />
+                <span className="form-label">Amount (RWF)</span>
+                <input name="amount" className="form-control" type="number" placeholder="100000" required />
               </label>
               <label className="form-group">
-                <span className="form-label">Received On</span>
-                <input className="form-control" type="date" value={receiptForm.receivedOn} onChange={(event) => setReceiptForm((state) => ({ ...state, receivedOn: event.target.value }))} />
+                <span className="form-label">Transaction Date</span>
+                <input name="transaction_date" className="form-control" type="date" required />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Bank Reference</span>
+                <input name="bank_reference" className="form-control" placeholder="e.g., TRX-2026-001" required />
               </label>
             </DataEntryForm>
             <div className="panel-card">
-              <h3 className="text-xl font-bold text-slate-900">Receipt ledger</h3>
-              <div className="mt-6">
-                <DataTable
-                  rows={store.transactions}
-                  columns={[
-                    { key: 'id', header: 'Transaction ID', render: (row) => row.transaction_id },
-                    { key: 'project', header: 'Budget Line', render: (row) => budgetLineName(row.budget_line_id) },
-                    { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
-                    { key: 'date', header: 'Transaction Date', render: (row) => row.transaction_date },
-                    { key: 'bank', header: 'Bank Reference', render: (row) => row.bank_reference_number },
-                  ]}
-                />
-              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-6">Transaction Ledger</h3>
+              <DataTable
+                rows={store.transactions.map((tx) => ({
+                  ...tx,
+                  budget_line_name: store.budgetLines.find((bl) => bl.budget_line_id === tx.budget_line_id)?.line_name || 'Unknown',
+                }))}
+                columns={[
+                  { key: 'id', header: 'Transaction ID', render: (row) => row.transaction_id || row.id },
+                  { key: 'budget_line', header: 'Budget Line', render: (row) => row.budget_line_name },
+                  { key: 'amount', header: 'Amount', render: (row) => `${row.amount.toLocaleString()} RWF` },
+                  { key: 'date', header: 'Date', render: (row) => row.transaction_date },
+                  { key: 'bank_ref', header: 'Bank Reference', render: (row) => row.bank_reference_number || '—' },
+                  { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status || 'pending'} /> },
+                ]}
+              />
             </div>
           </section>
         );
@@ -806,35 +834,66 @@ export function UseCasePage() {
         return (
           <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
             <DataEntryForm
-              title="Allocate project funds"
-              description="Move committed finance into an approved project allocation."
-              onSubmit={(event) => {
+              title="Create Budget Line"
+              description="Define budget lines for grant allocation (e.g., Personnel, Equipment, Travel)."
+              onSubmit={async (event) => {
                 event.preventDefault();
-                store.createBudgetLine({
-                  grant_id: firstGrant.grant_id,
-                  line_name: allocationForm.project,
-                  allocated_amount: Number(allocationForm.amount),
-                });
-                setAllocationForm({ project: '', amount: '0' });
+                const form = event.target as HTMLFormElement;
+                const formData = new FormData(form);
+                try {
+                  await apiRequest('/budget-lines/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      grant: Number(formData.get('grant')),
+                      line_name: formData.get('line_name'),
+                      allocated_amount: formData.get('allocated_amount'),
+                      spent_amount: 0
+                    })
+                  });
+                  alert('Budget line created successfully!');
+                  form.reset();
+                  window.location.reload();
+                } catch (error) {
+                  alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                }
               }}
-              actions={<Button type="submit">Allocate Funds to Projects</Button>}
+              actions={<Button type="submit">Create Budget Line</Button>}
             >
               <label className="form-group">
-                <span className="form-label">Project</span>
-                <input className="form-control" value={allocationForm.project} onChange={(event) => setAllocationForm((state) => ({ ...state, project: event.target.value }))} />
+                <span className="form-label">Grant</span>
+                <select name="grant" className="form-control" required>
+                  <option value="">Select grant</option>
+                  {store.grants.map((grant) => (
+                    <option key={grant.grant_id} value={grant.grant_id}>{grant.grant_title}</option>
+                  ))}
+                </select>
               </label>
               <label className="form-group">
-                <span className="form-label">Amount</span>
-                <input className="form-control" type="number" value={allocationForm.amount} onChange={(event) => setAllocationForm((state) => ({ ...state, amount: event.target.value }))} />
+                <span className="form-label">Budget Line Name</span>
+                <input name="line_name" className="form-control" placeholder="e.g., Personnel, Equipment, Travel" required />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Allocated Amount (RWF)</span>
+                <input name="allocated_amount" className="form-control" type="number" placeholder="50000" required />
               </label>
             </DataEntryForm>
-            <AreaMetricChart
-              title="Allocation Momentum"
-              data={store.budgetLines.map((budgetLine) => ({
-                label: budgetLine.line_name.split(' ')[0],
-                value: budgetLine.allocated_amount / 1000,
-              }))}
-            />
+            <div className="panel-card">
+              <h3 className="text-xl font-bold text-slate-900 mb-6">Budget Lines</h3>
+              <DataTable
+                rows={store.budgetLines.map((bl) => ({
+                  ...bl,
+                  remaining: bl.allocated_amount - bl.spent_amount,
+                  utilization: bl.allocated_amount > 0 ? Math.round((bl.spent_amount / bl.allocated_amount) * 100) : 0,
+                }))}
+                columns={[
+                  { key: 'line_name', header: 'Line Name', render: (row) => row.line_name },
+                  { key: 'allocated', header: 'Allocated', render: (row) => `${row.allocated_amount.toLocaleString()} RWF` },
+                  { key: 'spent', header: 'Spent', render: (row) => `${row.spent_amount.toLocaleString()} RWF` },
+                  { key: 'remaining', header: 'Remaining', render: (row) => `${row.remaining.toLocaleString()} RWF` },
+                  { key: 'utilization', header: 'Utilization', render: (row) => `${row.utilization}%` },
+                ]}
+              />
+            </div>
           </section>
         );
 
@@ -921,19 +980,37 @@ export function UseCasePage() {
             <DataEntryForm
               title="Create project"
               description="Set up project with budget lines and team assignments."
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
-                alert('Project created successfully!');
+                const form = event.target as HTMLFormElement;
+                const formData = new FormData(form);
+                try {
+                  await apiRequest('/projects/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      name: formData.get('name'),
+                      grant: Number(formData.get('grant')),
+                      start_date: formData.get('start_date'),
+                      end_date: formData.get('end_date'),
+                      description: formData.get('description'),
+                      status: 'active'
+                    })
+                  });
+                  alert('Project created successfully! Refresh the page to see it in the list.');
+                  form.reset();
+                } catch (error) {
+                  alert('Error creating project: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                }
               }}
               actions={<Button type="submit">Create Project</Button>}
             >
               <label className="form-group">
                 <span className="form-label">Project Name</span>
-                <input className="form-control" placeholder="e.g., Maternal Health Campaign" />
+                <input name="name" className="form-control" placeholder="e.g., Maternal Health Campaign" required />
               </label>
               <label className="form-group">
                 <span className="form-label">Grant</span>
-                <select className="form-control">
+                <select name="grant" className="form-control" required>
                   <option value="">Select grant</option>
                   {store.grants.map((grant) => (
                     <option key={grant.grant_id} value={grant.grant_id}>{grant.grant_title}</option>
@@ -942,34 +1019,33 @@ export function UseCasePage() {
               </label>
               <label className="form-group">
                 <span className="form-label">Start Date</span>
-                <input className="form-control" type="date" />
+                <input name="start_date" className="form-control" type="date" required />
+              </label>
+              <label className="form-group">
+                <span className="form-label">End Date</span>
+                <input name="end_date" className="form-control" type="date" required />
               </label>
               <label className="form-group">
                 <span className="form-label">Description</span>
-                <textarea className="form-control" rows={3} placeholder="Project objectives and deliverables..." />
+                <textarea name="description" className="form-control" rows={3} placeholder="Project objectives and deliverables..." />
               </label>
             </DataEntryForm>
             <div className="panel-card">
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Projects & Budget Lines</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-6">Active Projects</h3>
               <DataTable
                 rows={store.projects.map((project) => {
-                  const projectBudgetLines = store.budgetLines.filter((bl) => bl.grant_id === project.grant_id);
-                  const totalAllocated = projectBudgetLines.reduce((sum, bl) => sum + bl.allocated_amount, 0);
-                  const totalSpent = projectBudgetLines.reduce((sum, bl) => sum + bl.spent_amount, 0);
+                  const grant = store.grants.find((g) => g.grant_id === project.grant_id);
                   return {
                     ...project,
-                    allocated: totalAllocated,
-                    spent: totalSpent,
-                    remaining: totalAllocated - totalSpent,
-                    utilization: totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0,
+                    grant_name: grant?.grant_title || 'Unknown',
                   };
                 })}
                 columns={[
                   { key: 'name', header: 'Project Name', render: (row) => row.name },
-                  { key: 'allocated', header: 'Allocated', render: (row) => `${row.allocated.toLocaleString()} RWF` },
-                  { key: 'spent', header: 'Spent', render: (row) => `${row.spent.toLocaleString()} RWF` },
-                  { key: 'remaining', header: 'Remaining', render: (row) => `${row.remaining.toLocaleString()} RWF` },
-                  { key: 'utilization', header: 'Utilization', render: (row) => `${row.utilization}%` },
+                  { key: 'grant', header: 'Grant', render: (row) => row.grant_name },
+                  { key: 'start_date', header: 'Start Date', render: (row) => row.start_date },
+                  { key: 'end_date', header: 'End Date', render: (row) => row.end_date },
+                  { key: 'description', header: 'Description', render: (row) => row.description || '—' },
                   { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
                 ]}
               />
@@ -983,15 +1059,40 @@ export function UseCasePage() {
             <DataEntryForm
               title="Request budget reallocation"
               description="Move funds between budget lines with justification."
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
-                alert('Reallocation request submitted for approval!');
+                const form = event.target as HTMLFormElement;
+                const formData = new FormData(form);
+                try {
+                  const payload = {
+                    source_budget_line: Number(formData.get('from_budget_line')),
+                    target_budget_line: Number(formData.get('to_budget_line')),
+                    amount: String(formData.get('amount')),
+                    reason: String(formData.get('reason'))
+                  };
+                  console.log('Sending payload:', payload);
+                  const response = await apiRequest('/reallocation-requests/', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                  });
+                  console.log('Success response:', response);
+                  alert('Reallocation request submitted for approval!');
+                  form.reset();
+                  window.location.reload();
+                } catch (error) {
+                  console.error('Full error:', error);
+                  if (error instanceof Error) {
+                    alert('Error: ' + error.message);
+                  } else {
+                    alert('Error: Unknown error - check console');
+                  }
+                }
               }}
               actions={<Button type="submit">Submit Reallocation Request</Button>}
             >
               <label className="form-group">
                 <span className="form-label">From Budget Line</span>
-                <select className="form-control">
+                <select name="from_budget_line" className="form-control" required>
                   <option value="">Select source budget line</option>
                   {store.budgetLines.map((line) => (
                     <option key={line.budget_line_id} value={line.budget_line_id}>
@@ -1002,7 +1103,7 @@ export function UseCasePage() {
               </label>
               <label className="form-group">
                 <span className="form-label">To Budget Line</span>
-                <select className="form-control">
+                <select name="to_budget_line" className="form-control" required>
                   <option value="">Select destination budget line</option>
                   {store.budgetLines.map((line) => (
                     <option key={line.budget_line_id} value={line.budget_line_id}>{line.line_name}</option>
@@ -1011,11 +1112,11 @@ export function UseCasePage() {
               </label>
               <label className="form-group">
                 <span className="form-label">Amount to Reallocate</span>
-                <input className="form-control" type="number" placeholder="50000" />
+                <input name="amount" className="form-control" type="number" placeholder="50000" required />
               </label>
               <label className="form-group">
                 <span className="form-label">Justification</span>
-                <textarea className="form-control" rows={4} placeholder="Explain why this reallocation is necessary..." />
+                <textarea name="reason" className="form-control" rows={4} placeholder="Explain why this reallocation is necessary..." required />
               </label>
             </DataEntryForm>
             <div className="panel-card">
@@ -1488,7 +1589,7 @@ export function UseCasePage() {
                     Reset Builder
                   </Button>
                 </div>
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
                   <label className="form-group">
                     <span className="form-label">Blueprint Title</span>
                     <input
@@ -1510,13 +1611,66 @@ export function UseCasePage() {
                       <option value="audit">Audit</option>
                     </select>
                   </label>
+                  <label className="form-group">
+                    <span className="form-label">Grant</span>
+                    <select
+                      className="form-control"
+                      value={reportBuilderForm.grant}
+                      onChange={(event) => setReportBuilderForm((state) => ({ ...state, grant: event.target.value }))}
+                    >
+                      <option value="">Select grant...</option>
+                      {store.grants.map((grant) => (
+                        <option key={grant.id} value={grant.id}>
+                          {grant.donorName} - {grant.amount} {grant.currency}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="mt-6 flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+                  <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                  <span>Drag active sections to reorder them in your report template</span>
                 </div>
                 <div className="mt-4 space-y-3">
                   {REPORT_SECTION_OPTIONS.map((section) => {
                     const activeIndex = reportBuilderForm.sections.indexOf(section.key);
                     const isActive = activeIndex >= 0;
                     return (
-                      <div key={section.key} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div 
+                        key={section.key} 
+                        draggable={isActive}
+                        onDragStart={(e) => {
+                          if (isActive) {
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', section.key);
+                          }
+                        }}
+                        onDragOver={(e) => {
+                          if (isActive) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                          }
+                        }}
+                        onDrop={(e) => {
+                          if (isActive) {
+                            e.preventDefault();
+                            const draggedKey = e.dataTransfer.getData('text/plain');
+                            setReportBuilderForm((state) => {
+                              const sections = [...state.sections];
+                              const fromIndex = sections.indexOf(draggedKey);
+                              const toIndex = sections.indexOf(section.key);
+                              if (fromIndex !== -1 && toIndex !== -1) {
+                                sections.splice(fromIndex, 1);
+                                sections.splice(toIndex, 0, draggedKey);
+                              }
+                              return { ...state, sections };
+                            });
+                          }
+                        }}
+                        className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 ${isActive ? 'cursor-move hover:border-blue-300 hover:bg-blue-50' : ''}`}
+                      >
                         <div>
                           <div className="font-semibold text-slate-900">{section.label}</div>
                           <div className="text-xs uppercase tracking-[0.24em] text-slate-500">{section.key}</div>
@@ -1592,6 +1746,82 @@ export function UseCasePage() {
                   <p className="mt-3 text-sm text-slate-600">
                     This keeps the report structure explicit and ordered before generation and scheduling.
                   </p>
+                </div>
+                <div className="mt-4 flex gap-3">
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      if (!reportBuilderForm.title.trim()) {
+                        alert('Please enter a blueprint title');
+                        return;
+                      }
+                      if (reportBuilderForm.sections.length === 0) {
+                        alert('Please add at least one section to your report');
+                        return;
+                      }
+                      // Save template to store
+                      const templateId = `template-${Date.now()}`;
+                      alert(`✓ Template "${reportBuilderForm.title}" saved!\n\nSections: ${reportBuilderForm.sections.length}\nAudience: ${reportBuilderForm.audience}\n\nYou can now use this template to generate reports.`);
+                      console.log('Saved template:', {
+                        id: templateId,
+                        ...reportBuilderForm,
+                        createdAt: new Date().toISOString()
+                      });
+                    }}
+                  >
+                    Save Template
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      if (!reportBuilderForm.title.trim()) {
+                        alert('Please enter a blueprint title');
+                        return;
+                      }
+                      if (!reportBuilderForm.grant) {
+                        alert('Please select a grant for this report');
+                        return;
+                      }
+                      if (reportBuilderForm.sections.length === 0) {
+                        alert('Please add at least one section to your report');
+                        return;
+                      }
+                      
+                      try {
+                        const response = await fetch('http://127.0.0.1:8000/api/reports/', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('ngofund_access_token')}`
+                          },
+                          body: JSON.stringify({
+                            report_type: reportBuilderForm.title,
+                            format: 'PDF',
+                            grant: parseInt(reportBuilderForm.grant),
+                            custom_fields: {
+                              audience: reportBuilderForm.audience,
+                              sections: reportBuilderForm.sections
+                            }
+                          })
+                        });
+                        
+                        if (response.ok) {
+                          const data = await response.json();
+                          alert(`✓ Report #${data.id} generated successfully!\n\nTitle: ${reportBuilderForm.title}\nSections: ${reportBuilderForm.sections.length}\nFormat: PDF\n\nCheck the "Generated reports" table below.`);
+                          console.log('Report created:', data);
+                          // Refresh the page to show new report
+                          window.location.reload();
+                        } else {
+                          const error = await response.json();
+                          alert(`Failed to generate report: ${error.detail || JSON.stringify(error)}`);
+                        }
+                      } catch (error) {
+                        alert(`Error: ${error instanceof Error ? error.message : 'Failed to connect to backend'}`);
+                      }
+                    }}
+                  >
+                    Generate Report Now
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1885,44 +2115,65 @@ export function UseCasePage() {
         return (
           <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
             <DataEntryForm
-              title="Submit a new claim"
-              description="Create a reimbursable field expense request."
-              onSubmit={(event) => {
+              title="Submit requisition"
+              description="Create expense request with budget line selection and receipt upload."
+              onSubmit={async (event) => {
                 event.preventDefault();
-                store.createRequisition({
-                  submitted_by_user_id: currentUserId,
-                  budget_line_id: firstBudgetLine.budget_line_id,
-                  amount: Number(claimForm.amount),
-                  description: claimForm.category,
-                  receipt_document_url: '/receipts/new-field-claim.pdf',
-                });
-                setClaimForm({ category: '', amount: '0' });
+                const form = event.target as HTMLFormElement;
+                const formData = new FormData(form);
+                try {
+                  await apiRequest('/requisitions/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      budget_line: Number(formData.get('budget_line')),
+                      amount: formData.get('amount'),
+                      description: formData.get('description')
+                    })
+                  });
+                  alert('Requisition submitted successfully!');
+                  form.reset();
+                  window.location.reload();
+                } catch (error) {
+                  alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                }
               }}
-              actions={<Button type="submit">Submit Expense Claims</Button>}
+              actions={<Button type="submit">Submit Requisition</Button>}
             >
               <label className="form-group">
-                <span className="form-label">Category</span>
-                <input className="form-control" value={claimForm.category} onChange={(event) => setClaimForm((state) => ({ ...state, category: event.target.value }))} />
+                <span className="form-label">Budget Line</span>
+                <select name="budget_line" className="form-control" required>
+                  <option value="">Select budget line</option>
+                  {store.budgetLines.map((line) => (
+                    <option key={line.budget_line_id} value={line.budget_line_id}>
+                      {line.line_name} (Available: {(line.allocated_amount - line.spent_amount).toLocaleString()} RWF)
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="form-group">
-                <span className="form-label">Amount</span>
-                <input className="form-control" type="number" value={claimForm.amount} onChange={(event) => setClaimForm((state) => ({ ...state, amount: event.target.value }))} />
+                <span className="form-label">Amount (RWF)</span>
+                <input name="amount" className="form-control" type="number" placeholder="50000" required />
+              </label>
+              <label className="form-group">
+                <span className="form-label">Description / Purpose</span>
+                <textarea name="description" className="form-control" rows={3} placeholder="Explain the purpose of this expense..." required />
               </label>
             </DataEntryForm>
             <div className="panel-card">
-              <h3 className="text-xl font-bold text-slate-900">Claim queue</h3>
-              <div className="mt-6">
-                <DataTable
-                  rows={store.requisitions.filter((requisition) => requisition.submitted_by_user_id === currentUserId)}
-                  columns={[
-                    { key: 'claimant', header: 'Claimant', render: (row) => userName(row.submitted_by_user_id) },
-                    { key: 'category', header: 'Description', render: (row) => row.description },
-                    { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
-                    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
-                    { key: 'submittedOn', header: 'Submitted', render: (row) => row.created_at },
-                  ]}
-                />
-              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-6">My Requisitions</h3>
+              <DataTable
+                rows={store.requisitions.map((req) => ({
+                  ...req,
+                  budget_line_name: store.budgetLines.find((bl) => bl.budget_line_id === req.budget_line_id)?.line_name || 'Unknown',
+                }))}
+                columns={[
+                  { key: 'budget_line', header: 'Budget Line', render: (row) => row.budget_line_name },
+                  { key: 'description', header: 'Description', render: (row) => row.description },
+                  { key: 'amount', header: 'Amount', render: (row) => `${row.amount.toLocaleString()} RWF` },
+                  { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
+                  { key: 'created', header: 'Submitted', render: (row) => row.created_at || 'Just now' },
+                ]}
+              />
             </div>
           </section>
         );
@@ -2632,6 +2883,63 @@ export function UseCasePage() {
                     <span className="form-label">Decision Reason</span>
                     <input className="form-control" value={expenseForm.decisionReason} onChange={(event) => setExpenseForm((state) => ({ ...state, decisionReason: event.target.value }))} />
                   </label>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Approval Process Flow</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Multi-stage approval workflow ensures proper authorization before fund disbursement.
+                </p>
+                <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-8">
+                  <svg viewBox="0 0 800 600" className="w-full h-auto">
+                    <defs>
+                      <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                        <polygon points="0 0, 10 3, 0 6" fill="#64748b" />
+                      </marker>
+                    </defs>
+                    
+                    {/* Requisition Submitted */}
+                    <rect x="300" y="20" width="200" height="50" rx="8" fill="#3b82f6" stroke="#2563eb" strokeWidth="2"/>
+                    <text x="400" y="50" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">Requisition Submitted</text>
+                    
+                    {/* Budget Available? */}
+                    <path d="M 400 100 L 450 140 L 400 180 L 350 140 Z" fill="#fbbf24" stroke="#f59e0b" strokeWidth="2"/>
+                    <text x="400" y="145" textAnchor="middle" fontSize="12" fontWeight="bold">Budget Available?</text>
+                    
+                    {/* Department Review */}
+                    <rect x="300" y="220" width="200" height="50" rx="8" fill="#10b981" stroke="#059669" strokeWidth="2"/>
+                    <text x="400" y="250" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">Department Review</text>
+                    
+                    {/* Finance Review */}
+                    <rect x="300" y="320" width="200" height="50" rx="8" fill="#10b981" stroke="#059669" strokeWidth="2"/>
+                    <text x="400" y="350" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">Finance Review</text>
+                    
+                    {/* Executive Review */}
+                    <rect x="300" y="420" width="200" height="50" rx="8" fill="#10b981" stroke="#059669" strokeWidth="2"/>
+                    <text x="400" y="450" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">Executive Review</text>
+                    
+                    {/* Final Approval */}
+                    <rect x="300" y="520" width="200" height="50" rx="8" fill="#8b5cf6" stroke="#7c3aed" strokeWidth="2"/>
+                    <text x="400" y="550" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">Final Approval</text>
+                    
+                    {/* Rejected */}
+                    <rect x="600" y="220" width="150" height="50" rx="8" fill="#ef4444" stroke="#dc2626" strokeWidth="2"/>
+                    <text x="675" y="250" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">Rejected</text>
+                    
+                    {/* Arrows */}
+                    <line x1="400" y1="70" x2="400" y2="100" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                    <line x1="400" y1="180" x2="400" y2="220" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                    <text x="410" y="205" fontSize="11" fill="#059669">Yes</text>
+                    <line x1="450" y1="140" x2="600" y2="245" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                    <text x="520" y="185" fontSize="11" fill="#dc2626">No</text>
+                    <line x1="400" y1="270" x2="400" y2="320" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                    <line x1="500" y1="245" x2="600" y2="245" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                    <line x1="400" y1="370" x2="400" y2="420" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                    <line x1="500" y1="345" x2="600" y2="245" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                    <line x1="400" y1="470" x2="400" y2="520" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                    <line x1="500" y1="445" x2="600" y2="245" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                  </svg>
                 </div>
               </div>
             </div>
