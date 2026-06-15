@@ -8,6 +8,35 @@ import { ACTORS, USE_CASES } from '../constants/appModel';
 import { roleLabels, useAppDataStore } from '../store/appDataStore';
 import { useAuthStore } from '../store/authStore';
 import { apiRequest } from '../lib/api';
+import * as apiHelpers from '../lib/apiHelpers';
+import { 
+  useDonors, 
+  useGrants, 
+  useProjects, 
+  useTransactions, 
+  useRequisitions, 
+  useBudgetLines,
+  useUsers,
+  useReports,
+  useBankAccounts,
+  useAuditLogs,
+  useReportSchedules,
+  useReportDeliveries,
+  useReconciliations,
+  useBankStatementLines,
+  useComplianceItems,
+  useDocuments,
+  useStaffRequirements,
+  useTestCases,
+  useRolePermissions,
+  useBugReports,
+  useUATFeedback,
+  useReleaseNotes,
+  useExpenseApprovals,
+  useReallocationRequests,
+  useNotifications,
+  useProcessDocuments
+} from '../hooks/useApiData';
 import {
   Actor,
   BugReport,
@@ -59,22 +88,6 @@ const generateTemporaryPassword = () => {
   return `${token}A!`;
 };
 
-const parseBankStatementLines = (input: string) =>
-  input
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [transaction_date, description, reference_number = '', amount] = line.split(',').map((part) => part.trim());
-      return {
-        transaction_date,
-        description,
-        reference_number,
-        amount: Number(amount),
-      };
-    })
-    .filter((line) => line.transaction_date && line.description && Number.isFinite(line.amount));
-
 const percentage = (value: number, total: number) => (total === 0 ? 0 : Math.round((value / total) * 100));
 
 const REPORT_SECTION_OPTIONS = [
@@ -92,6 +105,34 @@ export function UseCasePage() {
   const { useCaseId } = useParams<{ useCaseId: UseCaseId }>();
   const currentProfile = useAuthStore((state) => state.currentProfile);
   const store = useAppDataStore();
+  
+  // Fetch real data from API
+  const { donors } = useDonors();
+  const { grants } = useGrants();
+  const { projects } = useProjects();
+  const { transactions } = useTransactions();
+  const { requisitions } = useRequisitions();
+  const { budgetLines } = useBudgetLines();
+  const { users } = useUsers();
+  const { reports } = useReports();
+  const { bankAccounts } = useBankAccounts();
+  const { auditLogs } = useAuditLogs();
+  const { schedules: reportSchedules } = useReportSchedules();
+  const { deliveries: reportDeliveries } = useReportDeliveries();
+  const { reconciliations } = useReconciliations();
+  const { lines: bankStatementLines } = useBankStatementLines();
+  const { items: complianceItems } = useComplianceItems();
+  const { documents } = useDocuments();
+  const { requirements: staffRequirements } = useStaffRequirements();
+  const { testCases } = useTestCases();
+  const { rolePermissions } = useRolePermissions();
+  const { bugReports } = useBugReports();
+  const { uatFeedback } = useUATFeedback();
+  const { releaseNotes } = useReleaseNotes();
+  const { expenseApprovals } = useExpenseApprovals();
+  const { requests: reallocationRequests } = useReallocationRequests();
+  const { notifications } = useNotifications();
+  const { processDocuments } = useProcessDocuments();
 
   const useCase = USE_CASES.find((entry) => entry.id === useCaseId);
 
@@ -104,20 +145,20 @@ export function UseCasePage() {
   }
 
   const actor = ACTORS.find((entry) => entry.id === currentProfile.actor);
-  const currentUserId = store.users.find((user) => user.email === currentProfile.email)?.user_id ?? 1;
-  const userName = (id: number) => store.users.find((user) => user.user_id === id)?.full_name ?? 'Unknown User';
-  const budgetLineName = (id: number) => store.budgetLines.find((line) => line.budget_line_id === id)?.line_name ?? 'Unmapped Budget';
-  const grantTitle = (id: number) => store.grants.find((grant) => grant.grant_id === id)?.grant_title ?? 'Unmapped Grant';
+  const currentUserId = users.find((user) => user.email === currentProfile.email)?.user_id ?? 1;
+  const userName = (id: number) => users.find((user) => user.user_id === id)?.full_name ?? 'Unknown User';
+  const budgetLineName = (id: number) => budgetLines.find((line) => line.budget_line_id === id)?.line_name ?? 'Unmapped Budget';
+  const grantTitle = (id: number) => grants.find((grant) => grant.grant_id === id)?.grant_title ?? 'Unmapped Grant';
   const allowedUseCases = USE_CASES.filter((entry) => entry.actors.includes(currentProfile.actor));
-  const firstBudgetLine = store.budgetLines[0];
-  const firstGrant = store.grants[0];
-  const staffRequirementTotal = store.staffRequirements.length;
-  const staffRequirementInReview = store.staffRequirements.filter((requirement) => requirement.validation_status === 'in_review').length;
-  const staffRequirementPending = store.staffRequirements.filter((requirement) => requirement.validation_status === 'pending').length;
-  const mappedProcessAreas = new Set(store.staffRequirements.map((requirement) => requirement.process_area.trim().toLowerCase()).filter(Boolean));
-  const openTestCaseCount = store.testCases.filter((testCase) => testCase.status !== 'approved' && testCase.status !== 'rejected').length;
+  const firstBudgetLine = budgetLines[0];
+  const firstGrant = grants[0];
+  const staffRequirementTotal = staffRequirements.length;
+  const staffRequirementInReview = staffRequirements.filter((requirement) => requirement.validation_status === 'in_review').length;
+  const staffRequirementPending = staffRequirements.filter((requirement) => requirement.validation_status === 'pending').length;
+  const mappedProcessAreas = new Set(staffRequirements.map((requirement) => requirement.process_area.trim().toLowerCase()).filter(Boolean));
+  const openTestCaseCount = testCases.filter((testCase) => testCase.status !== 'approved' && testCase.status !== 'rejected').length;
   const permissionByRole = new Map<Role, Set<number>>();
-  store.rolePermissions.forEach((entry) => {
+  rolePermissions.forEach((entry) => {
     const current = permissionByRole.get(entry.role) ?? new Set<number>();
     current.add(entry.permission);
     permissionByRole.set(entry.role, current);
@@ -129,7 +170,7 @@ export function UseCasePage() {
     { label: 'Access Policy', value: actor?.label ?? 'Role-aware', trend: 'Use-case permissions enforced', trendDirection: 'up' },
   ];
 
-  const reportScheduleRows = store.reportSchedules.map((schedule) => ({
+  const reportScheduleRows = reportSchedules.map((schedule) => ({
     report_type: schedule.report_type,
     frequency: schedule.frequency,
     delivery_method: schedule.delivery_method,
@@ -139,61 +180,61 @@ export function UseCasePage() {
     last_run_at: schedule.last_run_at ?? '-',
   }));
 
-  const reportDeliveryRows = store.reportDeliveries.map((delivery) => ({
+  const reportDeliveryRows = reportDeliveries.map((delivery) => ({
     report_id: delivery.report,
     destination: delivery.destination,
     method: delivery.delivery_method,
     status: delivery.status,
     sent_at: delivery.sent_at ?? '-',
   }));
-  const activeSchedules = store.reportSchedules.filter((schedule) => schedule.is_active).length;
-  const auditRows = store.auditLogs.map((log) => ({
+  const activeSchedules = reportSchedules.filter((schedule) => schedule.is_active).length;
+  const auditRows = auditLogs.map((log) => ({
     action_type: log.action_type,
     user: userName(log.user_id),
     target_entity_type: log.target_entity_type,
     timestamp: log.timestamp,
     ip_address: log.ip_address || '-',
   }));
-  const auditActionCount = new Set(store.auditLogs.map((log) => log.action_type)).size;
-  const auditTargetCount = new Set(store.auditLogs.map((log) => log.target_entity_type)).size;
-  const documentRows = store.documents.map((document) => ({
+  const auditActionCount = new Set(auditLogs.map((log) => log.action_type)).size;
+  const auditTargetCount = new Set(auditLogs.map((log) => log.target_entity_type)).size;
+  const documentRows = documents.map((document) => ({
     document_type: document.document_type,
     entity: `${document.related_entity_type} #${document.related_entity_id}`,
     uploaded_by: userName(document.uploaded_by),
     uploaded_at: document.uploaded_at,
     file: document.file,
   }));
-  const verifiedComplianceCount = store.complianceItems.filter((item) => item.verified).length;
-  const pendingComplianceCount = store.complianceItems.length - verifiedComplianceCount;
-  const complianceRows = store.complianceItems.map((item) => ({
+  const verifiedComplianceCount = complianceItems.filter((item) => item.verified).length;
+  const pendingComplianceCount = complianceItems.length - verifiedComplianceCount;
+  const complianceRows = complianceItems.map((item) => ({
     title: item.title,
     owner: item.owner,
     verified: item.verified ? 'verified' : 'pending',
   }));
-  const reconciliationRows = store.reconciliations.map((reconciliation) => ({
-    transaction: store.transactions.find((transaction) => transaction.transaction_id === reconciliation.transaction)?.bank_reference_number ?? String(reconciliation.transaction),
-    statement_line: store.bankStatementLines.find((line) => line.id === reconciliation.bank_statement_line)?.reference_number ?? String(reconciliation.bank_statement_line),
+  const reconciliationRows = reconciliations.map((reconciliation) => ({
+    transaction: transactions.find((transaction) => transaction.transaction_id === reconciliation.transaction)?.bank_reference_number ?? String(reconciliation.transaction),
+    statement_line: bankStatementLines.find((line) => line.id === reconciliation.bank_statement_line)?.reference_number ?? String(reconciliation.bank_statement_line),
     status: reconciliation.status,
     difference_amount: currency.format(reconciliation.difference_amount),
     reviewed_by: userName(reconciliation.reviewed_by),
     notes: reconciliation.notes || '-',
   }));
-  const reconciliationExceptionCount = store.reconciliations.filter((reconciliation) => reconciliation.status === 'exception').length;
-  const bankStatementLineOpenCount = store.bankStatementLines.filter((line) => !line.matched).length;
+  const reconciliationExceptionCount = reconciliations.filter((reconciliation) => reconciliation.status === 'exception').length;
+  const bankStatementLineOpenCount = bankStatementLines.filter((line) => !line.matched).length;
   const reconciliationPendingCount = bankStatementLineOpenCount;
-  const reconciliationClearedCount = store.bankStatementLines.length - bankStatementLineOpenCount;
-  const reconciliationMatchedCount = store.reconciliations.filter((reconciliation) => reconciliation.status === 'matched').length;
-  const testCaseRows = store.testCases.map((testCase) => ({
+  const reconciliationClearedCount = bankStatementLines.length - bankStatementLineOpenCount;
+  const reconciliationMatchedCount = reconciliations.filter((reconciliation) => reconciliation.status === 'matched').length;
+  const testCaseRows = testCases.map((testCase) => ({
     title: testCase.title,
     environment: testCase.environment,
     status: testCase.status,
     priority: testCase.priority,
     created_at: testCase.created_at,
   }));
-  const openBugCount = store.bugReports.filter((bug) => bug.status !== 'closed').length;
-  const openUatCount = store.uatFeedback.filter((feedback) => feedback.status !== 'closed').length;
-  const publishedReleaseCount = store.releaseNotes.filter((note) => note.status === 'published').length;
-  const releaseRows = store.releaseNotes.map((note) => ({
+  const openBugCount = bugReports.filter((bug) => bug.status !== 'closed').length;
+  const openUatCount = uatFeedback.filter((feedback) => feedback.status !== 'closed').length;
+  const publishedReleaseCount = releaseNotes.filter((note) => note.status === 'published').length;
+  const releaseRows = releaseNotes.map((note) => ({
     version: note.version,
     title: note.title,
     environment: note.environment,
@@ -204,7 +245,7 @@ export function UseCasePage() {
     const monthDate = new Date();
     monthDate.setMonth(monthDate.getMonth() - (4 - index));
     const label = monthDate.toLocaleString('en-US', { month: 'short' });
-    const total = store.transactions
+    const total = transactions
       .filter((transaction) => {
         const date = new Date(`${transaction.transaction_date}T00:00:00`);
         return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
@@ -214,7 +255,7 @@ export function UseCasePage() {
   });
   const portfolioPerformanceData = (() => {
     const buckets = { onTrack: 0, watchList: 0, escalated: 0 };
-    store.budgetLines.forEach((budgetLine) => {
+    budgetLines.forEach((budgetLine) => {
       const burnRate = budgetLine.allocated_amount > 0 ? budgetLine.spent_amount / budgetLine.allocated_amount : 0;
       if (burnRate < 0.7) {
         buckets.onTrack += 1;
@@ -233,61 +274,60 @@ export function UseCasePage() {
     ];
   })();
   const strategicOutcomeData = [
-    { label: 'Coverage', value: percentage(verifiedComplianceCount, store.complianceItems.length), color: '#1f6f78' },
-    { label: 'Uptime', value: percentage(store.testCases.filter((testCase) => testCase.status === 'approved').length, store.testCases.length), color: '#f59e0b' },
+    { label: 'Coverage', value: percentage(verifiedComplianceCount, complianceItems.length), color: '#1f6f78' },
+    { label: 'Uptime', value: percentage(testCases.filter((testCase) => testCase.status === 'approved').length, testCases.length), color: '#f59e0b' },
     {
       label: 'Approval Pace',
       value: percentage(
-        store.requisitions.filter((requisition) => requisition.status === 'approved').length +
-          store.expenseApprovals.filter((approval) => approval.stage === 'approved').length,
-        store.requisitions.length + store.expenseApprovals.length
+        requisitions.filter((requisition) => requisition.status === 'approved').length +
+          expenseApprovals.filter((approval) => approval.stage === 'approved').length,
+        requisitions.length + expenseApprovals.length
       ),
       color: '#4caf50',
     },
-    { label: 'Audit Readiness', value: percentage(verifiedComplianceCount + publishedReleaseCount, store.complianceItems.length + store.releaseNotes.length), color: '#ef4444' },
+    { label: 'Audit Readiness', value: percentage(verifiedComplianceCount + publishedReleaseCount, complianceItems.length + releaseNotes.length), color: '#ef4444' },
   ];
   const leadershipPriorityData = [
-    { label: 'Programs', value: store.donors.length + store.grants.length + store.projects.length, color: '#1f6f78' },
-    { label: 'Finance', value: store.requisitions.length + store.transactions.length + store.reallocationRequests.length, color: '#f59e0b' },
-    { label: 'Governance', value: store.auditLogs.length + store.complianceItems.length + store.rolePermissions.length, color: '#4caf50' },
-    { label: 'Donor Trust', value: store.notifications.length + store.reportDeliveries.length + store.documents.length, color: '#ef4444' },
+    { label: 'Programs', value: donors.length + grants.length + projects.length, color: '#1f6f78' },
+    { label: 'Finance', value: requisitions.length + transactions.length + reallocationRequests.length, color: '#f59e0b' },
+    { label: 'Governance', value: auditLogs.length + complianceItems.length + rolePermissions.length, color: '#4caf50' },
+    { label: 'Donor Trust', value: notifications.length + reportDeliveries.length + documents.length, color: '#ef4444' },
   ];
   const qaReadinessRate = percentage(
-    store.testCases.filter((testCase) => testCase.status === 'approved').length +
-      store.bugReports.filter((bug) => bug.status === 'closed').length +
-      store.uatFeedback.filter((feedback) => feedback.status === 'closed').length +
-      store.releaseNotes.filter((note) => note.status === 'published').length,
-    store.testCases.length + store.bugReports.length + store.uatFeedback.length + store.releaseNotes.length
+    testCases.filter((testCase) => testCase.status === 'approved').length +
+      bugReports.filter((bug) => bug.status === 'closed').length +
+      uatFeedback.filter((feedback) => feedback.status === 'closed').length +
+      releaseNotes.filter((note) => note.status === 'published').length,
+    testCases.length + bugReports.length + uatFeedback.length + releaseNotes.length
   );
   const validationEnvironmentData = ['Staging', 'UAT', 'Pre-release', 'Production Smoke'].map((environment) => ({
     label: environment,
-    value: store.testCases.filter((testCase) => testCase.environment === environment).length,
+    value: testCases.filter((testCase) => testCase.environment === environment).length,
   }));
   const bugSeverityData = [
-    { label: 'Low', value: store.bugReports.filter((bug) => bug.severity === 'low').length, color: '#94a3b8' },
-    { label: 'Medium', value: store.bugReports.filter((bug) => bug.severity === 'medium').length, color: '#1f6f78' },
-    { label: 'High', value: store.bugReports.filter((bug) => bug.severity === 'high').length, color: '#f59e0b' },
-    { label: 'Critical', value: store.bugReports.filter((bug) => bug.severity === 'critical').length, color: '#ef4444' },
+    { label: 'Low', value: bugReports.filter((bug) => bug.severity === 'low').length, color: '#94a3b8' },
+    { label: 'Medium', value: bugReports.filter((bug) => bug.severity === 'medium').length, color: '#1f6f78' },
+    { label: 'High', value: bugReports.filter((bug) => bug.severity === 'high').length, color: '#f59e0b' },
+    { label: 'Critical', value: bugReports.filter((bug) => bug.severity === 'critical').length, color: '#ef4444' },
   ];
   const bugStatusData = [
-    { label: 'Open', value: store.bugReports.filter((bug) => bug.status === 'open').length, color: '#f59e0b' },
-    { label: 'Triaged', value: store.bugReports.filter((bug) => bug.status === 'triaged').length, color: '#1f6f78' },
-    { label: 'In Progress', value: store.bugReports.filter((bug) => bug.status === 'in_progress').length, color: '#4caf50' },
-    { label: 'Resolved', value: store.bugReports.filter((bug) => bug.status === 'resolved').length, color: '#94a3b8' },
-    { label: 'Closed', value: store.bugReports.filter((bug) => bug.status === 'closed').length, color: '#0f766e' },
+    { label: 'Open', value: bugReports.filter((bug) => bug.status === 'open').length, color: '#f59e0b' },
+    { label: 'Triaged', value: bugReports.filter((bug) => bug.status === 'triaged').length, color: '#1f6f78' },
+    { label: 'In Progress', value: bugReports.filter((bug) => bug.status === 'in_progress').length, color: '#4caf50' },
+    { label: 'Resolved', value: bugReports.filter((bug) => bug.status === 'resolved').length, color: '#94a3b8' },
+    { label: 'Closed', value: bugReports.filter((bug) => bug.status === 'closed').length, color: '#0f766e' },
   ];
 
   const [userForm, setUserForm] = useState({ name: '', email: '', actor: 'field_staff' });
   const [settingDrafts, setSettingDrafts] = useState<Record<string, string>>({});
   const [donorForm, setDonorForm] = useState({ name: '', email: '', type: 'individual' });
-  const [receiptForm, setReceiptForm] = useState({ donorName: '', project: '', amount: '0', receivedOn: '2026-05-25' });
-  const [allocationForm, setAllocationForm] = useState({ project: '', amount: '0' });
+  const [receiptForm] = useState({ donorName: '', project: '', amount: '0', receivedOn: '2026-05-25' });
+  const [allocationForm] = useState({ project: '', amount: '0' });
   const [grantForm, setGrantForm] = useState({ title: '', donor_id: '', amount: '0', start_date: '', end_date: '', requirements: '' });
-  const [projectForm, setProjectForm] = useState({ name: '', grant_id: '', start_date: '', description: '' });
   const [reallocationForm, setReallocationForm] = useState({ from_budget_line_id: '', to_budget_line_id: '', amount: '0', reason: '' });
   const [reportForm, setReportForm] = useState({ name: '', period: '' });
-  const [auditForm, setAuditForm] = useState({ action: '', source: '' });
-  const [claimForm, setClaimForm] = useState({ category: '', amount: '0' });
+  const [auditForm, setAuditForm] = useState({ action: '', from_budget_line_id: '' });
+  const [claimForm] = useState({ category: '', amount: '0' });
   const [requirementForm, setRequirementForm] = useState({ interviewee: '', process: '', feedback: '' });
   const [testCaseForm, setTestCaseForm] = useState({ title: '', scenario: '', environment: 'Staging', priority: 'medium' as TestCase['priority'] });
   const [uatForm, setUatForm] = useState({ testCase: '', feedback: '' });
@@ -436,15 +476,24 @@ export function UseCasePage() {
               <DataEntryForm
                 title="Invite or create a system user"
                 description="Add a new actor account into the platform governance register."
-                onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                onSubmit={async (event: FormEvent<HTMLFormElement>) => {
                   event.preventDefault();
-                  store.createUser({
-                    full_name: userForm.name,
-                    email: userForm.email,
-                    password: generateTemporaryPassword(),
-                    role: actorToRole[userForm.actor as Actor],
-                  });
-                  setUserForm({ name: '', email: '', actor: 'field_staff' });
+                  try {
+                    await apiRequest('/users/', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        full_name: userForm.name,
+                        email: userForm.email,
+                        password: generateTemporaryPassword(),
+                        role: actorToRole[userForm.actor as Actor],
+                      })
+                    });
+                    alert('✓ User created successfully!');
+                    setUserForm({ name: '', email: '', actor: 'field_staff' });
+                    window.location.reload();
+                  } catch (error) {
+                    alert('Error: ' + (error instanceof Error ? error.message : 'Failed to create user'));
+                  }
                 }}
                 actions={<Button type="submit">Create Account</Button>}
               >
@@ -469,7 +518,7 @@ export function UseCasePage() {
                 <h3 className="text-xl font-bold text-slate-900">Current user roster</h3>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.users}
+                    rows={users}
                     columns={[
                       { key: 'name', header: 'Name', render: (row) => row.full_name },
                       { key: 'email', header: 'Email', render: (row) => row.email },
@@ -553,7 +602,7 @@ export function UseCasePage() {
                         />
                       </div>
                       <div className="mt-4">
-                        <Button onClick={() => store.updateSetting(setting.key, settingDrafts[setting.key] ?? setting.value)}>
+                        <Button onClick={() => apiHelpers.updateSetting(setting.key, settingDrafts[setting.key] ?? setting.value)}>
                           Save Setting
                         </Button>
                       </div>
@@ -584,7 +633,7 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.auditLogs}
+                    rows={auditLogs}
                     columns={[
                       { key: 'time', header: 'Timestamp', render: (row) => row.timestamp },
                       { key: 'event', header: 'Action Type', render: (row) => row.action_type },
@@ -635,11 +684,11 @@ export function UseCasePage() {
               <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className="metric-tile">
                   <span className="eyebrow">Total Donors</span>
-                  <strong>{store.donorEngagementDashboard?.total_donors ?? store.donors.length}</strong>
+                  <strong>{store.donorEngagementDashboard?.total_donors ?? donors.length}</strong>
                 </div>
                 <div className="metric-tile">
                   <span className="eyebrow">Active Donors</span>
-                  <strong>{store.donorEngagementDashboard?.active_donors ?? store.donors.filter((donor) => donor.status === 'active').length}</strong>
+                  <strong>{store.donorEngagementDashboard?.active_donors ?? donors.filter((donor) => donor.status === 'active').length}</strong>
                 </div>
                 <div className="metric-tile">
                   <span className="eyebrow">Communications</span>
@@ -671,16 +720,25 @@ export function UseCasePage() {
               <DataEntryForm
                 title="Register donor record"
                 description="Capture the minimum donor data required by finance operations."
-                onSubmit={(event) => {
+                onSubmit={async (event) => {
                   event.preventDefault();
-                  store.createDonor({
-                    organization_name: donorForm.name,
-                    contact_person: donorForm.name,
-                    contact_email: donorForm.email,
-                    country: 'Rwanda',
-                    category: donorForm.type,
-                  });
-                  setDonorForm({ name: '', email: '', type: 'individual' });
+                  try {
+                    await apiRequest('/donors/', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        organization_name: donorForm.name,
+                        contact_person: donorForm.name,
+                        contact_email: donorForm.email,
+                        country: 'Rwanda',
+                        category: donorForm.type,
+                      })
+                    });
+                    alert('✓ Donor registered successfully!');
+                    setDonorForm({ name: '', email: '', type: 'individual' });
+                    window.location.reload();
+                  } catch (error) {
+                    alert('Error: ' + (error instanceof Error ? error.message : 'Failed to register donor'));
+                  }
                 }}
                 actions={<Button type="submit">Register New Donor</Button>}
               >
@@ -704,7 +762,7 @@ export function UseCasePage() {
                 <div className="flex items-center justify-between gap-4 mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Donor register</h3>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => {
+                    <Button variant="outline"  onClick={() => {
                       const csv = 'organization_name,contact_person,contact_email,country,category,status,notes\nExample Org,John Doe,john@example.com,Rwanda,Corporate,active,Sample notes\n';
                       const blob = new Blob([csv], { type: 'text/csv' });
                       const url = URL.createObjectURL(blob);
@@ -715,7 +773,7 @@ export function UseCasePage() {
                     }}>
                       Download Template
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => document.getElementById('donor-import-file')?.click()}>
+                    <Button variant="outline"  onClick={() => document.getElementById('donor-import-file')?.click()}>
                       Bulk Import
                     </Button>
                     <input id="donor-import-file" type="file" accept=".csv" className="hidden" onChange={(e) => {
@@ -724,7 +782,7 @@ export function UseCasePage() {
                         alert(`Import functionality: ${file.name} selected. Backend endpoint: POST /api/donors/bulk-import/`);
                       }
                     }} />
-                    <Button variant="outline" size="sm" onClick={() => {
+                    <Button variant="outline"  onClick={() => {
                       alert('Export functionality: Backend endpoint: GET /api/donors/export/');
                     }}>
                       Export CSV
@@ -733,7 +791,7 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.donors}
+                    rows={donors}
                     columns={[
                       { key: 'name', header: 'Organization', render: (row) => row.organization_name },
                       { key: 'contact', header: 'Contact Person', render: (row) => row.contact_person },
@@ -762,7 +820,7 @@ export function UseCasePage() {
                   await apiRequest('/transactions/', {
                     method: 'POST',
                     body: JSON.stringify({
-                      requisition: store.requisitions[0]?.requisition_id || 1,
+                      requisition: requisitions[0]?.requisition_id || 1,
                       budget_line: Number(formData.get('project')),
                       amount: formData.get('amount'),
                       transaction_date: formData.get('transaction_date'),
@@ -783,8 +841,8 @@ export function UseCasePage() {
                 <span className="form-label">Donor</span>
                 <select name="donor" className="form-control" required>
                   <option value="">Select donor</option>
-                  {store.donors.map((donor) => (
-                    <option key={donor.id} value={donor.id}>{donor.organization_name}</option>
+                  {donors.map((donor) => (
+                    <option key={donor.donor_id} value={donor.donor_id}>{donor.organization_name}</option>
                   ))}
                 </select>
               </label>
@@ -792,7 +850,7 @@ export function UseCasePage() {
                 <span className="form-label">Project</span>
                 <select name="project" className="form-control" required>
                   <option value="">Select project</option>
-                  {store.projects.map((project) => (
+                  {projects.map((project) => (
                     <option key={project.project_id} value={project.project_id}>{project.name}</option>
                   ))}
                 </select>
@@ -813,12 +871,12 @@ export function UseCasePage() {
             <div className="panel-card">
               <h3 className="text-xl font-bold text-slate-900 mb-6">Transaction Ledger</h3>
               <DataTable
-                rows={store.transactions.map((tx) => ({
+                rows={transactions.map((tx) => ({
                   ...tx,
-                  budget_line_name: store.budgetLines.find((bl) => bl.budget_line_id === tx.budget_line_id)?.line_name || 'Unknown',
+                  budget_line_name: budgetLines.find((bl) => bl.budget_line_id === tx.budget_line_id)?.line_name || 'Unknown',
                 }))}
                 columns={[
-                  { key: 'id', header: 'Transaction ID', render: (row) => row.transaction_id || row.id },
+                  { key: 'id', header: 'Transaction ID', render: (row) => row.transaction_id },
                   { key: 'budget_line', header: 'Budget Line', render: (row) => row.budget_line_name },
                   { key: 'amount', header: 'Amount', render: (row) => `${row.amount.toLocaleString()} RWF` },
                   { key: 'date', header: 'Date', render: (row) => row.transaction_date },
@@ -863,7 +921,7 @@ export function UseCasePage() {
                 <span className="form-label">Grant</span>
                 <select name="grant" className="form-control" required>
                   <option value="">Select grant</option>
-                  {store.grants.map((grant) => (
+                  {grants.map((grant) => (
                     <option key={grant.grant_id} value={grant.grant_id}>{grant.grant_title}</option>
                   ))}
                 </select>
@@ -880,7 +938,7 @@ export function UseCasePage() {
             <div className="panel-card">
               <h3 className="text-xl font-bold text-slate-900 mb-6">Budget Lines</h3>
               <DataTable
-                rows={store.budgetLines.map((bl) => ({
+                rows={budgetLines.map((bl) => ({
                   ...bl,
                   remaining: bl.allocated_amount - bl.spent_amount,
                   utilization: bl.allocated_amount > 0 ? Math.round((bl.spent_amount / bl.allocated_amount) * 100) : 0,
@@ -906,18 +964,22 @@ export function UseCasePage() {
               onSubmit={async (event) => {
                 event.preventDefault();
                 try {
-                  const firstDonor = store.donors[0];
-                  await store.createGrant({
-                    donor_id: Number(grantForm.donor_id) || firstDonor?.id || 1,
-                    grant_title: grantForm.title,
-                    total_amount: Number(grantForm.amount),
-                    currency: 'RWF',
-                    start_date: grantForm.start_date,
-                    end_date: grantForm.end_date,
-                    compliance_notes: grantForm.requirements,
+                  const firstDonor = donors[0];
+                  await apiRequest('/grants/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      donor: Number(grantForm.donor_id) || firstDonor?.donor_id || 1,
+                      grant_title: grantForm.title,
+                      total_amount: Number(grantForm.amount),
+                      currency: 'RWF',
+                      start_date: grantForm.start_date,
+                      end_date: grantForm.end_date,
+                      compliance_notes: grantForm.requirements,
+                    })
                   });
-                  setGrantForm({ title: '', donor_id: '', amount: '0', start_date: '', end_date: '', requirements: '' });
                   alert('✅ Grant created successfully!');
+                  setGrantForm({ title: '', donor_id: '', amount: '0', start_date: '', end_date: '', requirements: '' });
+                  window.location.reload();
                 } catch (error) {
                   alert('❌ Error: ' + (error instanceof Error ? error.message : 'Failed to create grant'));
                 }
@@ -932,8 +994,8 @@ export function UseCasePage() {
                 <span className="form-label">Donor Organization</span>
                 <select className="form-control" value={grantForm.donor_id} onChange={(e) => setGrantForm(s => ({ ...s, donor_id: e.target.value }))}>
                   <option value="">Select donor</option>
-                  {store.donors.map((donor) => (
-                    <option key={donor.id} value={donor.id}>{donor.organization_name}</option>
+                  {donors.map((donor) => (
+                    <option key={donor.donor_id} value={donor.donor_id}>{donor.organization_name}</option>
                   ))}
                 </select>
               </label>
@@ -957,7 +1019,7 @@ export function UseCasePage() {
             <div className="panel-card">
               <h3 className="text-xl font-bold text-slate-900 mb-6">Active Grants</h3>
               <DataTable
-                rows={store.grants.map((grant) => ({
+                rows={grants.map((grant) => ({
                   ...grant,
                   status_badge: grant.status === 'active' ? 'Active' : grant.status === 'pending' ? 'Pending' : 'Closed',
                   days_remaining: Math.floor((new Date(grant.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
@@ -1012,7 +1074,7 @@ export function UseCasePage() {
                 <span className="form-label">Grant</span>
                 <select name="grant" className="form-control" required>
                   <option value="">Select grant</option>
-                  {store.grants.map((grant) => (
+                  {grants.map((grant) => (
                     <option key={grant.grant_id} value={grant.grant_id}>{grant.grant_title}</option>
                   ))}
                 </select>
@@ -1033,8 +1095,8 @@ export function UseCasePage() {
             <div className="panel-card">
               <h3 className="text-xl font-bold text-slate-900 mb-6">Active Projects</h3>
               <DataTable
-                rows={store.projects.map((project) => {
-                  const grant = store.grants.find((g) => g.grant_id === project.grant_id);
+                rows={projects.map((project) => {
+                  const grant = grants.find((g) => g.grant_id === project.grant_id);
                   return {
                     ...project,
                     grant_name: grant?.grant_title || 'Unknown',
@@ -1094,7 +1156,7 @@ export function UseCasePage() {
                 <span className="form-label">From Budget Line</span>
                 <select name="from_budget_line" className="form-control" required>
                   <option value="">Select source budget line</option>
-                  {store.budgetLines.map((line) => (
+                  {budgetLines.map((line) => (
                     <option key={line.budget_line_id} value={line.budget_line_id}>
                       {line.line_name} (Available: {(line.allocated_amount - line.spent_amount).toLocaleString()} RWF)
                     </option>
@@ -1105,7 +1167,7 @@ export function UseCasePage() {
                 <span className="form-label">To Budget Line</span>
                 <select name="to_budget_line" className="form-control" required>
                   <option value="">Select destination budget line</option>
-                  {store.budgetLines.map((line) => (
+                  {budgetLines.map((line) => (
                     <option key={line.budget_line_id} value={line.budget_line_id}>{line.line_name}</option>
                   ))}
                 </select>
@@ -1122,10 +1184,10 @@ export function UseCasePage() {
             <div className="panel-card">
               <h3 className="text-xl font-bold text-slate-900 mb-6">Reallocation Requests</h3>
               <DataTable
-                rows={store.reallocationRequests.map((req) => ({
+                rows={reallocationRequests.map((req) => ({
                   ...req,
-                  from_line: store.budgetLines.find((bl) => bl.budget_line_id === req.from_budget_line_id)?.line_name || 'Unknown',
-                  to_line: store.budgetLines.find((bl) => bl.budget_line_id === req.to_budget_line_id)?.line_name || 'Unknown',
+                  from_line: budgetLines.find((bl) => bl.budget_line_id === req.from_budget_line_id)?.line_name || 'Unknown',
+                  to_line: budgetLines.find((bl) => bl.budget_line_id === req.to_budget_line_id)?.line_name || 'Unknown',
                 }))}
                 columns={[
                   { key: 'from', header: 'From', render: (row) => row.from_line },
@@ -1146,7 +1208,7 @@ export function UseCasePage() {
               <StatCard label="Open Lines" value={String(reconciliationPendingCount)} trend="Awaiting match" trendDirection="neutral" icon={ClipboardCheck} />
               <StatCard label="Matched" value={String(reconciliationMatchedCount)} trend="Matched to ledger" trendDirection="up" icon={Check} />
               <StatCard label="Exceptions" value={String(reconciliationExceptionCount)} trend="Escalated review items" trendDirection="down" icon={Eye} />
-              <StatCard label="Imported Lines" value={String(store.bankStatementLines.length)} trend="Current bank review set" trendDirection="neutral" icon={RefreshCcw} />
+              <StatCard label="Imported Lines" value={String(bankStatementLines.length)} trend="Current bank review set" trendDirection="neutral" icon={RefreshCcw} />
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -1155,39 +1217,38 @@ export function UseCasePage() {
                 description="Create a statement header and upload CSV-style line items for review."
                 onSubmit={async (event) => {
                   event.preventDefault();
-                  const bankAccountId = Number(bankStatementForm.bankAccount || store.bankAccounts[0]?.id || 0);
+                  const bankAccountId = Number(bankStatementForm.bankAccount || bankAccounts[0]?.id || 0);
                   if (!bankAccountId) {
+                    alert('Please select a bank account');
                     return;
                   }
-                  const statementId = await store.createBankStatement({
-                    bank_account: bankAccountId,
-                    statement_number: bankStatementForm.statementNumber,
-                    period_start: bankStatementForm.periodStart,
-                    period_end: bankStatementForm.periodEnd,
-                    opening_balance: Number(bankStatementForm.openingBalance),
-                    closing_balance: Number(bankStatementForm.closingBalance),
-                    statement_file: bankStatementForm.statementFile,
-                  });
-                  await store.importBankStatementLines(statementId, {
-                    statement_number: bankStatementForm.statementNumber,
-                    period_start: bankStatementForm.periodStart,
-                    period_end: bankStatementForm.periodEnd,
-                    opening_balance: Number(bankStatementForm.openingBalance),
-                    closing_balance: Number(bankStatementForm.closingBalance),
-                    statement_file: bankStatementForm.statementFile,
-                    lines: bankStatementForm.statementFile ? undefined : parseBankStatementLines(bankStatementForm.csvLines),
-                  });
-                  await store.autoMatchBankStatement(statementId);
-                  setBankStatementForm({
-                    bankAccount: '',
-                    statementNumber: '',
-                    periodStart: '',
-                    periodEnd: '',
-                    openingBalance: '',
-                    closingBalance: '',
-                    csvLines: '',
-                    statementFile: null,
-                  });
+                  try {
+                    await apiRequest('/bank-statements/', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        bank_account: bankAccountId,
+                        statement_number: bankStatementForm.statementNumber,
+                        period_start: bankStatementForm.periodStart,
+                        period_end: bankStatementForm.periodEnd,
+                        opening_balance: Number(bankStatementForm.openingBalance),
+                        closing_balance: Number(bankStatementForm.closingBalance),
+                      })
+                    });
+                    alert('✓ Bank statement imported successfully!');
+                    setBankStatementForm({
+                      bankAccount: '',
+                      statementNumber: '',
+                      periodStart: '',
+                      periodEnd: '',
+                      openingBalance: '',
+                      closingBalance: '',
+                      csvLines: '',
+                      statementFile: null,
+                    });
+                    window.location.reload();
+                  } catch (error) {
+                    alert('Error: ' + (error instanceof Error ? error.message : 'Failed to import statement'));
+                  }
                 }}
                 actions={<Button type="submit">Import Statement</Button>}
               >
@@ -1199,7 +1260,7 @@ export function UseCasePage() {
                     onChange={(event) => setBankStatementForm((state) => ({ ...state, bankAccount: event.target.value }))}
                   >
                     <option value="">Select account</option>
-                    {store.bankAccounts.map((account) => (
+                    {bankAccounts.map((account) => (
                       <option key={account.id} value={account.id}>
                         {account.bank_name} - {account.account_name}
                       </option>
@@ -1297,7 +1358,7 @@ export function UseCasePage() {
                       if (!reconciliationForm.transaction || !reconciliationForm.bankStatementLine) {
                         return;
                       }
-                      store.createReconciliation({
+                      apiHelpers.createReconciliation({
                         transaction: Number(reconciliationForm.transaction),
                         bank_statement_line: Number(reconciliationForm.bankStatementLine),
                         difference_amount: Number(reconciliationForm.differenceAmount),
@@ -1320,7 +1381,7 @@ export function UseCasePage() {
                         onChange={(event) => setReconciliationForm((state) => ({ ...state, transaction: event.target.value }))}
                       >
                         <option value="">Select transaction</option>
-                        {store.transactions.map((transaction) => (
+                        {transactions.map((transaction) => (
                           <option key={transaction.transaction_id} value={transaction.transaction_id}>
                             {transaction.bank_reference_number} - {currency.format(transaction.amount)}
                           </option>
@@ -1335,7 +1396,7 @@ export function UseCasePage() {
                         onChange={(event) => setReconciliationForm((state) => ({ ...state, bankStatementLine: event.target.value }))}
                       >
                         <option value="">Select line</option>
-                        {store.bankStatementLines.map((line) => (
+                        {bankStatementLines.map((line) => (
                           <option key={line.id} value={line.id}>
                             {line.reference_number || line.description} - {currency.format(line.amount)}
                           </option>
@@ -1383,7 +1444,7 @@ export function UseCasePage() {
               </div>
               <div className="mt-6">
                 <DataTable
-                  rows={store.transactions}
+                  rows={transactions}
                   columns={[
                     { key: 'reference', header: 'Bank Reference', render: (row) => row.bank_reference_number },
                     { key: 'budget', header: 'Budget Line', render: (row) => budgetLineName(row.budget_line_id) },
@@ -1421,20 +1482,20 @@ export function UseCasePage() {
               </div>
               <div className="mt-6">
                 <DataTable
-                  rows={store.reconciliations}
+                  rows={reconciliations}
                   columns={[
                     {
                       key: 'transaction',
                       header: 'Transaction',
                       render: (row) =>
-                        store.transactions.find((transaction) => transaction.transaction_id === row.transaction)?.bank_reference_number ??
+                        transactions.find((transaction) => transaction.transaction_id === row.transaction)?.bank_reference_number ??
                         String(row.transaction),
                     },
                     {
                       key: 'statementLine',
                       header: 'Statement Line',
                       render: (row) =>
-                        store.bankStatementLines.find((line) => line.id === row.bank_statement_line)?.reference_number ??
+                        bankStatementLines.find((line) => line.id === row.bank_statement_line)?.reference_number ??
                         String(row.bank_statement_line),
                     },
                     { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
@@ -1448,7 +1509,7 @@ export function UseCasePage() {
                           <Button variant="outline" onClick={() => store.matchReconciliation(row.id, { difference_amount: row.difference_amount, notes: row.notes })}>
                             Match
                           </Button>
-                          <Button variant="ghost" onClick={() => store.markReconciliationException(row.id, { difference_amount: row.difference_amount, notes: row.notes })}>
+                          <Button variant="ghost" onClick={() => apiHelpers.markReconciliationException(row.id, { difference_amount: row.difference_amount, notes: row.notes })}>
                             Exception
                           </Button>
                         </div>
@@ -1524,7 +1585,7 @@ export function UseCasePage() {
                 description="Set cadence, destination, and delivery path for repeating reports."
                 onSubmit={(event) => {
                   event.preventDefault();
-                  store.createReportSchedule({
+                  apiHelpers.createReportSchedule({
                     report_type: scheduleForm.reportType,
                     grant: firstGrant?.grant_id ?? null,
                     frequency: scheduleForm.frequency as ReportSchedule['frequency'],
@@ -1582,6 +1643,7 @@ export function UseCasePage() {
                       setReportBuilderForm({
                         title: '',
                         audience: 'finance',
+                        grant: '',
                         sections: ['financial-summary', 'donor-impact'],
                       })
                     }
@@ -1619,11 +1681,14 @@ export function UseCasePage() {
                       onChange={(event) => setReportBuilderForm((state) => ({ ...state, grant: event.target.value }))}
                     >
                       <option value="">Select grant...</option>
-                      {store.grants.map((grant) => (
-                        <option key={grant.id} value={grant.id}>
-                          {grant.donorName} - {grant.amount} {grant.currency}
-                        </option>
-                      ))}
+                      {grants.map((grant) => {
+                        const donor = donors.find(d => d.donor_id === grant.donor_id);
+                        return (
+                          <option key={grant.grant_id} value={grant.grant_id}>
+                            {donor?.organization_name || 'Unknown Donor'} - {grant.total_amount} {grant.currency}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
                 </div>
@@ -1826,9 +1891,9 @@ export function UseCasePage() {
               </div>
             </div>
             <section className="grid gap-4 md:grid-cols-4 xl:col-span-2">
-              <StatCard label="Reports" value={String(store.reports.length)} trend="Generated report records" trendDirection="up" icon={Eye} />
-              <StatCard label="Schedules" value={String(store.reportSchedules.length)} trend={`${activeSchedules} active schedules`} trendDirection="neutral" icon={RefreshCcw} />
-              <StatCard label="Deliveries" value={String(store.reportDeliveries.length)} trend="Dispatched report copies" trendDirection="up" icon={ClipboardCheck} />
+              <StatCard label="Reports" value={String(reports.length)} trend="Generated report records" trendDirection="up" icon={Eye} />
+              <StatCard label="Schedules" value={String(reportSchedules.length)} trend={`${activeSchedules} active schedules`} trendDirection="neutral" icon={RefreshCcw} />
+              <StatCard label="Deliveries" value={String(reportDeliveries.length)} trend="Dispatched report copies" trendDirection="up" icon={ClipboardCheck} />
               <StatCard label="Exports" value="CSV" trend="Current output format" trendDirection="neutral" icon={Plus} />
             </section>
             <div className="panel-card">
@@ -1843,7 +1908,7 @@ export function UseCasePage() {
                     onClick={() =>
                       exportCsv(
                         'generated-reports.csv',
-                        store.reports.map((report) => ({
+                        reports.map((report) => ({
                           report_type: report.report_type,
                           grant: grantTitle(report.grant_id),
                           format: report.format,
@@ -1861,7 +1926,7 @@ export function UseCasePage() {
               </div>
               <div className="mt-6">
                 <DataTable
-                  rows={store.reports}
+                  rows={reports}
                   columns={[
                     { key: 'type', header: 'Report Type', render: (row) => row.report_type },
                     { key: 'grant', header: 'Grant', render: (row) => grantTitle(row.grant_id) },
@@ -1889,7 +1954,7 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-4">
                   <DataTable
-                    rows={store.reportSchedules}
+                    rows={reportSchedules}
                     columns={[
                       { key: 'type', header: 'Report Type', render: (row) => row.report_type },
                       { key: 'frequency', header: 'Frequency', render: (row) => row.frequency },
@@ -1901,7 +1966,7 @@ export function UseCasePage() {
                         render: (row) => (
                           <div className="flex flex-wrap gap-2">
                             <Button variant="outline" onClick={() => store.activateReportSchedule(row.id)}>Activate</Button>
-                            <Button variant="ghost" onClick={() => store.deactivateReportSchedule(row.id)}>Deactivate</Button>
+                            <Button variant="ghost" onClick={() => apiHelpers.deactivateReportSchedule(row.id)}>Deactivate</Button>
                             <Button variant="outline" onClick={() => store.runReportSchedule(row.id)}>Run Now</Button>
                           </div>
                         ),
@@ -1919,7 +1984,7 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-4">
                   <DataTable
-                    rows={store.reportDeliveries}
+                    rows={reportDeliveries}
                     columns={[
                       { key: 'report', header: 'Report', render: (row) => row.report },
                       { key: 'destination', header: 'Destination', render: (row) => row.destination },
@@ -1954,15 +2019,15 @@ export function UseCasePage() {
               description="Create a new trace event to preserve transaction visibility."
               onSubmit={(event) => {
                 event.preventDefault();
-                store.createAuditLog({
+                apiHelpers.createAuditLog({
                   user_id: currentUserId,
                   action_type: auditForm.action,
-                  target_entity_id: store.transactions[0]?.transaction_id ?? 1,
-                  target_entity_type: auditForm.source || 'transactions',
+                  target_entity_id: transactions[0]?.transaction_id ?? 1,
+                  target_entity_type: auditForm.from_budget_line_id || 'transactions',
                   ip_address: '192.168.1.50',
                   details: `Manual audit entry created by ${currentProfile.name}`,
                 });
-                setAuditForm({ action: '', source: '' });
+                setAuditForm({ action: '', from_budget_line_id: '' });
               }}
               actions={<Button type="submit">Maintain Audit Trail</Button>}
             >
@@ -1972,14 +2037,14 @@ export function UseCasePage() {
               </label>
               <label className="form-group">
                 <span className="form-label">Source</span>
-                <input className="form-control" value={auditForm.source} onChange={(event) => setAuditForm((state) => ({ ...state, source: event.target.value }))} />
+                <input className="form-control" value={auditForm.from_budget_line_id} onChange={(event) => setAuditForm((state) => ({ ...state, from_budget_line_id: event.target.value }))} />
               </label>
             </DataEntryForm>
             <div className="panel-card">
               <h3 className="text-xl font-bold text-slate-900">Audit entries</h3>
               <div className="mt-6">
                 <DataTable
-                  rows={store.auditLogs}
+                  rows={auditLogs}
                   columns={[
                     { key: 'action', header: 'Action', render: (row) => row.action_type },
                     { key: 'owner', header: 'User', render: (row) => userName(row.user_id) },
@@ -2013,7 +2078,7 @@ export function UseCasePage() {
                     if (!documentRepositoryForm.file || !documentRepositoryForm.relatedEntityId) {
                       return;
                     }
-                    await store.createDocument({
+                    await apiHelpers.createDocument({
                       related_entity_type: documentRepositoryForm.relatedEntityType,
                       related_entity_id: Number(documentRepositoryForm.relatedEntityId),
                       document_type: documentRepositoryForm.documentType,
@@ -2083,7 +2148,7 @@ export function UseCasePage() {
               </div>
               <div className="mt-6">
                 <DataTable
-                  rows={store.documents}
+                  rows={documents}
                   columns={[
                     { key: 'document_type', header: 'Type', render: (row) => row.document_type },
                     {
@@ -2143,7 +2208,7 @@ export function UseCasePage() {
                 <span className="form-label">Budget Line</span>
                 <select name="budget_line" className="form-control" required>
                   <option value="">Select budget line</option>
-                  {store.budgetLines.map((line) => (
+                  {budgetLines.map((line) => (
                     <option key={line.budget_line_id} value={line.budget_line_id}>
                       {line.line_name} (Available: {(line.allocated_amount - line.spent_amount).toLocaleString()} RWF)
                     </option>
@@ -2162,9 +2227,9 @@ export function UseCasePage() {
             <div className="panel-card">
               <h3 className="text-xl font-bold text-slate-900 mb-6">My Requisitions</h3>
               <DataTable
-                rows={store.requisitions.map((req) => ({
+                rows={requisitions.map((req) => ({
                   ...req,
-                  budget_line_name: store.budgetLines.find((bl) => bl.budget_line_id === req.budget_line_id)?.line_name || 'Unknown',
+                  budget_line_name: budgetLines.find((bl) => bl.budget_line_id === req.budget_line_id)?.line_name || 'Unknown',
                 }))}
                 columns={[
                   { key: 'budget_line', header: 'Budget Line', render: (row) => row.budget_line_name },
@@ -2186,7 +2251,7 @@ export function UseCasePage() {
               description="Record interview notes, process evidence, feedback, and validation status for operational requirements."
               onSubmit={(event) => {
                 event.preventDefault();
-                store.createStaffRequirement({
+                apiHelpers.createStaffRequirement({
                   interviewee_name: requirementForm.interviewee || currentProfile.name,
                   process_area: requirementForm.process || 'Operations',
                   feedback: requirementForm.feedback,
@@ -2241,7 +2306,7 @@ export function UseCasePage() {
                 <h3 className="text-xl font-bold text-slate-900">Captured requirements</h3>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.staffRequirements}
+                    rows={staffRequirements}
                     columns={[
                       { key: 'interviewee', header: 'Interviewee', render: (row) => row.interviewee_name },
                       { key: 'process', header: 'Process Area', render: (row) => row.process_area },
@@ -2254,7 +2319,7 @@ export function UseCasePage() {
                           <div className="flex flex-wrap gap-2">
                             <Button variant="outline" onClick={() => store.reviewStaffRequirement(row.id)}>Review</Button>
                             <Button variant="outline" onClick={() => store.signOffStaffRequirement(row.id)}>Sign Off</Button>
-                            <Button variant="ghost" onClick={() => store.rejectStaffRequirement(row.id)}>Reject</Button>
+                            <Button variant="ghost" onClick={() => apiHelpers.rejectStaffRequirement(row.id)}>Reject</Button>
                           </div>
                         ),
                       },
@@ -2272,7 +2337,7 @@ export function UseCasePage() {
                     description="Capture the process narrative, version, and editable content."
                     onSubmit={(event) => {
                       event.preventDefault();
-                      store.createProcessDocument(documentForm);
+                      apiHelpers.createProcessDocument(documentForm);
                       setDocumentForm({ title: '', version: 'v1', summary: '', content: '' });
                     }}
                     actions={<Button type="submit">Save Document</Button>}
@@ -2297,7 +2362,7 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.processDocuments}
+                    rows={processDocuments}
                     columns={[
                       { key: 'title', header: 'Title', render: (row) => row.title },
                       { key: 'version', header: 'Version', render: (row) => row.version },
@@ -2308,9 +2373,9 @@ export function UseCasePage() {
                         render: (row) => (
                           <div className="flex flex-wrap gap-2">
                             <Button variant="outline" onClick={() => store.submitProcessDocumentForReview(row.id)}>Submit</Button>
-                            <Button variant="outline" onClick={() => store.approveProcessDocument(row.id)}>Approve</Button>
+                            <Button variant="outline" onClick={() => apiHelpers.approveProcessDocument(row.id)}>Approve</Button>
                             <Button variant="outline" onClick={() => store.publishProcessDocument(row.id)}>Publish</Button>
-                            <Button variant="ghost" onClick={() => store.rejectProcessDocument(row.id)}>Reject</Button>
+                            <Button variant="ghost" onClick={() => apiHelpers.rejectProcessDocument(row.id)}>Reject</Button>
                           </div>
                         ),
                       },
@@ -2329,7 +2394,7 @@ export function UseCasePage() {
           <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
             <div className="space-y-6">
               <section className="grid gap-4 md:grid-cols-4">
-                <StatCard label="Test Cases" value={String(store.testCases.length)} trend="Validation scenarios" trendDirection="up" icon={ClipboardCheck} />
+                <StatCard label="Test Cases" value={String(testCases.length)} trend="Validation scenarios" trendDirection="up" icon={ClipboardCheck} />
                 <StatCard label="Open Bugs" value={String(openBugCount)} trend="Unclosed defects" trendDirection="neutral" icon={Bug} />
                 <StatCard label="UAT Issues" value={String(openUatCount)} trend="Feedback items" trendDirection="neutral" icon={Eye} />
                 <StatCard label="Released" value={String(publishedReleaseCount)} trend="Published versions" trendDirection="up" icon={Check} />
@@ -2348,11 +2413,11 @@ export function UseCasePage() {
                 <div className="mt-6 grid gap-4 md:grid-cols-4">
                   <div className="metric-tile">
                     <span className="eyebrow">Approved Tests</span>
-                    <strong>{percentage(store.testCases.filter((testCase) => testCase.status === 'approved').length, store.testCases.length)}%</strong>
+                    <strong>{percentage(testCases.filter((testCase) => testCase.status === 'approved').length, testCases.length)}%</strong>
                   </div>
                   <div className="metric-tile">
                     <span className="eyebrow">Closed Bugs</span>
-                    <strong>{percentage(store.bugReports.filter((bug) => bug.status === 'closed').length, store.bugReports.length)}%</strong>
+                    <strong>{percentage(bugReports.filter((bug) => bug.status === 'closed').length, bugReports.length)}%</strong>
                   </div>
                   <div className="metric-tile">
                     <span className="eyebrow">Open UAT</span>
@@ -2360,7 +2425,7 @@ export function UseCasePage() {
                   </div>
                   <div className="metric-tile">
                     <span className="eyebrow">Published Releases</span>
-                    <strong>{percentage(store.releaseNotes.filter((note) => note.status === 'published').length, store.releaseNotes.length)}%</strong>
+                    <strong>{percentage(releaseNotes.filter((note) => note.status === 'published').length, releaseNotes.length)}%</strong>
                   </div>
                 </div>
               </section>
@@ -2369,7 +2434,7 @@ export function UseCasePage() {
                 description="Capture test coverage before UAT and release validation."
                 onSubmit={(event) => {
                   event.preventDefault();
-                  store.createTestCase({
+                  apiHelpers.createTestCase({
                     title: testCaseForm.title,
                     scenario: testCaseForm.scenario,
                     environment: testCaseForm.environment,
@@ -2419,7 +2484,7 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.testCases}
+                    rows={testCases}
                     columns={[
                       { key: 'title', header: 'Test Case', render: (row) => row.title },
                       { key: 'scenario', header: 'Scenario', render: (row) => row.scenario },
@@ -2433,7 +2498,7 @@ export function UseCasePage() {
                           <div className="flex flex-wrap gap-2">
                             <Button variant="outline" onClick={() => store.startTestCase(row.id)}>Start</Button>
                             <Button variant="outline" onClick={() => store.reviewTestCase(row.id)}>Review</Button>
-                            <Button variant="outline" onClick={() => store.approveTestCase(row.id)}>Approve</Button>
+                            <Button variant="outline" onClick={() => apiHelpers.approveTestCase(row.id)}>Approve</Button>
                             <Button variant="ghost" onClick={() => store.rejectTestCase(row.id)}>Reject</Button>
                           </div>
                         ),
@@ -2458,7 +2523,7 @@ export function UseCasePage() {
                     description="Capture the release summary and deployment changelog."
                     onSubmit={(event) => {
                       event.preventDefault();
-                      store.createReleaseNote(releaseForm);
+                      apiHelpers.createReleaseNote(releaseForm);
                       setReleaseForm({ version: '', title: '', summary: '', changelog: '', environment: 'Production' });
                     }}
                     actions={<Button type="submit">Save Release Note</Button>}
@@ -2489,7 +2554,7 @@ export function UseCasePage() {
                     </Button>
                   </div>
                   <DataTable
-                    rows={store.releaseNotes}
+                    rows={releaseNotes}
                     columns={[
                       { key: 'version', header: 'Version', render: (row) => row.version },
                       { key: 'title', header: 'Title', render: (row) => row.title },
@@ -2500,7 +2565,7 @@ export function UseCasePage() {
                         render: (row) => (
                           <div className="flex flex-wrap gap-2">
                             <Button variant="outline" onClick={() => store.publishReleaseNote(row.id)}>Publish</Button>
-                            <Button variant="ghost" onClick={() => store.archiveReleaseNote(row.id)}>Archive</Button>
+                            <Button variant="ghost" onClick={() => apiHelpers.archiveReleaseNote(row.id)}>Archive</Button>
                           </div>
                         ),
                       },
@@ -2543,7 +2608,7 @@ export function UseCasePage() {
                   if (!uatForm.testCase) {
                     return;
                   }
-                  store.createUATFeedback({
+                  apiHelpers.createUATFeedback({
                     test_case: Number(uatForm.testCase),
                     feedback: uatForm.feedback,
                   });
@@ -2555,7 +2620,7 @@ export function UseCasePage() {
                   <span className="form-label">Test Case</span>
                   <select className="form-control" value={uatForm.testCase} onChange={(event) => setUatForm((state) => ({ ...state, testCase: event.target.value }))}>
                     <option value="">Select a test case</option>
-                    {store.testCases.map((testCase) => (
+                    {testCases.map((testCase) => (
                       <option key={testCase.id} value={testCase.id}>
                         {testCase.title}
                       </option>
@@ -2572,9 +2637,9 @@ export function UseCasePage() {
                 <h3 className="text-xl font-bold text-slate-900">UAT feedback queue</h3>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.uatFeedback}
+                    rows={uatFeedback}
                     columns={[
-                      { key: 'testCase', header: 'Test Case', render: (row) => store.testCases.find((testCase) => testCase.id === row.test_case)?.title ?? String(row.test_case) },
+                      { key: 'testCase', header: 'Test Case', render: (row) => testCases.find((testCase) => testCase.id === row.test_case)?.title ?? String(row.test_case) },
                       { key: 'feedback', header: 'Feedback', render: (row) => row.feedback },
                       { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
                       {
@@ -2583,7 +2648,7 @@ export function UseCasePage() {
                         render: (row) => (
                           <div className="flex flex-wrap gap-2">
                             <Button variant="outline" onClick={() => store.resolveUATFeedback(row.id)}>Resolve</Button>
-                            <Button variant="ghost" onClick={() => store.closeUATFeedback(row.id)}>Close</Button>
+                            <Button variant="ghost" onClick={() => apiHelpers.closeUATFeedback(row.id)}>Close</Button>
                           </div>
                         ),
                       },
@@ -2599,7 +2664,7 @@ export function UseCasePage() {
                 description="Capture a defect, its environment, and the evidence needed for triage."
                 onSubmit={(event) => {
                   event.preventDefault();
-                  store.createBugReport({
+                  apiHelpers.createBugReport({
                     title: bugForm.title,
                     description: bugForm.description,
                     reproduction_steps: bugForm.reproductionSteps,
@@ -2641,7 +2706,7 @@ export function UseCasePage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xl font-bold text-slate-900">Bug board</h3>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => exportCsv('bug-reports.csv', store.bugReports.map((bug) => ({
+                    <Button variant="outline" onClick={() => exportCsv('bug-reports.csv', bugReports.map((bug) => ({
                       title: bug.title,
                       environment: bug.environment,
                       severity: bug.severity,
@@ -2654,7 +2719,7 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.bugReports}
+                    rows={bugReports}
                     columns={[
                       { key: 'title', header: 'Bug', render: (row) => row.title },
                       { key: 'environment', header: 'Environment', render: (row) => row.environment },
@@ -2668,7 +2733,7 @@ export function UseCasePage() {
                             <Button variant="outline" onClick={() => store.triageBugReport(row.id)}>Triage</Button>
                             <Button variant="outline" onClick={() => store.startBugReport(row.id)}>Start</Button>
                             <Button variant="outline" onClick={() => store.resolveBugReport(row.id)}>Resolve</Button>
-                            <Button variant="ghost" onClick={() => store.closeBugReport(row.id)}>Close</Button>
+                            <Button variant="ghost" onClick={() => apiHelpers.closeBugReport(row.id)}>Close</Button>
                           </div>
                         ),
                       },
@@ -2699,22 +2764,22 @@ export function UseCasePage() {
               onSubmit={(event) => {
                 event.preventDefault();
                 store.createReallocationRequest({
-                  source_budget_line: Number(reallocationForm.source || (firstBudgetLine?.budget_line_id ?? 0)),
-                  target_budget_line: Number(reallocationForm.target || (firstBudgetLine?.budget_line_id ?? 0)),
+                  source_budget_line: Number(reallocationForm.from_budget_line_id || (firstBudgetLine?.budget_line_id ?? 0)),
+                  target_budget_line: Number(reallocationForm.to_budget_line_id || (firstBudgetLine?.budget_line_id ?? 0)),
                   amount: Number(reallocationForm.amount),
                   reason: reallocationForm.reason,
                 });
-                setReallocationForm({ source: '', target: '', amount: '0', reason: '' });
+                setReallocationForm({ from_budget_line_id: '', to_budget_line_id: '', amount: '0', reason: '' });
               }}
               actions={<Button type="submit">Submit Reallocation</Button>}
             >
               <label className="form-group">
                 <span className="form-label">Source Budget Line ID</span>
-                <input className="form-control" value={reallocationForm.source} onChange={(event) => setReallocationForm((state) => ({ ...state, source: event.target.value }))} />
+                <input className="form-control" value={reallocationForm.from_budget_line_id} onChange={(event) => setReallocationForm((state) => ({ ...state, from_budget_line_id: event.target.value }))} />
               </label>
               <label className="form-group">
                 <span className="form-label">Target Budget Line ID</span>
-                <input className="form-control" value={reallocationForm.target} onChange={(event) => setReallocationForm((state) => ({ ...state, target: event.target.value }))} />
+                <input className="form-control" value={reallocationForm.to_budget_line_id} onChange={(event) => setReallocationForm((state) => ({ ...state, to_budget_line_id: event.target.value }))} />
               </label>
               <label className="form-group">
                 <span className="form-label">Amount</span>
@@ -2733,10 +2798,10 @@ export function UseCasePage() {
               </div>
               <div className="mt-6">
                 <DataTable
-                  rows={store.reallocationRequests}
+                  rows={reallocationRequests}
                   columns={[
-                    { key: 'source', header: 'Source', render: (row) => budgetLineName(row.source_budget_line) },
-                    { key: 'target', header: 'Target', render: (row) => budgetLineName(row.target_budget_line) },
+                    { key: 'source', header: 'Source', render: (row) => budgetLineName(row.from_budget_line_id_budget_line) },
+                    { key: 'target', header: 'Target', render: (row) => budgetLineName(row.to_budget_line_id_budget_line) },
                     { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
                     { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.status} /> },
                     {
@@ -2745,7 +2810,7 @@ export function UseCasePage() {
                       render: (row) => (
                         <div className="flex gap-2">
                           <Button variant="outline" onClick={() => store.approveReallocationRequest(row.id)}>Approve</Button>
-                          <Button variant="ghost" onClick={() => store.rejectReallocationRequest(row.id)}>Reject</Button>
+                          <Button variant="ghost" onClick={() => apiHelpers.rejectReallocationRequest(row.id)}>Reject</Button>
                         </div>
                       ),
                     },
@@ -2756,7 +2821,7 @@ export function UseCasePage() {
                 <h4 className="text-lg font-semibold text-slate-900">Expense requisitions</h4>
                 <div className="mt-4">
                   <DataTable
-                    rows={store.requisitions}
+                    rows={requisitions}
                     columns={[
                       { key: 'project', header: 'Budget Line', render: (row) => budgetLineName(row.budget_line_id) },
                       { key: 'requester', header: 'Requester', render: (row) => userName(row.submitted_by_user_id) },
@@ -2777,7 +2842,7 @@ export function UseCasePage() {
               <h3 className="text-xl font-bold text-slate-900">Project budget health</h3>
               <div className="mt-6">
                 <DataTable
-                  rows={store.budgetLines}
+                  rows={budgetLines}
                   columns={[
                     { key: 'project', header: 'Budget Line', render: (row) => row.line_name },
                     { key: 'grant', header: 'Grant', render: (row) => grantTitle(row.grant_id) },
@@ -2790,7 +2855,7 @@ export function UseCasePage() {
             </div>
             <AreaMetricChart
               title="Budget Burn Rate"
-              data={store.budgetLines.map((budget) => ({
+              data={budgetLines.map((budget) => ({
                 label: budget.line_name.split(' ')[0],
                 value: Math.round((budget.spent_amount / budget.allocated_amount) * 100),
               }))}
@@ -2806,8 +2871,8 @@ export function UseCasePage() {
               description="Create a workflow record that routes a requisition through approval stages."
               onSubmit={(event) => {
                 event.preventDefault();
-                store.createExpenseApproval({
-                  requisition: Number(expenseForm.requisition || (store.requisitions[0]?.requisition_id ?? 0)),
+                apiHelpers.createExpenseApproval({
+                  requisition: Number(expenseForm.requisition || (requisitions[0]?.requisition_id ?? 0)),
                   notes: expenseForm.notes,
                 });
                 setExpenseForm({ requisition: '', notes: '', decisionReason: '' });
@@ -2829,7 +2894,7 @@ export function UseCasePage() {
                 <h3 className="text-xl font-bold text-slate-900">Requisition board</h3>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.requisitions}
+                    rows={requisitions}
                     columns={[
                       { key: 'title', header: 'Description', render: (row) => row.description },
                       { key: 'owner', header: 'Submitted By', render: (row) => userName(row.submitted_by_user_id) },
@@ -2840,7 +2905,7 @@ export function UseCasePage() {
                         header: 'Decision',
                         render: (row) =>
                           row.status === 'pending' ? (
-                            <Button onClick={() => store.approveRequisition(row.requisition_id)}>Final Approve Requisitions</Button>
+                            <Button onClick={() => apiHelpers.approveRequisition(row.requisition_id)}>Final Approve Requisitions</Button>
                           ) : (
                             <Button variant="ghost" icon={Check} />
                           ),
@@ -2857,7 +2922,7 @@ export function UseCasePage() {
                 </div>
                 <div className="mt-6">
                   <DataTable
-                    rows={store.expenseApprovals}
+                    rows={expenseApprovals}
                     columns={[
                       { key: 'req', header: 'Requisition', render: (row) => row.requisition },
                       { key: 'stage', header: 'Stage', render: (row) => <StatusBadge label={row.stage} /> },
@@ -2870,8 +2935,8 @@ export function UseCasePage() {
                             <Button variant="outline" onClick={() => store.advanceExpenseApproval(row.id, 'department-review')}>Dept Review</Button>
                             <Button variant="outline" onClick={() => store.advanceExpenseApproval(row.id, 'finance-review')}>Finance Review</Button>
                             <Button variant="outline" onClick={() => store.advanceExpenseApproval(row.id, 'executive-review')}>Executive Review</Button>
-                            <Button onClick={() => store.approveExpenseApproval(row.id, expenseForm.notes || 'Approved')}>Approve</Button>
-                            <Button variant="ghost" onClick={() => store.rejectExpenseApproval(row.id, expenseForm.decisionReason || 'Rejected during approval chain')}>Reject</Button>
+                            <Button onClick={() => apiHelpers.approveExpenseApproval(row.id, expenseForm.notes || 'Approved')}>Approve</Button>
+                            <Button variant="ghost" onClick={() => apiHelpers.rejectExpenseApproval(row.id, expenseForm.decisionReason || 'Rejected during approval chain')}>Reject</Button>
                           </div>
                         ),
                       },
@@ -2964,7 +3029,7 @@ export function UseCasePage() {
         return (
           <section className="space-y-6">
             <section className="grid gap-4 md:grid-cols-4">
-              <StatCard label="Audit Events" value={String(store.auditLogs.length)} trend="Immutable trace records" trendDirection="up" icon={Eye} />
+              <StatCard label="Audit Events" value={String(auditLogs.length)} trend="Immutable trace records" trendDirection="up" icon={Eye} />
               <StatCard label="Action Types" value={String(auditActionCount)} trend="Distinct operations observed" trendDirection="neutral" icon={ClipboardCheck} />
               <StatCard label="Target Types" value={String(auditTargetCount)} trend="Tracked entities" trendDirection="neutral" icon={Check} />
               <StatCard label="Exports" value="CSV" trend="Downloadable audit feed" trendDirection="neutral" icon={Plus} />
@@ -2986,7 +3051,7 @@ export function UseCasePage() {
               </div>
               <div className="mt-6">
                 <DataTable
-                  rows={store.auditLogs}
+                  rows={auditLogs}
                   columns={[
                     { key: 'action', header: 'Action', render: (row) => row.action_type },
                     { key: 'owner', header: 'User', render: (row) => userName(row.user_id) },
@@ -3006,7 +3071,7 @@ export function UseCasePage() {
         return (
           <section className="space-y-6">
             <section className="grid gap-4 md:grid-cols-4">
-              <StatCard label="Checklist Items" value={String(store.complianceItems.length)} trend="Current compliance scope" trendDirection="neutral" icon={ClipboardCheck} />
+              <StatCard label="Checklist Items" value={String(complianceItems.length)} trend="Current compliance scope" trendDirection="neutral" icon={ClipboardCheck} />
               <StatCard label="Verified" value={String(verifiedComplianceCount)} trend="Approved controls" trendDirection="up" icon={Check} />
               <StatCard label="Pending" value={String(pendingComplianceCount)} trend="Needs review" trendDirection="neutral" icon={Eye} />
               <StatCard label="Exports" value="CSV" trend="Compliance evidence package" trendDirection="neutral" icon={Plus} />
@@ -3027,7 +3092,7 @@ export function UseCasePage() {
                 </div>
               </div>
               <div className="mt-6 space-y-4">
-                {store.complianceItems.map((item) => (
+                {complianceItems.map((item) => (
                   <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
@@ -3102,7 +3167,7 @@ export function UseCasePage() {
             <h3 className="text-xl font-bold text-slate-900">Transaction summaries</h3>
             <div className="mt-6">
               <DataTable
-                rows={store.transactions}
+                rows={transactions}
                 columns={[
                   { key: 'project', header: 'Budget Line', render: (row) => budgetLineName(row.budget_line_id) },
                   { key: 'amount', header: 'Amount', render: (row) => currency.format(row.amount) },
@@ -3151,11 +3216,11 @@ export function UseCasePage() {
     reportForm.name,
     reportForm.period,
     auditForm.action,
-    auditForm.source,
+    auditForm.from_budget_line_id,
     reallocationForm.amount,
     reallocationForm.reason,
-    reallocationForm.source,
-    reallocationForm.target,
+    reallocationForm.from_budget_line_id,
+    reallocationForm.to_budget_line_id,
     expenseForm.decisionReason,
     expenseForm.notes,
     expenseForm.requisition,
