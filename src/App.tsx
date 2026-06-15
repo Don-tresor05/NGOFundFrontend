@@ -11,6 +11,7 @@ import {
   ResetPasswordPage,
   VerifyAccountPage,
   UseCasePage,
+  PublicProjectsPage,
 } from './pages';
 import TestApiPage from './pages/TestApiPage';
 import UserManagementPage from './pages/UserManagementPage';
@@ -23,6 +24,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/projects" element={<PublicProjectsPage />} />
         <Route path="/test-api" element={<TestApiPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/reset-password/confirm" element={<ConfirmPasswordPage />} />

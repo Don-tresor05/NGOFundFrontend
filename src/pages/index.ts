@@ -8,3 +8,4 @@ export { ProfilePage } from './ProfilePage';
 export { ConfirmPasswordPage } from './ConfirmPasswordPage';
 export { ResetPasswordPage } from './ResetPasswordPage';
 export { UseCasePage } from './UseCasePage';
+export { PublicProjectsPage } from './PublicProjectsPage';
