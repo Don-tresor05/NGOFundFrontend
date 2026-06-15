@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, BarChart3, CheckCircle2, Coins, RefreshCcw } from 'lucide-react';
+import { Activity, BarChart3, CheckCircle2, Coins, RefreshCcw, Search, Upload, Tag, Send } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { AppHeader, Button, StatCard } from '../components';
 import { PieMetricChart } from '../components/charts';
@@ -55,6 +55,14 @@ export function DonorPortalPage() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
+  const [showAcknowledgment, setShowAcknowledgment] = useState(false);
+  const [acknowledgmentMessage, setAcknowledgmentMessage] = useState('');
 
   const actor = currentProfile?.actor;
   const matchedDonor = useMemo(() => {
@@ -90,9 +98,20 @@ export function DonorPortalPage() {
     [donorReports, reportDeliveries]
   );
   const donorCommunications = donorSummary?.recent_communications ?? [];
+  
+  // Filter and search logic
+  const filteredTransactions = useMemo(() => {
+    return donorTransactions.filter((transaction) => {
+      const matchesSearch = searchQuery === '' || 
+        transaction.bank_reference_number.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = filterStatus === 'all' || transaction.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [donorTransactions, searchQuery, filterStatus]);
+  
   const donorExportRows = useMemo(
     () => [
-      ...donorTransactions.map((transaction) => ({
+      ...filteredTransactions.map((transaction) => ({
         type: 'transaction',
         reference: transaction.bank_reference_number,
         amount: transaction.amount,
@@ -114,7 +133,7 @@ export function DonorPortalPage() {
         status: communication.channel,
       })),
     ],
-    [donorCommunications, donorDeliveries, donorTransactions]
+    [donorCommunications, donorDeliveries, filteredTransactions]
   );
 
   useEffect(() => {
@@ -214,6 +233,99 @@ export function DonorPortalPage() {
           trendDirection="up"
           icon={BarChart3}
         />
+      </section>
+
+      {/* Search and Filter Panel */}
+      <section className="mt-6 panel-card">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search transactions by reference..."
+                className="form-control pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          <select className="form-control w-48" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="cleared">Cleared</option>
+            <option value="reconciled">Reconciled</option>
+          </select>
+          <Button variant="outline" icon={Upload} onClick={() => setShowBulkImport(!showBulkImport)}>
+            Bulk Import
+          </Button>
+          <Button variant="outline" icon={Send} onClick={() => setShowAcknowledgment(!showAcknowledgment)}>
+            Send Acknowledgment
+          </Button>
+        </div>
+
+        {/* Bulk Import Section */}
+        {showBulkImport && (
+          <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <h4 className="font-semibold text-slate-900">Bulk Import Donors</h4>
+            <p className="mt-1 text-sm text-slate-600">Upload a CSV file with donor information</p>
+            <div className="mt-4 flex items-center gap-3">
+              <input
+                type="file"
+                accept=".csv"
+                className="form-control flex-1"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              />
+              <Button
+                onClick={() => {
+                  if (importFile) {
+                    alert(`Importing ${importFile.name}... Backend endpoint: POST /api/donors/bulk-import/`);
+                    setImportFile(null);
+                    setShowBulkImport(false);
+                  }
+                }}
+                disabled={!importFile}
+              >
+                Import
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              Format: organization_name, contact_person, contact_email, country, category
+            </p>
+          </div>
+        )}
+
+        {/* Auto-Acknowledgment Section */}
+        {showAcknowledgment && (
+          <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4">
+            <h4 className="font-semibold text-slate-900">Send Automated Acknowledgment</h4>
+            <p className="mt-1 text-sm text-slate-600">Send thank-you message to {matchedDonor?.organization_name || 'donor'}</p>
+            <textarea
+              className="form-control mt-3"
+              rows={3}
+              placeholder="Thank you for your generous contribution..."
+              value={acknowledgmentMessage}
+              onChange={(e) => setAcknowledgmentMessage(e.target.value)}
+            />
+            <div className="mt-3 flex gap-2">
+              <Button
+                onClick={() => {
+                  if (matchedDonor && acknowledgmentMessage) {
+                    alert(`Sending acknowledgment to ${matchedDonor.contact_email}...`);
+                    setAcknowledgmentMessage('');
+                    setShowAcknowledgment(false);
+                  }
+                }}
+                disabled={!acknowledgmentMessage}
+              >
+                Send Email
+              </Button>
+              <Button variant="ghost" onClick={() => setShowAcknowledgment(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
@@ -379,6 +491,56 @@ export function DonorPortalPage() {
               </label>
             </div>
             {profileStatus ? <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{profileStatus}</div> : null}
+            
+            {/* Tag Management Section */}
+            <div className="mt-6 border-t border-slate-200 pt-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Tag className="h-5 w-5 text-slate-600" />
+                <h4 className="font-semibold text-slate-900">Donor Tags</h4>
+              </div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {tags.map((tag) => (
+                  <span key={tag} className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                    {tag}
+                    <button
+                      onClick={() => setTags(tags.filter((t) => t !== tag))}
+                      className="hover:text-blue-900"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {tags.length === 0 && (
+                  <span className="text-sm text-slate-500">No tags yet. Add tags to categorize this donor.</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Add tag (e.g., major-donor, recurring)"
+                  className="form-control flex-1"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newTag.trim()) {
+                      setTags([...tags, newTag.trim()]);
+                      setNewTag('');
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => {
+                    if (newTag.trim()) {
+                      setTags([...tags, newTag.trim()]);
+                      setNewTag('');
+                    }
+                  }}
+                  disabled={!newTag.trim()}
+                >
+                  Add Tag
+                </Button>
+              </div>
+            </div>
           </div>
 
           <div className="panel-card">
@@ -448,6 +610,43 @@ export function DonorPortalPage() {
                   No funded projects are linked to this donor profile yet.
                 </div>
               ) : null}
+            </div>
+          </div>
+
+          {/* Enhanced Engagement Tracking */}
+          <div className="panel-card">
+            <h3 className="text-xl font-bold text-slate-900">Engagement Tracking</h3>
+            <div className="mt-4 space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">Engagement Score</span>
+                  <span className="text-2xl font-bold text-blue-600">{donorSummary?.engagement_score ?? 0}</span>
+                </div>
+                <div className="mt-2 h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 transition-all"
+                    style={{ width: `${Math.min((donorSummary?.engagement_score ?? 0) * 10, 100)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Total Communications</div>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{donorCommunications.length}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Channels Used</div>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{(donorSummary?.channels ?? []).length}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Avg Response Time</div>
+                  <div className="mt-1 text-xl font-bold text-slate-900">N/A</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Next Action</div>
+                  <div className="mt-1 text-sm font-medium text-slate-900">{donorSummary?.next_action ?? 'None'}</div>
+                </div>
+              </div>
             </div>
           </div>
 
