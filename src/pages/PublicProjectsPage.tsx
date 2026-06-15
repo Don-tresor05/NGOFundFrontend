@@ -60,13 +60,13 @@ export function PublicProjectsPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-[#f7f3e8]">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-16">
+      <section className="bg-gradient-to-r from-[#1f6f78] to-[#0f766e] text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Explore Our Projects</h1>
-            <p className="text-xl text-blue-100 max-w-3xl mx-auto">
+            <p className="text-xl text-teal-100 max-w-3xl mx-auto">
               Discover meaningful initiatives transforming communities across Rwanda. Choose a project that resonates with
               your values and make a lasting impact.
             </p>
@@ -78,12 +78,12 @@ export function PublicProjectsPage() {
               <input
                 type="text"
                 placeholder="Search projects by name or description..."
-                className="flex-1 px-6 py-4 rounded-2xl text-slate-900 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300"
+                className="flex-1 px-6 py-4 rounded-2xl text-slate-900 shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-300 border border-amber-100"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <select
-                className="px-6 py-4 rounded-2xl text-slate-900 shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 md:w-48"
+                className="px-6 py-4 rounded-2xl text-slate-900 shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-300 border border-amber-100 md:w-48"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
@@ -100,10 +100,10 @@ export function PublicProjectsPage() {
       {/* Stats Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
         <div className="grid gap-6 md:grid-cols-3">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="bg-white rounded-2xl border border-amber-100 shadow-lg p-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 rounded-xl">
-                <TrendingUp className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-amber-100 rounded-xl">
+                <TrendingUp className="h-6 w-6 text-[#f4b93f]" />
               </div>
               <div>
                 <div className="text-sm text-slate-600">Total Projects</div>
@@ -111,10 +111,10 @@ export function PublicProjectsPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="bg-white rounded-2xl border border-amber-100 shadow-lg p-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 rounded-xl">
-                <DollarSign className="h-6 w-6 text-green-600" />
+              <div className="p-3 bg-teal-100 rounded-xl">
+                <DollarSign className="h-6 w-6 text-[#0f766e]" />
               </div>
               <div>
                 <div className="text-sm text-slate-600">Total Impact</div>
@@ -124,10 +124,10 @@ export function PublicProjectsPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="bg-white rounded-2xl border border-amber-100 shadow-lg p-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-100 rounded-xl">
-                <Users className="h-6 w-6 text-purple-600" />
+              <div className="p-3 bg-amber-50 rounded-xl">
+                <Users className="h-6 w-6 text-[#d97706]" />
               </div>
               <div>
                 <div className="text-sm text-slate-600">Active Donors</div>
@@ -148,7 +148,7 @@ export function PublicProjectsPage() {
         </div>
 
         {filteredProjects.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+          <div className="bg-white rounded-2xl border border-amber-100 shadow-lg p-12 text-center">
             <p className="text-slate-600">No projects found matching your criteria.</p>
           </div>
         ) : (
@@ -156,11 +156,11 @@ export function PublicProjectsPage() {
             {filteredProjects.map((project) => (
               <div
                 key={project.project_id}
-                className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+                className="bg-white rounded-2xl border border-amber-100 shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
                 onClick={() => setSelectedProject(project.project_id)}
               >
                 {/* Project Header */}
-                <div className="h-40 bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                <div className="h-40 bg-gradient-to-br from-[#1f6f78] to-[#0f766e] flex items-center justify-center">
                   <Heart className="h-16 w-16 text-white opacity-50" />
                 </div>
 
@@ -173,7 +173,7 @@ export function PublicProjectsPage() {
                         project.status === 'active'
                           ? 'bg-green-100 text-green-700'
                           : project.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-700'
+                          ? 'bg-amber-100 text-amber-700'
                           : 'bg-slate-100 text-slate-700'
                       }`}
                     >
@@ -209,9 +209,9 @@ export function PublicProjectsPage() {
                       <span className="font-semibold text-slate-900">Funding Progress</span>
                       <span className="text-slate-600">{Math.round(project.fundingProgress)}%</span>
                     </div>
-                    <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-2 bg-amber-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all"
+                        className="h-full bg-gradient-to-r from-[#1f6f78] to-[#0f766e] transition-all"
                         style={{ width: `${Math.min(project.fundingProgress, 100)}%` }}
                       />
                     </div>
@@ -230,7 +230,7 @@ export function PublicProjectsPage() {
                   )}
 
                   {/* Action Button */}
-                  <button className="w-full btn bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+                  <button className="w-full btn bg-[#f4b93f] text-slate-900 hover:bg-[#f7c764] shadow-md">
                     View Details
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </button>
@@ -252,9 +252,9 @@ export function PublicProjectsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8">
+            <div className="bg-gradient-to-r from-[#1f6f78] to-[#0f766e] text-white p-8">
               <h2 className="text-3xl font-bold mb-2">{selectedProjectData.name}</h2>
-              <p className="text-blue-100">
+              <p className="text-teal-100">
                 {selectedProjectData.start_date} - {selectedProjectData.end_date}
               </p>
             </div>
@@ -270,7 +270,7 @@ export function PublicProjectsPage() {
               </div>
 
               {/* Funding Details */}
-              <div className="bg-slate-50 rounded-xl p-6 mb-6">
+              <div className="bg-[#fff9ed] border border-amber-100 rounded-xl p-6 mb-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Funding Details</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -281,7 +281,7 @@ export function PublicProjectsPage() {
                   </div>
                   <div>
                     <div className="text-sm text-slate-600">Amount Spent</div>
-                    <div className="text-xl font-bold text-green-600">
+                    <div className="text-xl font-bold text-[#0f766e]">
                       {currency.format(selectedProjectData.spent)}
                     </div>
                   </div>
@@ -293,7 +293,7 @@ export function PublicProjectsPage() {
                   </div>
                   <div>
                     <div className="text-sm text-slate-600">Progress</div>
-                    <div className="text-xl font-bold text-blue-600">
+                    <div className="text-xl font-bold text-[#1f6f78]">
                       {Math.round(selectedProjectData.fundingProgress)}%
                     </div>
                   </div>
@@ -301,9 +301,9 @@ export function PublicProjectsPage() {
 
                 {/* Progress Bar */}
                 <div className="mt-4">
-                  <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-3 bg-amber-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
+                      className="h-full bg-gradient-to-r from-[#1f6f78] to-[#0f766e]"
                       style={{ width: `${Math.min(selectedProjectData.fundingProgress, 100)}%` }}
                     />
                   </div>
@@ -314,23 +314,23 @@ export function PublicProjectsPage() {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">Expected Impact</h3>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-blue-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-600">500+</div>
+                  <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-[#f4b93f]">500+</div>
                     <div className="text-xs text-slate-600 mt-1">Beneficiaries</div>
                   </div>
-                  <div className="bg-green-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-green-600">12</div>
+                  <div className="bg-teal-50 border border-teal-100 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-[#0f766e]">12</div>
                     <div className="text-xs text-slate-600 mt-1">Months</div>
                   </div>
-                  <div className="bg-purple-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-purple-600">3</div>
+                  <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-[#d97706]">3</div>
                     <div className="text-xs text-slate-600 mt-1">Districts</div>
                   </div>
                 </div>
               </div>
 
               {/* Contact Form */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6">
+              <div className="bg-[#fff9ed] border border-amber-100 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">Express Your Interest</h3>
                 <p className="text-sm text-slate-600 mb-4">
                   Want to support this project? Let us know and we'll get in touch with more details.
@@ -350,7 +350,7 @@ export function PublicProjectsPage() {
                   />
                   <div className="flex gap-3">
                     <Button
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                      className="flex-1 bg-[#f4b93f] hover:bg-[#f7c764] text-slate-900"
                       onClick={() => {
                         alert('Thank you for your interest! Our team will contact you shortly.');
                         setSelectedProject(null);
@@ -369,7 +369,7 @@ export function PublicProjectsPage() {
               <div className="mt-6 text-center">
                 <p className="text-sm text-slate-600">
                   Already a donor?{' '}
-                  <Link to="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
+                  <Link to="/login" className="text-[#0f766e] hover:text-[#1f6f78] font-semibold">
                     Sign in to your portal
                   </Link>
                 </p>
@@ -380,14 +380,14 @@ export function PublicProjectsPage() {
       )}
 
       {/* Footer CTA */}
-      <section className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-16 mt-12">
+      <section className="bg-gradient-to-r from-[#1f6f78] to-[#0f766e] text-white py-16 mt-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Make a Difference?</h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-teal-100 mb-8">
             Join our community of donors and help us create lasting impact in Rwanda.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/create-account" className="btn btn-lg bg-white text-blue-600 hover:bg-blue-50">
+            <Link to="/create-account" className="btn btn-lg bg-[#f4b93f] text-slate-900 hover:bg-[#f7c764] shadow-lg">
               Become a Donor
             </Link>
             <Link to="/login" className="btn btn-lg border-2 border-white text-white hover:bg-white/10">
