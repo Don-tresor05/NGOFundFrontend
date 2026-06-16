@@ -46,6 +46,7 @@ export function DonorPortalPage() {
   const fetchDonorEngagementSummary = useAppDataStore((state) => state.fetchDonorEngagementSummary);
   const [donorSummary, setDonorSummary] = useState<DonorEngagementSummary | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showAllProjects, setShowAllProjects] = useState(false);
   const [profileDraft, setProfileDraft] = useState({
     organization_name: '',
     contact_person: '',
@@ -663,8 +664,132 @@ export function DonorPortalPage() {
                 <span className="block font-semibold text-slate-900">View transaction summaries</span>
                 <span className="block text-sm text-slate-500">Read the donation receipt trail.</span>
               </Link>
+              <Link to="/projects" className="quick-link-card quick-link-card-compact">
+                <span className="block font-semibold text-slate-900">Browse All Projects</span>
+                <span className="block text-sm text-slate-500">Explore all running and historical projects.</span>
+              </Link>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* All Projects Section */}
+      <section className="mt-8">
+        <div className="panel-card">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Browse All Projects</h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Explore all running and historical projects. See what we're working on and consider supporting new initiatives.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => setShowAllProjects(!showAllProjects)}>
+              {showAllProjects ? 'Hide' : 'Show All'} ({projects.length})
+            </Button>
+          </div>
+
+          {showAllProjects && (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {projects.map((project) => {
+                const projectGrant = grants.find((g) => g.grant_id === project.grant_id);
+                const projectBudgetLines = budgetLines.filter((bl) => bl.grant_id === project.grant_id);
+                const totalBudget = projectBudgetLines.reduce((sum, bl) => sum + bl.allocated_amount, 0);
+                const budgetLineIds = projectBudgetLines.map((bl) => bl.budget_line_id);
+                const spent = transactions
+                  .filter((t) => budgetLineIds.includes(t.budget_line_id))
+                  .reduce((sum, t) => sum + t.amount, 0);
+                const fundingProgress = totalBudget > 0 ? (spent / totalBudget) * 100 : 0;
+                const isFundedByMe = donorGrantIds.includes(project.grant_id);
+
+                return (
+                  <div
+                    key={project.project_id}
+                    className={`rounded-xl border p-4 ${
+                      isFundedByMe
+                        ? 'border-amber-200 bg-amber-50'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-bold text-slate-900 text-sm">{project.name}</h3>
+                      {isFundedByMe && (
+                        <span className="text-xs font-semibold bg-amber-200 text-amber-900 px-2 py-1 rounded-full">
+                          You Fund This
+                        </span>
+                      )}
+                      {!isFundedByMe && (
+                        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                          project.status === 'active'
+                            ? 'bg-green-100 text-green-700'
+                            : project.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {project.status}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-slate-600 mb-3 line-clamp-2">
+                      {project.description || 'Transforming lives through sustainable development.'}
+                    </p>
+
+                    <div className="space-y-2 text-xs text-slate-600">
+                      <div className="flex justify-between">
+                        <span>Duration:</span>
+                        <span className="font-medium">{project.start_date} - {project.end_date}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Budget:</span>
+                        <span className="font-medium">{currency.format(totalBudget)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Progress:</span>
+                        <span className="font-medium">{Math.round(fundingProgress)}%</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#1f6f78] to-[#0f766e]"
+                          style={{ width: `${Math.min(fundingProgress, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {!isFundedByMe && (
+                      <div className="mt-3">
+                        <Link
+                          to="/projects"
+                          className="block text-center text-xs font-semibold text-[#0f766e] hover:text-[#1f6f78] py-2 px-3 rounded-lg border border-[#0f766e] hover:bg-teal-50 transition-colors"
+                        >
+                          Learn More & Support
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {!showAllProjects && (
+            <div className="text-center py-8">
+              <p className="text-slate-600 mb-4">
+                Click "Show All" to browse {projects.length} available projects
+              </p>
+              <Link
+                to="/projects"
+                className="inline-flex items-center gap-2 text-[#0f766e] hover:text-[#1f6f78] font-semibold"
+              >
+                Or visit the Public Projects Page
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
     </>
