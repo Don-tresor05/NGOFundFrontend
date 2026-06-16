@@ -1,38 +1,102 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Heart, TrendingUp, Calendar, DollarSign, MapPin, Users, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAppDataStore } from '../store/appDataStore';
 import { Button } from '../components';
+import api from '../lib/api';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+interface Project {
+  id: number;
+  name: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  grant_id: number;
+}
+
+interface Grant {
+  id: number;
+  donor_id: number;
+  grant_title: string;
+  total_amount: number;
+}
+
+interface Donor {
+  id: number;
+  organization_name: string;
+}
+
+interface BudgetLine {
+  id: number;
+  grant_id: number;
+  allocated_amount: number;
+}
+
+interface Transaction {
+  id: number;
+  budget_line_id: number;
+  amount: number;
+}
+
 export function PublicProjectsPage() {
-  const projects = useAppDataStore((state) => state.projects);
-  const grants = useAppDataStore((state) => state.grants);
-  const budgetLines = useAppDataStore((state) => state.budgetLines);
-  const transactions = useAppDataStore((state) => state.transactions);
-  const donors = useAppDataStore((state) => state.donors);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [grants, setGrants] = useState<Grant[]>([]);
+  const [budgetLines, setBudgetLines] = useState<BudgetLine[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [donors, setDonors] = useState<Donor[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
 
+  // Fetch public data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Try to fetch without auth first, fallback to authenticated
+        const [projectsRes, grantsRes, budgetLinesRes, transactionsRes, donorsRes] = await Promise.all([
+          api.get('/projects/').catch(() => ({ data: { results: [] } })),
+          api.get('/grants/').catch(() => ({ data: { results: [] } })),
+          api.get('/budget-lines/').catch(() => ({ data: { results: [] } })),
+          api.get('/transactions/').catch(() => ({ data: { results: [] } })),
+          api.get('/donors/').catch(() => ({ data: { results: [] } })),
+        ]);
+
+        setProjects(projectsRes.data.results || projectsRes.data || []);
+        setGrants(grantsRes.data.results || grantsRes.data || []);
+        setBudgetLines(budgetLinesRes.data.results || budgetLinesRes.data || []);
+        setTransactions(transactionsRes.data.results || transactionsRes.data || []);
+        setDonors(donorsRes.data.results || donorsRes.data || []);
+      } catch (error) {
+        console.error('Failed to fetch public data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   // Calculate project funding data
   const projectsWithFunding = useMemo(() => {
     return projects.map((project) => {
-      const projectGrant = grants.find((g) => g.grant_id === project.grant_id);
+      const projectGrant = grants.find((g) => g.id === project.grant_id);
       const projectBudgetLines = budgetLines.filter((bl) => bl.grant_id === project.grant_id);
       const totalBudget = projectBudgetLines.reduce((sum, bl) => sum + bl.allocated_amount, 0);
-      const budgetLineIds = projectBudgetLines.map((bl) => bl.budget_line_id);
+      const budgetLineIds = projectBudgetLines.map((bl) => bl.id);
       const spent = transactions
         .filter((t) => budgetLineIds.includes(t.budget_line_id))
         .reduce((sum, t) => sum + t.amount, 0);
       const fundingGap = totalBudget - spent;
       const fundingProgress = totalBudget > 0 ? (spent / totalBudget) * 100 : 0;
-      const donor = projectGrant ? donors.find((d) => d.donor_id === projectGrant.donor_id) : null;
+      const donor = projectGrant ? donors.find((d) => d.id === projectGrant.donor_id) : null;
 
       return {
         ...project,
+        project_id: project.id,
         totalBudget,
         spent,
         fundingGap,
@@ -58,6 +122,17 @@ export function PublicProjectsPage() {
   const selectedProjectData = selectedProject
     ? projectsWithFunding.find((p) => p.project_id === selectedProject)
     : null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f3e8] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-12 w-12 border-4 border-[#0f766e] border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f3e8]">
