@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Heart, TrendingUp, Calendar, DollarSign, MapPin, Users, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components';
-import api from '../lib/api';
+import { apiRequest } from '../lib/api';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
@@ -56,20 +56,20 @@ export function PublicProjectsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Try to fetch without auth first, fallback to authenticated
+        // Fetch without auth (AllowAny permission on backend)
         const [projectsRes, grantsRes, budgetLinesRes, transactionsRes, donorsRes] = await Promise.all([
-          api.get('/projects/').catch(() => ({ data: { results: [] } })),
-          api.get('/grants/').catch(() => ({ data: { results: [] } })),
-          api.get('/budget-lines/').catch(() => ({ data: { results: [] } })),
-          api.get('/transactions/').catch(() => ({ data: { results: [] } })),
-          api.get('/donors/').catch(() => ({ data: { results: [] } })),
+          apiRequest('/projects/', { skipAuth: true }).catch(() => ({ results: [] })),
+          apiRequest('/grants/', { skipAuth: true }).catch(() => ({ results: [] })),
+          apiRequest('/budget-lines/', { skipAuth: true }).catch(() => ({ results: [] })),
+          apiRequest('/transactions/', { skipAuth: true }).catch(() => ({ results: [] })),
+          apiRequest('/donors/', { skipAuth: true }).catch(() => ({ results: [] })),
         ]);
 
-        setProjects(projectsRes.data.results || projectsRes.data || []);
-        setGrants(grantsRes.data.results || grantsRes.data || []);
-        setBudgetLines(budgetLinesRes.data.results || budgetLinesRes.data || []);
-        setTransactions(transactionsRes.data.results || transactionsRes.data || []);
-        setDonors(donorsRes.data.results || donorsRes.data || []);
+        setProjects((projectsRes as any).results || projectsRes || []);
+        setGrants((grantsRes as any).results || grantsRes || []);
+        setBudgetLines((budgetLinesRes as any).results || budgetLinesRes || []);
+        setTransactions((transactionsRes as any).results || transactionsRes || []);
+        setDonors((donorsRes as any).results || donorsRes || []);
       } catch (error) {
         console.error('Failed to fetch public data:', error);
       } finally {
