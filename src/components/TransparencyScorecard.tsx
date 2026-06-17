@@ -137,7 +137,7 @@ export default function TransparencyScorecard() {
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
-      <h2 className="text-xl font-bold mb-6">Transparency Scorecard</h2>
+      <h2 className="text-xl font-bold mb-6">Transparency Score</h2>
 
       {/* Overall Score */}
       <div className="text-center mb-8 pb-8 border-b">
@@ -157,7 +157,7 @@ export default function TransparencyScorecard() {
             )}
           </div>
         </div>
-        <h3 className="text-2xl font-bold text-gray-900 mt-4">Overall Transparency</h3>
+        <h3 className="text-2xl font-bold text-gray-900 mt-4">Overall Score</h3>
         <p className="text-gray-600 mt-1">System-wide transparency and compliance metrics</p>
       </div>
 

@@ -54,8 +54,8 @@ export default function CustomizableDashboardPage() {
     <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Customizable Dashboard</h1>
-          <p className="text-gray-600 mt-1">Configure your personal dashboard layout</p>
+          <h1 className="text-3xl font-bold">Custom Dashboard</h1>
+          <p className="text-gray-600 mt-1">Set up your dashboard layout</p>
         </div>
         <Button
           onClick={saveLayout}
@@ -121,7 +121,7 @@ export default function CustomizableDashboardPage() {
         <h2 className="text-xl font-semibold">Dashboard Preview</h2>
         {visibleWidgets.length === 0 ? (
           <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-            <p className="text-gray-500">No widgets visible. Enable widgets from the controls above.</p>
+            <p className="text-gray-500">No widgets showing. Turn on widgets above.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -139,12 +139,12 @@ export default function CustomizableDashboardPage() {
 
       {/* Info Panel */}
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">💡 Dashboard Tips</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">💡 Tips</h3>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Use ▲▼ buttons to reorder widgets</li>
-          <li>• Click eye icon to show/hide widgets</li>
-          <li>• Your layout preferences are saved per user</li>
-          <li>• Widgets auto-refresh with real-time data</li>
+          <li>• Use ▲▼ to reorder widgets</li>
+          <li>• Click 👁️ to show/hide widgets</li>
+          <li>• Changes save per user</li>
+          <li>• Data refreshes automatically</li>
         </ul>
       </div>
     </div>

@@ -104,7 +104,7 @@ export default function ComplianceChecklistPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Compliance Checklist</h1>
-          <p className="text-gray-600 mt-1">Track regulatory requirements and submission deadlines</p>
+          <p className="text-gray-600 mt-1">Track requirements and deadlines</p>
         </div>
         <Button className="flex items-center gap-2">
           <Plus size={18} /> Add Item

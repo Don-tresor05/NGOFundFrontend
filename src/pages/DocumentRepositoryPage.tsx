@@ -109,8 +109,8 @@ export default function DocumentRepositoryPage() {
     <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Document Repository</h1>
-          <p className="text-gray-600 mt-1">Browse, search, and manage all documents</p>
+          <h1 className="text-3xl font-bold">Documents</h1>
+          <p className="text-gray-600 mt-1">Search and manage all documents</p>
         </div>
         <label className="cursor-pointer">
           <Button className="flex items-center gap-2" disabled={uploading}>

@@ -164,8 +164,8 @@ export default function ExceptionReportPage() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Exception Report Panel</h1>
-        <p className="text-gray-600 mt-1">Monitor policy violations, unusual transactions, and flagged activities</p>
+        <h1 className="text-3xl font-bold">Exception Reports</h1>
+        <p className="text-gray-600 mt-1">Track violations and unusual activity</p>
       </div>
 
       {/* Stats */}

@@ -69,7 +69,7 @@ export default function LiveActivityFeed() {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Live Activity Feed</h2>
+        <h2 className="text-xl font-bold">Activity Feed</h2>
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           <span>Live</span>

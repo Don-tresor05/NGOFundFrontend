@@ -88,7 +88,7 @@ export default function FundTrackingWidget() {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">Real-time Fund Tracking</h2>
+        <h2 className="text-xl font-bold">Fund Tracking</h2>
         <button onClick={fetchData} className="text-blue-600 hover:text-blue-800">
           <RefreshCw size={18} />
         </button>

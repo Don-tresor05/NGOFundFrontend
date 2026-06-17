@@ -104,8 +104,8 @@ export default function SessionSettingsPage() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Session Timeout Settings</h1>
-          <p className="text-gray-600 mt-1">Configure user session and security settings</p>
+          <h1 className="text-3xl font-bold">Session Settings</h1>
+          <p className="text-gray-600 mt-1">Manage session timeout and security options</p>
         </div>
         <Shield className="text-blue-500" size={48} />
       </div>
@@ -226,12 +226,12 @@ export default function SessionSettingsPage() {
 
       {/* Information Panel */}
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">💡 Security Best Practices</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">💡 Tips</h3>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Recommended timeout: 30-60 minutes for internal users</li>
-          <li>• Enable auto-logout for enhanced security</li>
-          <li>• Limit concurrent sessions to prevent account sharing</li>
-          <li>• Monitor login activities regularly for suspicious behavior</li>
+          <li>• Set timeout to 30-60 minutes for most users</li>
+          <li>• Auto-logout helps keep accounts secure</li>
+          <li>• Limit sessions to stop account sharing</li>
+          <li>• Check login activity often to spot issues</li>
         </ul>
       </div>
 
