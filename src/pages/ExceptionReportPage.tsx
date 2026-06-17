@@ -229,11 +229,11 @@ export default function ExceptionReportPage() {
                     </div>
                     <p className="text-gray-600 mb-3">{exception.description}</p>
                     <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                      <div>Type: {exception.type.replace(/_/g, ' ')}</div>
-                      <div>Entity: {exception.entity_type} #{exception.entity_id}</div>
-                      {exception.amount && <div>Amount: ${exception.amount.toLocaleString()}</div>}
-                      <div>Assigned: {exception.assigned_to || 'Unassigned'}</div>
-                      <div>Time: {new Date(exception.timestamp).toLocaleString()}</div>
+                      <div>{exception.type.replace(/_/g, ' ')}</div>
+                      <div>{exception.entity_type} #{exception.entity_id}</div>
+                      {exception.amount && <div>${exception.amount.toLocaleString()}</div>}
+                      <div>{exception.assigned_to || 'Unassigned'}</div>
+                      <div>{new Date(exception.timestamp).toLocaleString()}</div>
                     </div>
                   </div>
                 </div>
