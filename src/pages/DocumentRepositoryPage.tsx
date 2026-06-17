@@ -156,11 +156,11 @@ export default function DocumentRepositoryPage() {
             />
           </div>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option value="ALL">All Types</option>
+            <option key="ALL" value="ALL">All Types</option>
             {docTypes.map(type => <option key={type} value={type}>{type}</option>)}
           </select>
           <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option value="ALL">All Entities</option>
+            <option key="ALL" value="ALL">All Entities</option>
             {entityTypes.map(entity => <option key={entity} value={entity}>{entity}</option>)}
           </select>
           <div className="flex items-center gap-2 text-sm text-gray-600">
