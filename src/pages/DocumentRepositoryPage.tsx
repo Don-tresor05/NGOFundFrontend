@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Upload, Download, Search, Folder, Filter, Calendar } from 'lucide-react';
 import { Button } from '../components/Button';
+import { StatCard } from '../components/StatCard';
 import { apiRequest } from '../lib/api';
 
 interface Document {
@@ -121,25 +122,17 @@ export default function DocumentRepositoryPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <p className="text-sm text-gray-600">Total Documents</p>
-          <p className="text-2xl font-bold">{documents.length}</p>
-        </div>
-        <div className="bg-blue-50 rounded-lg shadow-sm p-4">
-          <p className="text-sm text-blue-600">Categories</p>
-          <p className="text-2xl font-bold text-blue-700">{Object.keys(groupedDocs).length}</p>
-        </div>
-        <div className="bg-green-50 rounded-lg shadow-sm p-4">
-          <p className="text-sm text-green-600">This Month</p>
-          <p className="text-2xl font-bold text-green-700">
-            {documents.filter(d => new Date(d.uploaded_at).getMonth() === new Date().getMonth()).length}
-          </p>
-        </div>
-        <div className="bg-purple-50 rounded-lg shadow-sm p-4">
-          <p className="text-sm text-purple-600">Filtered</p>
-          <p className="text-2xl font-bold text-purple-700">{filteredDocs.length}</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <StatCard label="Total Documents" value={String(documents.length)} trend="All documents" trendDirection="neutral" icon={FileText} />
+        <StatCard label="Categories" value={String(Object.keys(groupedDocs).length)} trend="Document types" trendDirection="neutral" icon={Folder} />
+        <StatCard 
+          label="This Month" 
+          value={String(documents.filter(d => new Date(d.uploaded_at).getMonth() === new Date().getMonth()).length)} 
+          trend="Uploaded recently" 
+          trendDirection="up" 
+          icon={Calendar} 
+        />
+        <StatCard label="Filtered" value={String(filteredDocs.length)} trend="Current filter results" trendDirection="neutral" icon={Filter} />
       </div>
 
       {/* Filters */}

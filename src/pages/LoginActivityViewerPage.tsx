@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Activity, CheckCircle, XCircle, Monitor, Calendar, Clock } from 'lucide-react';
+import { Activity, CheckCircle, XCircle, Monitor, Calendar, Clock, Users } from 'lucide-react';
+import { StatCard } from '../components/StatCard';
 import { apiRequest } from '../lib/api';
 
 interface LoginActivity {
@@ -91,43 +92,11 @@ export default function LoginActivityViewerPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Logins</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
-            </div>
-            <Activity className="text-blue-500" size={32} />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Successful</p>
-              <p className="text-2xl font-bold text-green-600">{stats.successful}</p>
-            </div>
-            <CheckCircle className="text-green-500" size={32} />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Failed</p>
-              <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
-            </div>
-            <XCircle className="text-red-500" size={32} />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Unique Users</p>
-              <p className="text-2xl font-bold">{stats.uniqueUsers}</p>
-            </div>
-            <Monitor className="text-purple-500" size={32} />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <StatCard label="Total Logins" value={String(stats.total)} trend="All login attempts" trendDirection="neutral" icon={Activity} />
+        <StatCard label="Successful" value={String(stats.successful)} trend="Successful logins" trendDirection="up" icon={CheckCircle} />
+        <StatCard label="Failed" value={String(stats.failed)} trend="Failed attempts" trendDirection="down" icon={XCircle} />
+        <StatCard label="Unique Users" value={String(stats.uniqueUsers)} trend="Different users" trendDirection="neutral" icon={Users} />
       </div>
 
       {/* Filters */}

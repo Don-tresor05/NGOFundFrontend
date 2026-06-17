@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, DollarSign, Flag, TrendingUp, Eye } from 'lucide-react';
+import { AlertTriangle, DollarSign, Flag, TrendingUp, Eye, ShieldAlert } from 'lucide-react';
+import { StatCard } from '../components/StatCard';
 import { apiRequest } from '../lib/api';
 
 interface Exception {
@@ -169,23 +170,11 @@ export default function ExceptionReportPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-500">
-          <p className="text-sm text-gray-600">Total Exceptions</p>
-          <p className="text-2xl font-bold">{stats.total}</p>
-        </div>
-        <div className="bg-red-50 rounded-lg shadow-sm p-4 border-l-4 border-red-600">
-          <p className="text-sm text-red-600">High Severity</p>
-          <p className="text-2xl font-bold text-red-700">{stats.high}</p>
-        </div>
-        <div className="bg-yellow-50 rounded-lg shadow-sm p-4 border-l-4 border-yellow-500">
-          <p className="text-sm text-yellow-600">Open</p>
-          <p className="text-2xl font-bold text-yellow-700">{stats.open}</p>
-        </div>
-        <div className="bg-green-50 rounded-lg shadow-sm p-4 border-l-4 border-green-500">
-          <p className="text-sm text-green-600">Resolved</p>
-          <p className="text-2xl font-bold text-green-700">{stats.resolved}</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <StatCard label="Total Exceptions" value={String(stats.total)} trend="All exceptions tracked" trendDirection="neutral" icon={ShieldAlert} />
+        <StatCard label="High Severity" value={String(stats.high)} trend="Critical issues" trendDirection="down" icon={AlertTriangle} />
+        <StatCard label="Open" value={String(stats.open)} trend="Needs attention" trendDirection="down" icon={Flag} />
+        <StatCard label="Resolved" value={String(stats.resolved)} trend="Closed issues" trendDirection="up" icon={Eye} />
       </div>
 
       {/* Filters */}

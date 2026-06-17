@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Clock, AlertTriangle, Plus, Calendar } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, AlertTriangle, Plus, Calendar, FileCheck } from 'lucide-react';
 import { Button } from '../components/Button';
+import { StatCard } from '../components/StatCard';
 import { apiRequest } from '../lib/api';
 
 interface ComplianceItem {
@@ -112,23 +113,11 @@ export default function ComplianceChecklistPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-4">
-          <p className="text-sm text-gray-600">Total Items</p>
-          <p className="text-2xl font-bold">{stats.total}</p>
-        </div>
-        <div className="bg-green-50 rounded-lg shadow-sm p-4">
-          <p className="text-sm text-green-600">Completed</p>
-          <p className="text-2xl font-bold text-green-700">{stats.completed}</p>
-        </div>
-        <div className="bg-blue-50 rounded-lg shadow-sm p-4">
-          <p className="text-sm text-blue-600">In Progress</p>
-          <p className="text-2xl font-bold text-blue-700">{stats.inProgress}</p>
-        </div>
-        <div className="bg-red-50 rounded-lg shadow-sm p-4">
-          <p className="text-sm text-red-600">Overdue</p>
-          <p className="text-2xl font-bold text-red-700">{stats.overdue}</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <StatCard label="Total Items" value={String(stats.total)} trend="All compliance items" trendDirection="neutral" icon={FileCheck} />
+        <StatCard label="Completed" value={String(stats.completed)} trend="Completed items" trendDirection="up" icon={CheckCircle} />
+        <StatCard label="In Progress" value={String(stats.inProgress)} trend="Currently working" trendDirection="neutral" icon={Clock} />
+        <StatCard label="Overdue" value={String(stats.overdue)} trend="Past deadline" trendDirection="down" icon={AlertTriangle} />
       </div>
 
       {/* Filters */}
