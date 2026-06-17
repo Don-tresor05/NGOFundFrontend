@@ -192,22 +192,22 @@ export default function ExceptionReportPage() {
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option value="ALL">All Types</option>
-            <option value="POLICY_VIOLATION">Policy Violations</option>
-            <option value="UNUSUAL_TRANSACTION">Unusual Transactions</option>
-            <option value="FLAGGED_ACTIVITY">Flagged Activities</option>
+            <option key="ALL" value="ALL">All Types</option>
+            <option key="POLICY_VIOLATION" value="POLICY_VIOLATION">Policy Violations</option>
+            <option key="UNUSUAL_TRANSACTION" value="UNUSUAL_TRANSACTION">Unusual Transactions</option>
+            <option key="FLAGGED_ACTIVITY" value="FLAGGED_ACTIVITY">Flagged Activities</option>
           </select>
           <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option value="ALL">All Severity</option>
-            <option value="HIGH">High</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="LOW">Low</option>
+            <option key="ALL" value="ALL">All Severity</option>
+            <option key="HIGH" value="HIGH">High</option>
+            <option key="MEDIUM" value="MEDIUM">Medium</option>
+            <option key="LOW" value="LOW">Low</option>
           </select>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option value="ALL">All Status</option>
-            <option value="OPEN">Open</option>
-            <option value="INVESTIGATING">Investigating</option>
-            <option value="RESOLVED">Resolved</option>
+            <option key="ALL" value="ALL">All Status</option>
+            <option key="OPEN" value="OPEN">Open</option>
+            <option key="INVESTIGATING" value="INVESTIGATING">Investigating</option>
+            <option key="RESOLVED" value="RESOLVED">Resolved</option>
           </select>
           <div className="text-sm text-gray-600 flex items-center">
             {filteredExceptions.length} exceptions shown
@@ -260,9 +260,9 @@ export default function ExceptionReportPage() {
                     onChange={(e) => updateStatus(exception.id, e.target.value)}
                     className="px-3 py-1 border rounded-lg text-sm"
                   >
-                    <option value="OPEN">Open</option>
-                    <option value="INVESTIGATING">Investigating</option>
-                    <option value="RESOLVED">Resolved</option>
+                    <option key="OPEN" value="OPEN">Open</option>
+                    <option key="INVESTIGATING" value="INVESTIGATING">Investigating</option>
+                    <option key="RESOLVED" value="RESOLVED">Resolved</option>
                   </select>
                 </div>
               </div>
