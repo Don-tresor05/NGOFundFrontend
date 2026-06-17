@@ -1,8 +1,23 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import { Edit2, Trash2, UserCheck, UserX, Search, Plus } from 'lucide-react';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../store/authStore';
 import { ACTORS, ACTOR_FORM_FIELDS } from '../constants/appModel';
 import { Actor, Role } from '../types';
+import { apiRequest } from '../lib/api';
+
+interface User {
+  id: number;
+  full_name: string;
+  email: string;
+  role: string;
+  phone: string;
+  department: string;
+  location: string;
+  is_active: boolean;
+  last_login: string | null;
+  created_at: string;
+}
 
 const actorToRole: Record<Actor, Role> = {
   super_administrator: 'SUPER_ADMIN',
@@ -14,10 +29,24 @@ const actorToRole: Record<Actor, Role> = {
   donor_user: 'DONOR_USER',
 };
 
+const roleToActor: Record<string, string> = {
+  'SUPER_ADMIN': 'Super Administrator',
+  'FINANCE_OFFICER': 'Finance Officer',
+  'FIELD_STAFF': 'Field Staff',
+  'PROJECT_MANAGER': 'Project Manager',
+  'EXECUTIVE_DIRECTOR': 'Executive Director',
+  'EXTERNAL_AUDITOR': 'External Auditor',
+  'DONOR_USER': 'Donor User',
+};
+
 const STAFF_ACTORS = ACTORS.filter(a => a.id !== 'donor_user');
 
 export default function UserManagementPage() {
   const currentProfile = useAuthStore((state) => state.currentProfile);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedActor, setSelectedActor] = useState<Actor>('finance_officer');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -31,6 +60,53 @@ export default function UserManagementPage() {
 
   const actorDefinition = ACTORS.find((a) => a.id === selectedActor)!;
   const actorFields = ACTOR_FORM_FIELDS[selectedActor];
+
+  // Fetch users
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const data = await apiRequest<{ results: User[] }>('/users/');
+      setUsers(data.results || []);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleUserStatus = async (userId: number, currentStatus: boolean) => {
+    try {
+      await apiRequest(`/users/${userId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: !currentStatus }),
+      });
+      setMessage({ type: 'success', text: `User ${!currentStatus ? 'activated' : 'deactivated'} successfully` });
+      fetchUsers();
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to update user status' });
+    }
+  };
+
+  const deleteUser = async (userId: number) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    
+    try {
+      await apiRequest(`/users/${userId}/`, { method: 'DELETE' });
+      setMessage({ type: 'success', text: 'User deleted successfully' });
+      fetchUsers();
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to delete user' });
+    }
+  };
+
+  const filteredUsers = users.filter(user =>
+    user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
