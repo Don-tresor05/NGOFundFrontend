@@ -12,6 +12,13 @@ import {
   UserRound,
   UsersRound,
   WalletCards,
+  Shield,
+  Activity,
+  Clock,
+  Settings,
+  Layout,
+  FolderOpen,
+  AlertTriangle,
 } from 'lucide-react';
 import { ACTORS, PLATFORM_MODULES, USE_CASES } from '../constants/appModel';
 import { useAuthStore } from '../store/authStore';
@@ -82,17 +89,45 @@ export function AppSidebar() {
         </NavLink>
         {currentProfile.actor === 'super_administrator' && (
           <>
-            <NavLink to="/app/user-management" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+            <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Administration
+            </div>
+            <NavLink to="/app/admin/users" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
               <UsersRound size={18} />
               <span>User Management</span>
             </NavLink>
-            <NavLink to="/app/user-permissions" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
-              <ShieldCheck size={18} />
-              <span>User Permissions</span>
+            <NavLink to="/app/admin/permissions" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <Shield size={18} />
+              <span>Permission Matrix</span>
             </NavLink>
-            <NavLink to="/app/permissions" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
-              <ShieldCheck size={18} />
-              <span>Role Permissions</span>
+            <NavLink to="/app/admin/audit-logs" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <Activity size={18} />
+              <span>Audit Logs</span>
+            </NavLink>
+            <NavLink to="/app/admin/login-activity" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <Activity size={18} />
+              <span>Login Activity</span>
+            </NavLink>
+            <NavLink to="/app/admin/session-settings" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <Clock size={18} />
+              <span>Session Settings</span>
+            </NavLink>
+            <div className="my-2 border-t border-gray-200"></div>
+            <NavLink to="/app/admin/custom-dashboard" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <Layout size={18} />
+              <span>Custom Dashboard</span>
+            </NavLink>
+            <NavLink to="/app/admin/compliance-checklist" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <ClipboardCheck size={18} />
+              <span>Compliance Checklist</span>
+            </NavLink>
+            <NavLink to="/app/admin/document-repository" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <FolderOpen size={18} />
+              <span>Document Repository</span>
+            </NavLink>
+            <NavLink to="/app/admin/exception-reports" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <AlertTriangle size={18} />
+              <span>Exception Reports</span>
             </NavLink>
           </>
         )}
