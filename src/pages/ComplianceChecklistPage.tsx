@@ -135,11 +135,11 @@ export default function ComplianceChecklistPage() {
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option value="ALL">All Status</option>
-            <option value="PENDING">Pending</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="OVERDUE">Overdue</option>
+            <option key="ALL" value="ALL">All Status</option>
+            <option key="PENDING" value="PENDING">Pending</option>
+            <option key="IN_PROGRESS" value="IN_PROGRESS">In Progress</option>
+            <option key="COMPLETED" value="COMPLETED">Completed</option>
+            <option key="OVERDUE" value="OVERDUE">Overdue</option>
           </select>
           <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
             <option value="ALL">All Categories</option>
@@ -165,7 +165,7 @@ export default function ComplianceChecklistPage() {
                       {item.priority}
                     </span>
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                      {item.status.replace('_', ' ')}
+                      {item.status ? item.status.replace('_', ' ') : 'PENDING'}
                     </span>
                   </div>
                   <p className="text-gray-600 text-sm mb-3">{item.description}</p>
