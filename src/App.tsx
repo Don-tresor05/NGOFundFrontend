@@ -12,6 +12,15 @@ import {
   VerifyAccountPage,
   UseCasePage,
   PublicProjectsPage,
+  SuperAdminUserManagementPage,
+  PermissionMatrixEditorPage,
+  AuditTrailExplorerPage,
+  LoginActivityViewerPage,
+  SessionSettingsPage,
+  CustomizableDashboardPage,
+  ComplianceChecklistPage,
+  DocumentRepositoryPage,
+  ExceptionReportPage,
 } from './pages';
 import TestApiPage from './pages/TestApiPage';
 import UserManagementPage from './pages/UserManagementPage';
@@ -39,6 +48,16 @@ function App() {
           <Route path="permissions" element={<PermissionsManagementPage />} />
           <Route path="user-permissions" element={<UserPermissionsPage />} />
           <Route path="use-cases/:useCaseId" element={<UseCasePage />} />
+          {/* Super Admin Features */}
+          <Route path="admin/users" element={<SuperAdminUserManagementPage />} />
+          <Route path="admin/permissions" element={<PermissionMatrixEditorPage />} />
+          <Route path="admin/audit-logs" element={<AuditTrailExplorerPage />} />
+          <Route path="admin/login-activity" element={<LoginActivityViewerPage />} />
+          <Route path="admin/session-settings" element={<SessionSettingsPage />} />
+          <Route path="admin/custom-dashboard" element={<CustomizableDashboardPage />} />
+          <Route path="admin/compliance-checklist" element={<ComplianceChecklistPage />} />
+          <Route path="admin/document-repository" element={<DocumentRepositoryPage />} />
+          <Route path="admin/exception-reports" element={<ExceptionReportPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
