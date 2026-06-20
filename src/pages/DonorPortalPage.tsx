@@ -63,6 +63,9 @@ export function DonorPortalPage() {
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
   const [showRecurringDonations, setShowRecurringDonations] = useState(false);
+  const [recurringAmount, setRecurringAmount] = useState('');
+  const [recurringProject, setRecurringProject] = useState('');
+  const [recurringStartDate, setRecurringStartDate] = useState('');
   const [showDonationForm, setShowDonationForm] = useState(false);
   const [donationAmount, setDonationAmount] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
@@ -421,23 +424,45 @@ export function DonorPortalPage() {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <Button
-                onClick={() => {
+                onClick={async () => {
                   if (!donationAmount || parseFloat(donationAmount) <= 0) {
                     alert('Please enter a valid amount');
                     return;
                   }
-                  // Here we'll integrate Stripe Checkout
-                  alert(
-                    `Stripe integration ready!\n\n` +
-                    `Type: ${donationType}\n` +
-                    `Amount: $${donationAmount}\n` +
-                    `Frequency: ${donationType === 'recurring' ? recurringFrequency : 'one-time'}\n` +
-                    `Project: ${selectedProject || 'General Fund'}\n\n` +
-                    `Next: Initialize Stripe Checkout Session`
-                  );
-                  setShowDonationForm(false);
-                  setDonationAmount('');
-                  setSelectedProject('');
+                  
+                  if (!matchedDonor) {
+                    alert('Donor information not found. Please update your profile.');
+                    return;
+                  }
+                  
+                  try {
+                    const response = await fetch('http://localhost:8000/api/payments/create-checkout-session/', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                      },
+                      body: JSON.stringify({
+                        amount: parseFloat(donationAmount),
+                        donor_id: matchedDonor.donor_id,
+                        project_id: selectedProject ? parseInt(selectedProject) : null,
+                        donation_type: donationType,
+                        frequency: donationType === 'recurring' ? recurringFrequency : undefined
+                      })
+                    });
+                    
+                    if (!response.ok) {
+                      const error = await response.json();
+                      throw new Error(error.error || 'Failed to create checkout session');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Redirect to Stripe Checkout
+                    window.location.href = data.url;
+                  } catch (error: any) {
+                    alert(`Error: ${error.message || 'Failed to process donation'}`);
+                  }
                 }}
                 disabled={!donationAmount}
               >
@@ -732,6 +757,8 @@ export function DonorPortalPage() {
                     placeholder="25.00"
                     min="5"
                     step="5"
+                    value={recurringAmount}
+                    onChange={(e) => setRecurringAmount(e.target.value)}
                   />
                 </div>
               </div>
@@ -742,6 +769,7 @@ export function DonorPortalPage() {
                   {['10', '25', '50', '100'].map((amount) => (
                     <button
                       key={amount}
+                      onClick={() => setRecurringAmount(amount)}
                       className="p-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                     >
                       ${amount}/mo
@@ -753,7 +781,11 @@ export function DonorPortalPage() {
               {/* Project Selection */}
               <div className="mb-4">
                 <label className="form-label">Support Project</label>
-                <select className="form-control">
+                <select 
+                  className="form-control"
+                  value={recurringProject}
+                  onChange={(e) => setRecurringProject(e.target.value)}
+                >
                   <option value="">General Fund</option>
                   {projects.map((project) => (
                     <option key={project.project_id} value={project.project_id}>
@@ -770,6 +802,8 @@ export function DonorPortalPage() {
                   type="date"
                   className="form-control"
                   min={new Date().toISOString().split('T')[0]}
+                  value={recurringStartDate}
+                  onChange={(e) => setRecurringStartDate(e.target.value)}
                 />
               </div>
 
@@ -784,13 +818,47 @@ export function DonorPortalPage() {
               {/* Buttons */}
               <div className="flex gap-3">
                 <Button
-                  onClick={() => {
-                    alert(
-                      'Stripe Subscription Setup Ready!\n\n' +
-                      'This will create a recurring payment plan via Stripe.\n' +
-                      'Next step: Initialize Stripe Subscription Session'
-                    );
+                  onClick={async () => {
+                    if (!recurringAmount || parseFloat(recurringAmount) < 5) {
+                      alert('Please enter a valid monthly amount (minimum $5)');
+                      return;
+                    }
+                    
+                    if (!matchedDonor) {
+                      alert('Donor information not found. Please update your profile.');
+                      return;
+                    }
+                    
+                    try {
+                      const response = await fetch('http://localhost:8000/api/payments/create-checkout-session/', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                        },
+                        body: JSON.stringify({
+                          amount: parseFloat(recurringAmount),
+                          donor_id: matchedDonor.donor_id,
+                          project_id: recurringProject ? parseInt(recurringProject) : null,
+                          donation_type: 'recurring',
+                          frequency: 'monthly'
+                        })
+                      });
+                      
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to create subscription');
+                      }
+                      
+                      const data = await response.json();
+                      
+                      // Redirect to Stripe Checkout
+                      window.location.href = data.url;
+                    } catch (error: any) {
+                      alert(`Error: ${error.message || 'Failed to set up recurring donation'}`);
+                    }
                   }}
+                  disabled={!recurringAmount}
                 >
                   Set Up Monthly Giving
                 </Button>
