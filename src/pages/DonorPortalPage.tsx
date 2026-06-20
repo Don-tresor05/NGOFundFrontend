@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, BarChart3, CheckCircle2, Coins, RefreshCcw, Search, Upload, Tag, Send } from 'lucide-react';
+import { Activity, BarChart3, CheckCircle2, Coins, RefreshCcw, Search, Tag, Heart, Mail, FileText, Download } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { AppHeader, Button, StatCard } from '../components';
 import { PieMetricChart } from '../components/charts';
@@ -58,12 +58,11 @@ export function DonorPortalPage() {
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [showBulkImport, setShowBulkImport] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
-  const [showAcknowledgment, setShowAcknowledgment] = useState(false);
-  const [acknowledgmentMessage, setAcknowledgmentMessage] = useState('');
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [contactMessage, setContactMessage] = useState('');
+  const [showRecurringDonations, setShowRecurringDonations] = useState(false);
 
   const actor = currentProfile?.actor;
   const matchedDonor = useMemo(() => {
@@ -236,8 +235,104 @@ export function DonorPortalPage() {
         />
       </section>
 
+      {/* Quick Actions Bar */}
+      <section className="mt-6 panel-card">
+        <h3 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h3>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <Link
+            to="/projects"
+            className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all"
+          >
+            <Heart className="h-8 w-8 text-slate-600" />
+            <div>
+              <div className="font-semibold text-slate-900">Make a Donation</div>
+              <div className="text-xs text-slate-600">Support a project</div>
+            </div>
+          </Link>
+          <button
+            onClick={() => setShowContactForm(true)}
+            className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-left"
+          >
+            <Mail className="h-8 w-8 text-slate-600" />
+            <div>
+              <div className="font-semibold text-slate-900">Contact Team</div>
+              <div className="text-xs text-slate-600">Send us a message</div>
+            </div>
+          </button>
+          <button
+            onClick={() => {
+              const anchor = document.createElement('a');
+              anchor.href = '#tax-receipts';
+              anchor.click();
+            }}
+            className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-left"
+          >
+            <FileText className="h-8 w-8 text-slate-600" />
+            <div>
+              <div className="font-semibold text-slate-900">Tax Receipts</div>
+              <div className="text-xs text-slate-600">Download receipts</div>
+            </div>
+          </button>
+          <button
+            onClick={() => {
+              const anchor = document.createElement('a');
+              anchor.href = '#impact-reports';
+              anchor.click();
+            }}
+            className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-left"
+          >
+            <Download className="h-8 w-8 text-slate-600" />
+            <div>
+              <div className="font-semibold text-slate-900">Impact Reports</div>
+              <div className="text-xs text-slate-600">View your impact</div>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      {/* Contact NGO Modal */}
+      {showContactForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Send Message to NGO Team</h3>
+            <p className="text-sm text-slate-600 mb-4">We'll get back to you within 24-48 hours.</p>
+            <textarea
+              className="form-control"
+              rows={6}
+              placeholder="Your message here..."
+              value={contactMessage}
+              onChange={(e) => setContactMessage(e.target.value)}
+            />
+            <div className="mt-4 flex gap-3">
+              <Button
+                onClick={() => {
+                  if (contactMessage.trim()) {
+                    alert(`Message sent to NGO team! We'll contact you at ${currentProfile.email}`);
+                    setContactMessage('');
+                    setShowContactForm(false);
+                  }
+                }}
+                disabled={!contactMessage.trim()}
+              >
+                Send Message
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowContactForm(false);
+                  setContactMessage('');
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Search and Filter Panel */}
       <section className="mt-6 panel-card">
+        <h3 className="text-lg font-bold text-slate-900 mb-4">Transaction History</h3>
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -257,74 +352,176 @@ export function DonorPortalPage() {
             <option value="cleared">Cleared</option>
             <option value="reconciled">Reconciled</option>
           </select>
-          <Button variant="outline" icon={Upload} onClick={() => setShowBulkImport(!showBulkImport)}>
-            Bulk Import
-          </Button>
-          <Button variant="outline" icon={Send} onClick={() => setShowAcknowledgment(!showAcknowledgment)}>
-            Send Acknowledgment
-          </Button>
         </div>
 
-        {/* Bulk Import Section */}
-        {showBulkImport && (
-          <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-            <h4 className="font-semibold text-slate-900">Bulk Import Donors</h4>
-            <p className="mt-1 text-sm text-slate-600">Upload a CSV file with donor information</p>
-            <div className="mt-4 flex items-center gap-3">
-              <input
-                type="file"
-                accept=".csv"
-                className="form-control flex-1"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              />
-              <Button
-                onClick={() => {
-                  if (importFile) {
-                    alert(`Importing ${importFile.name}... Backend endpoint: POST /api/donors/bulk-import/`);
-                    setImportFile(null);
-                    setShowBulkImport(false);
-                  }
-                }}
-                disabled={!importFile}
-              >
-                Import
+        {/* Transaction List */}
+        <div className="mt-4 space-y-2">
+          {filteredTransactions.length > 0 ? (
+            filteredTransactions.map((transaction) => (
+              <div key={transaction.transaction_id} className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-slate-900">
+                    {transaction.bank_reference_number}
+                  </div>
+                  <div className="text-sm text-slate-500">{transaction.transaction_date}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-lg text-teal-700">{currency.format(transaction.amount)}</div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    transaction.status === 'reconciled' ? 'bg-green-100 text-green-700' :
+                    transaction.status === 'cleared' ? 'bg-blue-100 text-blue-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {transaction.status || 'pending'}
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+              No transactions found matching your criteria.
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Tax Receipts Section */}
+      <section id="tax-receipts" className="mt-6 panel-card">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Tax Receipts</h3>
+        <p className="text-sm text-slate-600 mb-4">Download official tax receipts for your contributions.</p>
+        <div className="space-y-2">
+          {donorTransactions.length > 0 ? (
+            donorTransactions.map((transaction) => (
+              <div key={transaction.transaction_id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
+                <div>
+                  <div className="font-medium text-slate-900">{currency.format(transaction.amount)}</div>
+                  <div className="text-sm text-slate-500">{transaction.transaction_date} · {transaction.bank_reference_number}</div>
+                </div>
+                <Button
+                  variant="outline"
+                  icon={Download}
+                  onClick={() => alert(`Downloading receipt for ${transaction.bank_reference_number}...`)}
+                >
+                  Download Receipt
+                </Button>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+              No receipts available yet.
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* My Impact Reports Section */}
+      <section id="impact-reports" className="mt-6 panel-card">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">My Impact Reports</h3>
+        <p className="text-sm text-slate-600 mb-4">View and download reports showing the impact of your contributions.</p>
+        <div className="space-y-2">
+          {donorReports.length > 0 ? (
+            donorReports.map((report) => (
+              <div key={report.report_id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
+                <div>
+                  <div className="font-medium text-slate-900">{(report as any).title || `Report ${report.report_id}`}</div>
+                  <div className="text-sm text-slate-500">
+                    {report.report_type} · Generated: {(report as any).generated_at || 'N/A'}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  icon={Download}
+                  onClick={() => {
+                    const reportFile = (report as any).file_path;
+                    if (reportFile) {
+                      window.open(reportFile, '_blank');
+                    } else {
+                      alert('Report file not available for download yet.');
+                    }
+                  }}
+                >
+                  Download Report
+                </Button>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+              <Download className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+              <p>No impact reports available yet.</p>
+              <p className="text-xs mt-2">Reports will appear here once your funded projects generate impact data.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Recurring Donations Section */}
+      <section className="mt-6 panel-card">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-xl font-bold text-slate-900">Recurring Donations</h3>
+            <p className="text-sm text-slate-600 mt-1">Set up automatic monthly giving to support ongoing work.</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setShowRecurringDonations(!showRecurringDonations)}
+          >
+            {showRecurringDonations ? 'Hide' : 'Manage'}
+          </Button>
+        </div>
+        
+        {showRecurringDonations && (
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-dashed border-teal-300 bg-teal-50 px-4 py-8 text-center">
+              <Heart className="h-12 w-12 mx-auto mb-3 text-teal-400" />
+              <p className="text-slate-900 font-semibold mb-2">Set Up Monthly Giving</p>
+              <p className="text-sm text-slate-600 mb-4">Support your favorite projects with automatic monthly donations.</p>
+              <Button onClick={() => alert('Recurring donation setup coming soon!')}>
+                Set Up Monthly Donation
               </Button>
             </div>
-            <p className="mt-2 text-xs text-slate-500">
-              Format: organization_name, contact_person, contact_email, country, category
-            </p>
           </div>
         )}
+      </section>
 
-        {/* Auto-Acknowledgment Section */}
-        {showAcknowledgment && (
-          <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4">
-            <h4 className="font-semibold text-slate-900">Send Automated Acknowledgment</h4>
-            <p className="mt-1 text-sm text-slate-600">Send thank-you message to {matchedDonor?.organization_name || 'donor'}</p>
-            <textarea
-              className="form-control mt-3"
-              rows={3}
-              placeholder="Thank you for your generous contribution..."
-              value={acknowledgmentMessage}
-              onChange={(e) => setAcknowledgmentMessage(e.target.value)}
-            />
-            <div className="mt-3 flex gap-2">
-              <Button
-                onClick={() => {
-                  if (matchedDonor && acknowledgmentMessage) {
-                    alert(`Sending acknowledgment to ${matchedDonor.contact_email}...`);
-                    setAcknowledgmentMessage('');
-                    setShowAcknowledgment(false);
-                  }
-                }}
-                disabled={!acknowledgmentMessage}
-              >
-                Send Email
-              </Button>
-              <Button variant="ghost" onClick={() => setShowAcknowledgment(false)}>
-                Cancel
-              </Button>
-            </div>
+      {/* Suggested Projects Section */}
+      <section className="mt-6 panel-card">
+        <h3 className="text-xl font-bold text-slate-900 mb-2">Projects You Might Like</h3>
+        <p className="text-sm text-slate-600 mb-4">
+          {donorProjects.length > 0 
+            ? `Based on your support for ${donorProjects[0].name}`
+            : 'Explore projects that align with your interests'}
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          {projects
+            .filter((p) => !donorGrantIds.includes(p.grant_id))
+            .slice(0, 4)
+            .map((project) => {
+              const projectBudgetLines = budgetLines.filter((bl) => bl.grant_id === project.grant_id);
+              const totalBudget = projectBudgetLines.reduce((sum, bl) => sum + bl.allocated_amount, 0);
+              
+              return (
+                <div key={project.project_id} className="rounded-xl border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow">
+                  <h4 className="font-bold text-slate-900 mb-2">{project.name}</h4>
+                  <p className="text-xs text-slate-600 mb-3 line-clamp-2">
+                    {project.description || 'Making a difference in communities.'}
+                  </p>
+                  <div className="flex items-center justify-between text-xs mb-3">
+                    <span className="text-slate-600">Budget:</span>
+                    <span className="font-semibold text-slate-900">{currency.format(totalBudget)}</span>
+                  </div>
+                  <Link
+                    to="/projects"
+                    className="block text-center text-xs font-semibold text-teal-700 hover:text-teal-800 py-2 px-3 rounded-lg border border-teal-200 hover:bg-teal-50 transition-colors"
+                  >
+                    Learn More & Support
+                  </Link>
+                </div>
+              );
+            })}
+        </div>
+        {projects.filter((p) => !donorGrantIds.includes(p.grant_id)).length === 0 && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+            You're supporting all available projects! Thank you for your generosity.
           </div>
         )}
       </section>
@@ -691,7 +888,6 @@ export function DonorPortalPage() {
           {showAllProjects && (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {projects.map((project) => {
-                const projectGrant = grants.find((g) => g.grant_id === project.grant_id);
                 const projectBudgetLines = budgetLines.filter((bl) => bl.grant_id === project.grant_id);
                 const totalBudget = projectBudgetLines.reduce((sum, bl) => sum + bl.allocated_amount, 0);
                 const budgetLineIds = projectBudgetLines.map((bl) => bl.budget_line_id);
