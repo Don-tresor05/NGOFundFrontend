@@ -385,6 +385,80 @@ export function DonorPortalPage() {
         </div>
       </section>
 
+      {/* Donation History Timeline */}
+      <section className="mt-6 panel-card">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Donation History Timeline</h3>
+        <p className="text-sm text-slate-600 mb-6">Visual timeline of your contributions over time</p>
+        
+        {donorTransactions.length > 0 ? (
+          <div className="relative">
+            {/* Timeline line */}
+            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-slate-200"></div>
+            
+            {/* Timeline items */}
+            <div className="space-y-6">
+              {donorTransactions
+                .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
+                .map((transaction, index) => {
+                  const project = donorProjects.find(p => {
+                    const projectBudgetLines = budgetLines.filter(bl => bl.grant_id === p.grant_id);
+                    return projectBudgetLines.some(bl => bl.budget_line_id === transaction.budget_line_id);
+                  });
+                  
+                  return (
+                    <div key={transaction.transaction_id} className="relative flex items-start gap-4 pl-16">
+                      {/* Timeline dot */}
+                      <div className="absolute left-6 top-2 w-4 h-4 rounded-full bg-teal-600 border-4 border-white ring-2 ring-slate-200"></div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 rounded-xl border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-bold text-lg text-slate-900">
+                                {currency.format(transaction.amount)}
+                              </span>
+                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                transaction.status === 'reconciled' ? 'bg-green-100 text-green-700' :
+                                transaction.status === 'cleared' ? 'bg-blue-100 text-blue-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {transaction.status || 'pending'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-slate-600 mb-2">
+                              {project ? `to ${project.name}` : 'General donation'}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {transaction.transaction_date} · Ref: {transaction.bank_reference_number}
+                            </div>
+                          </div>
+                          {index === 0 && (
+                            <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-1 rounded">
+                              Most Recent
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+            
+            {/* Timeline end marker */}
+            <div className="relative flex items-center gap-4 pl-16 mt-6">
+              <div className="absolute left-6 w-4 h-4 rounded-full bg-slate-300 border-4 border-white"></div>
+              <div className="text-sm text-slate-500 italic">Start of giving history</div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+            <p>No donation history yet.</p>
+            <p className="text-xs mt-2">Your donations will appear here as a visual timeline.</p>
+          </div>
+        )}
+      </section>
+
       {/* Tax Receipts Section */}
       <section id="tax-receipts" className="mt-6 panel-card">
         <h3 className="text-xl font-bold text-slate-900 mb-4">Tax Receipts</h3>
