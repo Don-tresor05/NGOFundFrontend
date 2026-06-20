@@ -1073,12 +1073,47 @@ export function DonorPortalPage() {
 
           <div className="panel-card">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xl font-bold text-slate-900">Recent communications</h3>
+              <h3 className="text-xl font-bold text-slate-900">Communications & Acknowledgments</h3>
               <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                 {donorSummary?.next_action ?? 'No follow-up needed'}
               </span>
             </div>
+
+            {/* Tab Navigation */}
+            <div className="mt-4 flex gap-2 border-b border-slate-200">
+              <button className="px-4 py-2 text-sm font-medium text-slate-900 border-b-2 border-slate-900">
+                All Communications
+              </button>
+              <button className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">
+                Acknowledgments
+              </button>
+            </div>
+
             <div className="mt-5 space-y-3">
+              {/* Acknowledgments (when donations are made) */}
+              {donorTransactions.slice(0, 3).map((transaction) => (
+                <div key={`ack-${transaction.transaction_id}`} className="rounded-2xl border border-green-200 bg-green-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-slate-900">Thank You for Your Donation</div>
+                      <div className="text-sm text-slate-500">Email · {transaction.transaction_date}</div>
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-green-200 px-3 py-1 text-xs font-semibold text-green-800">
+                      Sent
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    Thank you for your generous donation of {currency.format(transaction.amount)}. 
+                    Your contribution is making a real difference in our mission. 
+                    A receipt has been sent to your email for tax purposes.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <span className="text-xs text-slate-500">Ref: {transaction.bank_reference_number}</span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Regular Communications */}
               {donorCommunications.length > 0 ? (
                 donorCommunications.map((communication) => (
                   <div key={communication.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -1097,6 +1132,16 @@ export function DonorPortalPage() {
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
                   {isRefreshing ? 'Loading donor communications...' : 'No donor communications are linked yet.'}
+                </div>
+              )}
+
+              {/* Info Message */}
+              {donorTransactions.length > 0 && (
+                <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+                  <p className="text-xs text-blue-900">
+                    <strong>Automated Acknowledgments:</strong> You'll receive a thank-you email automatically 
+                    after each donation is processed. These messages include your receipt and impact details.
+                  </p>
                 </div>
               )}
             </div>
