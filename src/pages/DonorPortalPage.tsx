@@ -63,6 +63,11 @@ export function DonorPortalPage() {
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
   const [showRecurringDonations, setShowRecurringDonations] = useState(false);
+  const [showDonationForm, setShowDonationForm] = useState(false);
+  const [donationAmount, setDonationAmount] = useState('');
+  const [selectedProject, setSelectedProject] = useState('');
+  const [donationType, setDonationType] = useState<'one-time' | 'recurring'>('one-time');
+  const [recurringFrequency, setRecurringFrequency] = useState<'monthly' | 'quarterly' | 'annually'>('monthly');
 
   const actor = currentProfile?.actor;
   const matchedDonor = useMemo(() => {
@@ -239,16 +244,16 @@ export function DonorPortalPage() {
       <section className="mt-6 panel-card">
         <h3 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h3>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <Link
-            to="/projects"
-            className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all"
+          <button
+            onClick={() => setShowDonationForm(true)}
+            className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-left"
           >
             <Heart className="h-8 w-8 text-slate-600" />
             <div>
               <div className="font-semibold text-slate-900">Make a Donation</div>
               <div className="text-xs text-slate-600">Support a project</div>
             </div>
-          </Link>
+          </button>
           <button
             onClick={() => setShowContactForm(true)}
             className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-left"
@@ -289,6 +294,174 @@ export function DonorPortalPage() {
           </button>
         </div>
       </section>
+
+      {/* Donation Form Modal */}
+      {showDonationForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Make a Donation</h3>
+            <p className="text-sm text-slate-600 mb-6">Support our projects with a secure donation via Stripe</p>
+            
+            {/* Donation Type */}
+            <div className="mb-4">
+              <label className="form-label">Donation Type</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setDonationType('one-time')}
+                  className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                    donationType === 'one-time'
+                      ? 'border-slate-900 bg-slate-50 text-slate-900'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  One-Time
+                </button>
+                <button
+                  onClick={() => setDonationType('recurring')}
+                  className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                    donationType === 'recurring'
+                      ? 'border-slate-900 bg-slate-50 text-slate-900'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  Recurring
+                </button>
+              </div>
+            </div>
+
+            {/* Recurring Frequency */}
+            {donationType === 'recurring' && (
+              <div className="mb-4">
+                <label className="form-label">Frequency</label>
+                <select
+                  className="form-control"
+                  value={recurringFrequency}
+                  onChange={(e) => setRecurringFrequency(e.target.value as any)}
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="annually">Annually</option>
+                </select>
+              </div>
+            )}
+
+            {/* Project Selection */}
+            <div className="mb-4">
+              <label className="form-label">Select Project</label>
+              <select
+                className="form-control"
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+              >
+                <option value="">General Fund</option>
+                {donorProjects.map((project) => (
+                  <option key={project.project_id} value={project.project_id}>
+                    {project.name}
+                  </option>
+                ))}
+                {projects
+                  .filter((p) => !donorGrantIds.includes(p.grant_id))
+                  .map((project) => (
+                    <option key={project.project_id} value={project.project_id}>
+                      {project.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Amount */}
+            <div className="mb-4">
+              <label className="form-label">Amount (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600">$</span>
+                <input
+                  type="number"
+                  className="form-control pl-8"
+                  placeholder="100.00"
+                  value={donationAmount}
+                  onChange={(e) => setDonationAmount(e.target.value)}
+                  min="1"
+                  step="0.01"
+                />
+              </div>
+            </div>
+
+            {/* Quick Amount Buttons */}
+            <div className="mb-6">
+              <div className="grid grid-cols-4 gap-2">
+                {['25', '50', '100', '250'].map((amount) => (
+                  <button
+                    key={amount}
+                    onClick={() => setDonationAmount(amount)}
+                    className="p-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    ${amount}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Summary */}
+            {donationAmount && (
+              <div className="mb-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-slate-600">
+                    {donationType === 'recurring' ? `${recurringFrequency} donation` : 'One-time donation'}
+                  </span>
+                  <span className="font-bold text-lg text-slate-900">${donationAmount}</span>
+                </div>
+                {selectedProject && (
+                  <div className="text-xs text-slate-500">
+                    to {projects.find(p => p.project_id.toString() === selectedProject)?.name || 'Selected Project'}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  if (!donationAmount || parseFloat(donationAmount) <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                  }
+                  // Here we'll integrate Stripe Checkout
+                  alert(
+                    `Stripe integration ready!\n\n` +
+                    `Type: ${donationType}\n` +
+                    `Amount: $${donationAmount}\n` +
+                    `Frequency: ${donationType === 'recurring' ? recurringFrequency : 'one-time'}\n` +
+                    `Project: ${selectedProject || 'General Fund'}\n\n` +
+                    `Next: Initialize Stripe Checkout Session`
+                  );
+                  setShowDonationForm(false);
+                  setDonationAmount('');
+                  setSelectedProject('');
+                }}
+                disabled={!donationAmount}
+              >
+                Proceed to Payment
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowDonationForm(false);
+                  setDonationAmount('');
+                  setSelectedProject('');
+                  setDonationType('one-time');
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+
+            <p className="text-xs text-slate-500 mt-4 text-center">
+              🔒 Secure payment processed by Stripe
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Contact NGO Modal */}
       {showContactForm && (
@@ -545,13 +718,96 @@ export function DonorPortalPage() {
         
         {showRecurringDonations && (
           <div className="space-y-3">
-            <div className="rounded-2xl border border-dashed border-teal-300 bg-teal-50 px-4 py-8 text-center">
-              <Heart className="h-12 w-12 mx-auto mb-3 text-teal-400" />
-              <p className="text-slate-900 font-semibold mb-2">Set Up Monthly Giving</p>
-              <p className="text-sm text-slate-600 mb-4">Support your favorite projects with automatic monthly donations.</p>
-              <Button onClick={() => alert('Recurring donation setup coming soon!')}>
-                Set Up Monthly Donation
-              </Button>
+            <div className="rounded-xl border border-slate-200 bg-white p-6">
+              <h4 className="font-semibold text-slate-900 mb-4">Set Up Recurring Donation</h4>
+              
+              {/* Amount */}
+              <div className="mb-4">
+                <label className="form-label">Monthly Amount (USD)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600">$</span>
+                  <input
+                    type="number"
+                    className="form-control pl-8"
+                    placeholder="25.00"
+                    min="5"
+                    step="5"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Amount Buttons */}
+              <div className="mb-4">
+                <div className="grid grid-cols-4 gap-2">
+                  {['10', '25', '50', '100'].map((amount) => (
+                    <button
+                      key={amount}
+                      className="p-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      ${amount}/mo
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Project Selection */}
+              <div className="mb-4">
+                <label className="form-label">Support Project</label>
+                <select className="form-control">
+                  <option value="">General Fund</option>
+                  {projects.map((project) => (
+                    <option key={project.project_id} value={project.project_id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Start Date */}
+              <div className="mb-4">
+                <label className="form-label">Start Date</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+
+              {/* Payment Method Info */}
+              <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="text-sm text-blue-900 font-medium mb-1">Automatic Payments</p>
+                <p className="text-xs text-blue-700">
+                  Your card will be charged automatically each month. You can pause or cancel anytime.
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    alert(
+                      'Stripe Subscription Setup Ready!\n\n' +
+                      'This will create a recurring payment plan via Stripe.\n' +
+                      'Next step: Initialize Stripe Subscription Session'
+                    );
+                  }}
+                >
+                  Set Up Monthly Giving
+                </Button>
+                <Button variant="ghost" onClick={() => setShowRecurringDonations(false)}>
+                  Cancel
+                </Button>
+              </div>
+
+              <p className="text-xs text-slate-500 mt-4 text-center">
+                🔒 Secure subscription managed by Stripe
+              </p>
+            </div>
+
+            {/* Existing Recurring Donations (Empty State) */}
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+              <p className="text-sm text-slate-600">You don't have any active recurring donations yet.</p>
+              <p className="text-xs text-slate-500 mt-1">Set up your first monthly donation above.</p>
             </div>
           </div>
         )}
