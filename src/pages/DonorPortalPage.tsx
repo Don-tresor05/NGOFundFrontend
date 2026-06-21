@@ -191,43 +191,51 @@ export function DonorPortalPage() {
     }
 
     setIsRefreshing(true);
-    fetchDonorEngagementSummary(matchedDonor.donor_id)
-      .then((summary) => {
-        if (mounted) {
-          setDonorSummary(summary);
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsRefreshing(false);
-        }
-      });
     
-    // Fetch real donations
-    apiRequest(`/payments/donor-donations/?donor_id=${matchedDonor.donor_id}`)
-      .then((data: any) => {
-        if (mounted && data?.donations) {
-          console.log('📊 Fetched donations:', data.donations);
-          setRealDonations(data.donations);
-          
-          // Generate impact reports from ALL donations
-          const reports = data.donations.map((d: any) => ({
-            id: `impact-${d.id}`,
-            title: d.project !== 'General Fund' ? `Impact Report: ${d.project}` : 'General Fund Contribution Report',
-            project: d.project,
-            amount: d.amount,
-            date: d.date,
-            report_type: 'Impact Report',
-            generated_at: new Date(d.date).toLocaleDateString(),
-          }));
-          console.log('📈 Generated impact reports:', reports);
-          setImpactReports(reports);
-        }
-      })
-      .catch(err => console.error('Failed to fetch donations:', err));
+    const loadData = () => {
+      fetchDonorEngagementSummary(matchedDonor.donor_id)
+        .then((summary) => {
+          if (mounted) {
+            setDonorSummary(summary);
+          }
+        })
+        .finally(() => {
+          if (mounted) {
+            setIsRefreshing(false);
+          }
+        });
+      
+      // Fetch real donations
+      apiRequest(`/payments/donor-donations/?donor_id=${matchedDonor.donor_id}`)
+        .then((data: any) => {
+          if (mounted && data?.donations) {
+            setRealDonations(data.donations);
+            
+            // Generate impact reports from ALL donations
+            const reports = data.donations.map((d: any) => ({
+              id: `impact-${d.id}`,
+              title: d.project !== 'General Fund' ? `Impact Report: ${d.project}` : 'General Fund Contribution Report',
+              project: d.project,
+              amount: d.amount,
+              date: d.date,
+              report_type: 'Impact Report',
+              generated_at: new Date(d.date).toLocaleDateString(),
+            }));
+            setImpactReports(reports);
+          }
+        })
+        .catch(err => console.error('Failed to fetch donations:', err));
+    };
+    
+    // Load immediately
+    loadData();
+    
+    // Poll every 15 seconds for updates
+    const interval = setInterval(loadData, 15000);
 
     return () => {
       mounted = false;
+      clearInterval(interval);
     };
   }, [actor, fetchDonorEngagementSummary, matchedDonor]);
 
