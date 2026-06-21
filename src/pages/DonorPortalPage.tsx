@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, BarChart3, CheckCircle2, Coins, RefreshCcw, Search, Tag, Heart, Mail, FileText, Download } from 'lucide-react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { AppHeader, Button, StatCard } from '../components';
 import { PieMetricChart } from '../components/charts';
 import { useAppDataStore } from '../store/appDataStore';
 import { useAuthStore } from '../store/authStore';
+import { tokenStorage, apiRequest } from '../lib/api';
 import { DonorEngagementSummary } from '../types';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -34,6 +35,7 @@ const exportCsv = (filename: string, rows: Array<Record<string, string | number 
 };
 
 export function DonorPortalPage() {
+  const [searchParams] = useSearchParams();
   const currentProfile = useAuthStore((state) => state.currentProfile);
   const donors = useAppDataStore((state) => state.donors);
   const grants = useAppDataStore((state) => state.grants);
@@ -47,6 +49,28 @@ export function DonorPortalPage() {
   const [donorSummary, setDonorSummary] = useState<DonorEngagementSummary | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
+  
+  // Check for payment success
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    const paymentStatus = searchParams.get('payment');
+    
+    console.log('Payment params:', { sessionId, paymentStatus });
+    
+    if (sessionId && paymentStatus === 'success') {
+      console.log('Checking payment status...');
+      apiRequest(`/payments/check-payment-status/?session_id=${sessionId}`)
+        .then((data) => {
+          console.log('Payment check response:', data);
+          alert('Thank you for your donation! You should receive an email confirmation shortly.');
+          window.history.replaceState({}, '', '/app/donor-portal');
+        })
+        .catch(err => {
+          console.error('Payment check failed:', err);
+          alert('Payment completed but verification failed. Please contact support.');
+        });
+    }
+  }, [searchParams]);
   const [profileDraft, setProfileDraft] = useState({
     organization_name: '',
     contact_person: '',
@@ -421,6 +445,31 @@ export function DonorPortalPage() {
               </div>
             )}
 
+            {/* Test Card Info */}
+            <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+              <div className="flex items-start gap-2 mb-2">
+                <div className="text-blue-600 text-sm">💳</div>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">Test Card for Payment</p>
+                  <p className="text-xs text-blue-700 mt-1">Use these details on the Stripe checkout page:</p>
+                </div>
+              </div>
+              <div className="mt-2 space-y-1 text-xs font-mono bg-white p-3 rounded border border-blue-200">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Card:</span>
+                  <span className="font-bold text-slate-900">4242 4242 4242 4242</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Expiry:</span>
+                  <span className="font-bold text-slate-900">12/34</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">CVC:</span>
+                  <span className="font-bold text-slate-900">123</span>
+                </div>
+              </div>
+            </div>
+
             {/* Action Buttons */}
             <div className="flex gap-3">
               <Button
@@ -440,7 +489,7 @@ export function DonorPortalPage() {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                        'Authorization': `Bearer ${tokenStorage.access}`
                       },
                       body: JSON.stringify({
                         amount: parseFloat(donationAmount),
@@ -459,7 +508,7 @@ export function DonorPortalPage() {
                     const data = await response.json();
                     
                     // Redirect to Stripe Checkout
-                    window.location.href = data.url;
+                    window.location.href = data.checkout_url;
                   } catch (error: any) {
                     alert(`Error: ${error.message || 'Failed to process donation'}`);
                   }
@@ -834,7 +883,7 @@ export function DonorPortalPage() {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                          'Authorization': `Bearer ${tokenStorage.access}`
                         },
                         body: JSON.stringify({
                           amount: parseFloat(recurringAmount),
