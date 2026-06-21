@@ -20,7 +20,7 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
   useEffect(() => {
     const loadNotifications = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = localStorage.getItem('ngofund_access_token');
         if (!token) {
           console.log('No auth token found');
           return;
@@ -56,7 +56,7 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
     event.stopPropagation();
     
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('ngofund_access_token');
       if (!token) {
         console.error('No auth token');
         return;

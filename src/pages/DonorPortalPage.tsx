@@ -210,7 +210,7 @@ export function DonorPortalPage() {
           setRealDonations(data.donations);
           
           // Generate impact reports from ALL donations
-          const reports = data.donations.map((d: any, idx: number) => ({
+          const reports = data.donations.map((d: any) => ({
             id: `impact-${d.id}`,
             title: d.project !== 'General Fund' ? `Impact Report: ${d.project}` : 'General Fund Contribution Report',
             project: d.project,
