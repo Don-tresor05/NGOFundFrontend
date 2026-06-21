@@ -21,6 +21,7 @@ import {
   ComplianceChecklistPage,
   DocumentRepositoryPage,
   ExceptionReportPage,
+  TestDonationPage,
 } from './pages';
 import TestApiPage from './pages/TestApiPage';
 import UserManagementPage from './pages/UserManagementPage';
@@ -35,6 +36,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/projects" element={<PublicProjectsPage />} />
         <Route path="/test-api" element={<TestApiPage />} />
+        <Route path="/test-donation" element={<TestDonationPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/reset-password/confirm" element={<ConfirmPasswordPage />} />
         <Route path="/create-account" element={<CreateAccountPage />} />
