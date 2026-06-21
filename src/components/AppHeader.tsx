@@ -20,6 +20,25 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const recentNotifications = notifications.slice(0, 5);
 
+  const markAsRead = async (notificationId: number) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/notifications/${notificationId}/mark-read/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        // Reload notifications
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
   return (
     <header className="panel-card sticky top-0 z-20 mb-6 border-amber-100 bg-white/95 backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -65,6 +84,7 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
                       recentNotifications.map((notification) => (
                         <div
                           key={notification.notification_id}
+                          onClick={() => markAsRead(notification.notification_id)}
                           className={`border-b border-slate-100 p-4 hover:bg-slate-50 cursor-pointer ${
                             !notification.is_read ? 'bg-amber-50' : ''
                           }`}
