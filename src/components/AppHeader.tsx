@@ -34,7 +34,6 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
         
         if (response.ok) {
           const data = await response.json();
-          console.log('📬 Loaded notifications:', data);
           setNotifications(data.results || data || []);
         } else {
           console.error('Failed to load notifications:', response.status);
@@ -46,6 +45,11 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
     
     if (currentProfile) {
       loadNotifications();
+      
+      // Poll every 10 seconds for new notifications
+      const interval = setInterval(loadNotifications, 10000);
+      
+      return () => clearInterval(interval);
     }
   }, [currentProfile]);
 
