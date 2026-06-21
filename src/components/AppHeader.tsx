@@ -1,8 +1,7 @@
 import { Bell } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ACTORS } from '../constants/appModel';
 import { useAuthStore } from '../store/authStore';
-import { useAppDataStore } from '../store/appDataStore';
 import { BrandLogo } from './BrandLogo';
 import { HighlightedText } from './HighlightedText';
 
@@ -13,9 +12,32 @@ interface AppHeaderProps {
 
 export function AppHeader({ title, summary }: AppHeaderProps) {
   const currentProfile = useAuthStore((state) => state.currentProfile);
-  const notifications = useAppDataStore((state) => state.notifications);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const actor = ACTORS.find((entry) => entry.id === currentProfile?.actor);
+
+  // Load real notifications from API
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/notifications/', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setNotifications(data.results || data || []);
+        }
+      } catch (error) {
+        console.error('Failed to load notifications:', error);
+      }
+    };
+    
+    if (currentProfile) {
+      loadNotifications();
+    }
+  }, [currentProfile]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const recentNotifications = notifications.slice(0, 5);
