@@ -50,6 +50,7 @@ export function DonorPortalPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [realDonations, setRealDonations] = useState<any[]>([]);
+  const [impactReports, setImpactReports] = useState<any[]>([]);
   
   // Check for payment success
   useEffect(() => {
@@ -105,11 +106,20 @@ export function DonorPortalPage() {
 
     const normalizedEmail = currentProfile.email.trim().toLowerCase();
     const normalizedName = currentProfile.name.trim().toLowerCase();
-    return (
+    const matched = (
       donors.find((donor) => donor.contact_email.trim().toLowerCase() === normalizedEmail) ??
       donors.find((donor) => donor.contact_person.trim().toLowerCase() === normalizedName) ??
       null
     );
+    
+    console.log('👤 Donor matching:', {
+      currentEmail: normalizedEmail,
+      currentName: normalizedName,
+      matchedDonor: matched ? matched.donor_id : 'NOT FOUND',
+      totalDonors: donors.length
+    });
+    
+    return matched;
   }, [actor, currentProfile, donors]);
 
   const donorGrantIds = useMemo(
@@ -196,7 +206,21 @@ export function DonorPortalPage() {
     apiRequest(`/payments/donor-donations/?donor_id=${matchedDonor.donor_id}`)
       .then((data: any) => {
         if (mounted && data?.donations) {
+          console.log('📊 Fetched donations:', data.donations);
           setRealDonations(data.donations);
+          
+          // Generate impact reports from ALL donations
+          const reports = data.donations.map((d: any, idx: number) => ({
+            id: `impact-${d.id}`,
+            title: d.project !== 'General Fund' ? `Impact Report: ${d.project}` : 'General Fund Contribution Report',
+            project: d.project,
+            amount: d.amount,
+            date: d.date,
+            report_type: 'Impact Report',
+            generated_at: new Date(d.date).toLocaleDateString(),
+          }));
+          console.log('📈 Generated impact reports:', reports);
+          setImpactReports(reports);
         }
       })
       .catch(err => console.error('Failed to fetch donations:', err));
@@ -217,6 +241,40 @@ export function DonorPortalPage() {
       });
     }
   }, [matchedDonor]);
+
+  // Debug logging for stats
+  useEffect(() => {
+    console.log('🔢 Stats Update:', {
+      realDonations: realDonations.length,
+      projectDonations: realDonations.filter(d => d.project && d.project !== 'General Fund').length,
+      impactReports: impactReports.length,
+      donorProjects: donorProjects.length
+    });
+  }, [realDonations, impactReports, donorProjects]);
+
+  // Download tax receipt
+  const downloadReceipt = (donation: any) => {
+    const html = `<!DOCTYPE html><html><head><title>Tax Receipt</title><style>body{font-family:Arial;max-width:800px;margin:40px auto;padding:20px}.header{text-align:center;border-bottom:2px solid #333;padding-bottom:20px;margin-bottom:30px}.amount{font-size:24px;color:#16a34a;font-weight:bold;margin:20px 0}.field{margin:15px 0}.label{font-weight:bold}</style></head><body><div class="header"><h1>Official Tax Receipt</h1><p>Rwanda Paediatric Association NGO</p></div><div class="field"><span class="label">Receipt Date:</span> ${new Date().toLocaleDateString()}</div><div class="field"><span class="label">Donation Date:</span> ${new Date(donation.date).toLocaleDateString()}</div><div class="field"><span class="label">Reference:</span> ${donation.reference}</div><div class="field"><span class="label">Project:</span> ${donation.project}</div><div class="amount">Amount: $${donation.amount}</div><p style="margin-top:30px;padding-top:20px;border-top:1px solid #ccc">This receipt is issued for tax purposes. Please retain for your records.</p></body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${donation.reference}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Download impact report
+  const downloadImpactReport = (report: any) => {
+    const html = `<!DOCTYPE html><html><head><title>Impact Report</title><style>body{font-family:Arial;max-width:800px;margin:40px auto;padding:20px}.header{text-align:center;border-bottom:2px solid #1f6f78;padding-bottom:20px;margin-bottom:30px}h1{color:#1f6f78}.section{margin:30px 0;padding:20px;background:#f8fafc;border-radius:8px}.metric{display:inline-block;margin:15px 20px 15px 0}.label{font-size:12px;color:#64748b}.value{font-size:24px;font-weight:bold;color:#1f6f78}</style></head><body><div class="header"><h1>Impact Report</h1><p>Rwanda Paediatric Association NGO</p></div><h2>${report.title}</h2><div class="section"><h3>Your Contribution</h3><div class="metric"><div class="label">Amount Donated</div><div class="value">$${report.amount}</div></div><div class="metric"><div class="label">Date</div><div class="value">${new Date(report.date).toLocaleDateString()}</div></div><div class="metric"><div class="label">Project</div><div class="value">${report.project}</div></div></div><div class="section"><h3>Impact Summary</h3><p>Your generous contribution of $${report.amount} to ${report.project} is making a meaningful difference in our community.</p><p><strong>Thank you for your continued support!</strong></p></div><p style="margin-top:40px;padding-top:20px;border-top:1px solid #ccc;font-size:12px;color:#64748b">Generated: ${new Date().toLocaleString()}</p></body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `impact-report-${report.project.replace(/\s+/g, '-').toLowerCase()}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (!currentProfile) {
     return null;
@@ -256,21 +314,21 @@ export function DonorPortalPage() {
         />
         <StatCard
           label="Supported Projects"
-          value={String(donorProjects.length)}
+          value={String(realDonations.length || donorProjects.length)}
           trend="Projects funded through this donor profile"
           trendDirection="up"
           icon={Activity}
         />
         <StatCard
           label="Receipts Ready"
-          value={String(donorTransactions.length)}
+          value={String(realDonations.length || donorTransactions.length)}
           trend="Receipts and transaction summaries only"
           trendDirection="neutral"
           icon={CheckCircle2}
         />
         <StatCard
           label="Impact Updates"
-          value={String(donorDeliveries.filter((delivery) => delivery.status === 'sent').length)}
+          value={String(impactReports.length || donorDeliveries.filter((delivery) => delivery.status === 'sent').length)}
           trend="Delivered updates associated with this donor"
           trendDirection="up"
           icon={BarChart3}
@@ -715,17 +773,19 @@ export function DonorPortalPage() {
         <h3 className="text-xl font-bold text-slate-900 mb-4">Tax Receipts</h3>
         <p className="text-sm text-slate-600 mb-4">Download official tax receipts for your contributions.</p>
         <div className="space-y-2">
-          {donorTransactions.length > 0 ? (
-            donorTransactions.map((transaction) => (
-              <div key={transaction.transaction_id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
+          {(realDonations.length > 0 || donorTransactions.length > 0) ? (
+            (realDonations.length > 0 ? realDonations : donorTransactions).map((item: any, idx: number) => (
+              <div key={item.id || item.transaction_id || idx} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
                 <div>
-                  <div className="font-medium text-slate-900">{currency.format(transaction.amount)}</div>
-                  <div className="text-sm text-slate-500">{transaction.transaction_date} · {transaction.bank_reference_number}</div>
+                  <div className="font-medium text-slate-900">${item.amount}</div>
+                  <div className="text-sm text-slate-500">
+                    {item.date ? new Date(item.date).toLocaleDateString() : item.transaction_date} · {item.reference || item.bank_reference_number}
+                  </div>
                 </div>
                 <Button
                   variant="outline"
                   icon={Download}
-                  onClick={() => alert(`Downloading receipt for ${transaction.bank_reference_number}...`)}
+                  onClick={() => downloadReceipt(item)}
                 >
                   Download Receipt
                 </Button>
@@ -744,26 +804,19 @@ export function DonorPortalPage() {
         <h3 className="text-xl font-bold text-slate-900 mb-4">My Impact Reports</h3>
         <p className="text-sm text-slate-600 mb-4">View and download reports showing the impact of your contributions.</p>
         <div className="space-y-2">
-          {donorReports.length > 0 ? (
-            donorReports.map((report) => (
-              <div key={report.report_id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
+          {(impactReports.length > 0 || donorReports.length > 0) ? (
+            (impactReports.length > 0 ? impactReports : donorReports).map((report: any) => (
+              <div key={report.id || report.report_id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
                 <div>
-                  <div className="font-medium text-slate-900">{(report as any).title || `Report ${report.report_id}`}</div>
+                  <div className="font-medium text-slate-900">{report.title || `Report ${report.report_id}`}</div>
                   <div className="text-sm text-slate-500">
-                    {report.report_type} · Generated: {(report as any).generated_at || 'N/A'}
+                    {report.report_type} · Generated: {report.generated_at || 'N/A'}
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   icon={Download}
-                  onClick={() => {
-                    const reportFile = (report as any).file_path;
-                    if (reportFile) {
-                      window.open(reportFile, '_blank');
-                    } else {
-                      alert('Report file not available for download yet.');
-                    }
-                  }}
+                  onClick={() => downloadImpactReport(report)}
                 >
                   Download Report
                 </Button>
