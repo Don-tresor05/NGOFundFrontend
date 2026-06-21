@@ -49,6 +49,7 @@ export function DonorPortalPage() {
   const [donorSummary, setDonorSummary] = useState<DonorEngagementSummary | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
+  const [realDonations, setRealDonations] = useState<any[]>([]);
   
   // Check for payment success
   useEffect(() => {
@@ -190,6 +191,15 @@ export function DonorPortalPage() {
           setIsRefreshing(false);
         }
       });
+    
+    // Fetch real donations
+    apiRequest(`/payments/donor-donations/?donor_id=${matchedDonor.donor_id}`)
+      .then((data: any) => {
+        if (mounted && data?.donations) {
+          setRealDonations(data.donations);
+        }
+      })
+      .catch(err => console.error('Failed to fetch donations:', err));
 
     return () => {
       mounted = false;
@@ -216,7 +226,7 @@ export function DonorPortalPage() {
     return <Navigate to="/app/dashboard" replace />;
   }
 
-  const lifetimeGiving = donorTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const lifetimeGiving = realDonations.reduce((sum, d) => sum + d.amount, 0) || donorTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
   const activeGrantCount = donorGrantIds.length;
   const communicationChannels = Object.entries(
     (donorSummary?.channels ?? []).reduce<Record<string, number>>((counts, channel) => {
@@ -603,23 +613,22 @@ export function DonorPortalPage() {
 
         {/* Transaction List */}
         <div className="mt-4 space-y-2">
-          {filteredTransactions.length > 0 ? (
-            filteredTransactions.map((transaction) => (
-              <div key={transaction.transaction_id} className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between">
+          {(realDonations.length > 0 || filteredTransactions.length > 0) ? (
+            (realDonations.length > 0 ? realDonations : filteredTransactions).map((item: any, idx: number) => (
+              <div key={item.id || item.transaction_id || idx} className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between">
                 <div>
                   <div className="font-semibold text-slate-900">
-                    {transaction.bank_reference_number}
+                    {item.reference || item.bank_reference_number}
                   </div>
-                  <div className="text-sm text-slate-500">{transaction.transaction_date}</div>
+                  <div className="text-sm text-slate-500">
+                    {item.date ? new Date(item.date).toLocaleDateString() : item.transaction_date}
+                  </div>
+                  <div className="text-xs text-slate-600 mt-1">{item.project || 'General Fund'}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-lg text-teal-700">{currency.format(transaction.amount)}</div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    transaction.status === 'reconciled' ? 'bg-green-100 text-green-700' :
-                    transaction.status === 'cleared' ? 'bg-blue-100 text-blue-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {transaction.status || 'pending'}
+                  <div className="font-bold text-lg text-teal-700">${item.amount}</div>
+                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-700">
+                    completed
                   </span>
                 </div>
               </div>
