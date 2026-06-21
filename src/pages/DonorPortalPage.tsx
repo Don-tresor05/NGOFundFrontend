@@ -97,6 +97,7 @@ export function DonorPortalPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [donationType, setDonationType] = useState<'one-time' | 'recurring'>('one-time');
   const [recurringFrequency, setRecurringFrequency] = useState<'monthly' | 'quarterly' | 'annually'>('monthly');
+  const [commTab, setCommTab] = useState<'all' | 'acknowledgments'>('all');
 
   const actor = currentProfile?.actor;
   const matchedDonor = useMemo(() => {
@@ -1255,15 +1256,48 @@ export function DonorPortalPage() {
 
             {/* Tab Navigation */}
             <div className="mt-4 flex gap-2 border-b border-slate-200">
-              <button className="px-4 py-2 text-sm font-medium text-slate-900 border-b-2 border-slate-900">
+              <button 
+                onClick={() => setCommTab('all')}
+                className={`px-4 py-2 text-sm font-medium ${commTab === 'all' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+              >
                 All Communications
               </button>
-              <button className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">
+              <button 
+                onClick={() => setCommTab('acknowledgments')}
+                className={`px-4 py-2 text-sm font-medium ${commTab === 'acknowledgments' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
+              >
                 Acknowledgments
               </button>
             </div>
 
             <div className="mt-5 space-y-3">
+              {commTab === 'acknowledgments' ? (
+                // Show only acknowledgments
+                realDonations.length > 0 ? (
+                  realDonations.map((donation: any) => (
+                    <div key={`ack-${donation.id}`} className="rounded-2xl border border-green-200 bg-green-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-semibold text-slate-900">Thank You for Your Donation</div>
+                          <div className="text-sm text-slate-500">Email · {new Date(donation.date).toLocaleDateString()}</div>
+                        </div>
+                        <span className="inline-flex items-center rounded-full bg-green-200 px-3 py-1 text-xs font-semibold text-green-800">
+                          Sent
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        Thank you for your generous donation of ${donation.amount} to {donation.project}. Your support helps us continue our mission.
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
+                    No acknowledgments yet. Make a donation to receive a thank you!
+                  </div>
+                )
+              ) : (
+                // Show all communications
+                <>
               {/* Acknowledgments (when donations are made) */}
               {donorTransactions.slice(0, 3).map((transaction) => (
                 <div key={`ack-${transaction.transaction_id}`} className="rounded-2xl border border-green-200 bg-green-50 p-4">
@@ -1307,6 +1341,8 @@ export function DonorPortalPage() {
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
                   {isRefreshing ? 'Loading donor communications...' : 'No donor communications are linked yet.'}
                 </div>
+              )}
+              </>
               )}
 
               {/* Info Message */}
