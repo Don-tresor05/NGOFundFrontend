@@ -646,23 +646,22 @@ export function DonorPortalPage() {
         <h3 className="text-xl font-bold text-slate-900 mb-4">Donation History Timeline</h3>
         <p className="text-sm text-slate-600 mb-6">Visual timeline of your contributions over time</p>
         
-        {donorTransactions.length > 0 ? (
+        {(realDonations.length > 0 || donorTransactions.length > 0) ? (
           <div className="relative">
             {/* Timeline line */}
             <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-slate-200"></div>
             
             {/* Timeline items */}
             <div className="space-y-6">
-              {donorTransactions
-                .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
-                .map((transaction, index) => {
-                  const project = donorProjects.find(p => {
-                    const projectBudgetLines = budgetLines.filter(bl => bl.grant_id === p.grant_id);
-                    return projectBudgetLines.some(bl => bl.budget_line_id === transaction.budget_line_id);
-                  });
+              {(realDonations.length > 0 ? realDonations : donorTransactions)
+                .map((item: any, index: number) => {
+                  const amount = item.amount;
+                  const date = item.date || item.transaction_date;
+                  const projectName = item.project || 'General Fund';
+                  const reference = (item.reference || item.bank_reference_number || '').substring(0, 30);
                   
                   return (
-                    <div key={transaction.transaction_id} className="relative flex items-start gap-4 pl-16">
+                    <div key={item.id || item.transaction_id || index} className="relative flex items-start gap-4 pl-16">
                       {/* Timeline dot */}
                       <div className="absolute left-6 top-2 w-4 h-4 rounded-full bg-teal-600 border-4 border-white ring-2 ring-slate-200"></div>
                       
@@ -672,21 +671,17 @@ export function DonorPortalPage() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-bold text-lg text-slate-900">
-                                {currency.format(transaction.amount)}
+                                ${amount}
                               </span>
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                transaction.status === 'reconciled' ? 'bg-green-100 text-green-700' :
-                                transaction.status === 'cleared' ? 'bg-blue-100 text-blue-700' :
-                                'bg-yellow-100 text-yellow-700'
-                              }`}>
-                                {transaction.status || 'pending'}
+                              <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-700">
+                                completed
                               </span>
                             </div>
                             <div className="text-sm text-slate-600 mb-2">
-                              {project ? `to ${project.name}` : 'General donation'}
+                              to {projectName}
                             </div>
                             <div className="text-xs text-slate-500">
-                              {transaction.transaction_date} · Ref: {transaction.bank_reference_number}
+                              {new Date(date).toLocaleDateString()} · Ref: {reference}
                             </div>
                           </div>
                           {index === 0 && (
