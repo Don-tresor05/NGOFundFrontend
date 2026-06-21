@@ -20,14 +20,24 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
   useEffect(() => {
     const loadNotifications = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/notifications/', {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          console.log('No auth token found');
+          return;
+        }
+        
+        const response = await fetch('http://127.0.0.1:8000/api/notifications/?ordering=-created_at', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Authorization': `Bearer ${token}`,
           }
         });
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('📬 Loaded notifications:', data);
           setNotifications(data.results || data || []);
+        } else {
+          console.error('Failed to load notifications:', response.status);
         }
       } catch (error) {
         console.error('Failed to load notifications:', error);
@@ -42,11 +52,15 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const recentNotifications = notifications.slice(0, 5);
 
-  const markAsRead = async (notificationId: number) => {
+  const markAsRead = async (notificationId: number, event: React.MouseEvent) => {
+    event.stopPropagation();
+    
     try {
-      console.log('Marking notification as read:', notificationId);
       const token = localStorage.getItem('access_token');
-      console.log('Token exists:', !!token);
+      if (!token) {
+        console.error('No auth token');
+        return;
+      }
       
       const response = await fetch(`http://127.0.0.1:8000/api/notifications/${notificationId}/mark-read/`, {
         method: 'POST',
@@ -56,11 +70,11 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
         }
       });
       
-      console.log('Response status:', response.status);
-      
       if (response.ok) {
-        console.log('Notification marked as read, reloading...');
-        window.location.reload();
+        // Update local state instead of reloading
+        setNotifications(prev => 
+          prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+        );
       } else {
         const error = await response.text();
         console.error('Failed to mark as read:', error);
@@ -115,7 +129,7 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
                       recentNotifications.map((notification) => (
                         <div
                           key={notification.id}
-                          onClick={() => markAsRead(notification.id)}
+                          onClick={(e) => markAsRead(notification.id, e)}
                           className={`border-b border-slate-100 p-4 hover:bg-slate-50 cursor-pointer ${
                             !notification.is_read ? 'bg-amber-50' : ''
                           }`}
