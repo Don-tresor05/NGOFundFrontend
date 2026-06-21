@@ -22,20 +22,29 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
 
   const markAsRead = async (notificationId: number) => {
     try {
+      console.log('Marking notification as read:', notificationId);
+      const token = localStorage.getItem('access_token');
+      console.log('Token exists:', !!token);
+      
       const response = await fetch(`http://127.0.0.1:8000/api/notifications/${notificationId}/mark-read/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
-        // Reload notifications
+        console.log('Notification marked as read, reloading...');
         window.location.reload();
+      } else {
+        const error = await response.text();
+        console.error('Failed to mark as read:', error);
       }
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      console.error('Error marking notification as read:', error);
     }
   };
 
@@ -83,8 +92,8 @@ export function AppHeader({ title, summary }: AppHeaderProps) {
                     {recentNotifications.length > 0 ? (
                       recentNotifications.map((notification) => (
                         <div
-                          key={notification.notification_id}
-                          onClick={() => markAsRead(notification.notification_id)}
+                          key={notification.id}
+                          onClick={() => markAsRead(notification.id)}
                           className={`border-b border-slate-100 p-4 hover:bg-slate-50 cursor-pointer ${
                             !notification.is_read ? 'bg-amber-50' : ''
                           }`}
