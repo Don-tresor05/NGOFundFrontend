@@ -21,3 +21,4 @@ export { default as ComplianceChecklistPage } from './ComplianceChecklistPage';
 export { default as DocumentRepositoryPage } from './DocumentRepositoryPage';
 export { default as ExceptionReportPage } from './ExceptionReportPage';
 export { TestDonationPage } from './TestDonationPage';
+export { default as DonorMessagesPage } from './DonorMessagesPage';
