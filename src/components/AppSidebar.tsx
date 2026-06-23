@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  Mail,
 } from 'lucide-react';
 import { ACTORS, PLATFORM_MODULES, USE_CASES } from '../constants/appModel';
 import { useAuthStore } from '../store/authStore';
@@ -91,6 +92,12 @@ export function AppSidebar() {
           <UserRound size={18} />
           <span>Profile</span>
         </NavLink>
+        {(currentProfile.actor === 'finance_officer' || currentProfile.actor === 'executive_director') && (
+          <NavLink to="/app/donor-messages" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+            <Mail size={18} />
+            <span>Donor Messages</span>
+          </NavLink>
+        )}
         {currentProfile.actor === 'super_administrator' && (
           <>
             <button
