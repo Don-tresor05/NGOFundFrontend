@@ -88,6 +88,7 @@ export function DonorPortalPage() {
   const [newTag, setNewTag] = useState('');
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
+  const [showMessageThread, setShowMessageThread] = useState(false);
   const [showRecurringDonations, setShowRecurringDonations] = useState(false);
   const [recurringAmount, setRecurringAmount] = useState('');
   const [recurringProject, setRecurringProject] = useState('');
@@ -629,11 +630,26 @@ export function DonorPortalPage() {
             />
             <div className="mt-4 flex gap-3">
               <Button
-                onClick={() => {
-                  if (contactMessage.trim()) {
-                    alert(`Message sent to NGO team! We'll contact you at ${currentProfile.email}`);
-                    setContactMessage('');
-                    setShowContactForm(false);
+                onClick={async () => {
+                  if (contactMessage.trim() && matchedDonor) {
+                    try {
+                      await apiRequest('/donor-communications/', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          donor_id: matchedDonor.id,
+                          channel: 'donor_portal',
+                          subject: 'Message from Donor Portal',
+                          message: contactMessage,
+                          communication_date: new Date().toISOString(),
+                        }),
+                      });
+                      alert(`Message sent to NGO team! We'll contact you at ${currentProfile.email}`);
+                      setContactMessage('');
+                      setShowContactForm(false);
+                    } catch (err) {
+                      console.error('Failed to send message:', err);
+                      alert('Failed to send message. Please try again or contact us directly.');
+                    }
                   }
                 }}
                 disabled={!contactMessage.trim()}
@@ -1331,20 +1347,64 @@ export function DonorPortalPage() {
 
               {/* Regular Communications */}
               {donorCommunications.length > 0 ? (
-                donorCommunications.map((communication) => (
-                  <div key={communication.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-900">{communication.subject}</div>
-                        <div className="text-sm text-slate-500">{communication.channel} · {communication.communication_date}</div>
+                (() => {
+                  const unreadReplies = donorCommunications.filter(c => c.channel === 'staff_reply' && !c.is_read);
+                  const hasUnread = unreadReplies.length > 0;
+                  
+                  return (
+                    <div 
+                      onClick={() => {
+                        setShowMessageThread(!showMessageThread);
+                        if (!showMessageThread && hasUnread) {
+                          // Mark as read when opening
+                          unreadReplies.forEach(reply => {
+                            fetch(`${API_BASE_URL}/api/donor-communications/${reply.id}/`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+                              body: JSON.stringify({ is_read: true })
+                            });
+                          });
+                        }
+                      }}
+                      className="rounded-2xl border border-slate-200 bg-white p-4 cursor-pointer hover:border-blue-400 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="font-semibold text-slate-900">Your Messages</div>
+                          {hasUnread && (
+                            <span className="inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                              {unreadReplies.length} new {unreadReplies.length === 1 ? 'reply' : 'replies'}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-slate-400">{showMessageThread ? '▼' : '►'}</span>
                       </div>
-                      <span className="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
-                        Recorded
-                      </span>
+                      {showMessageThread && (
+                        <div className="space-y-3 max-h-96 overflow-y-auto mt-4" onClick={(e) => e.stopPropagation()}>
+                          {donorCommunications.slice().sort((a, b) => 
+                            new Date(a.communication_date).getTime() - new Date(b.communication_date).getTime()
+                          ).map((communication) => (
+                            <div key={communication.id} className={`flex ${communication.channel === 'staff_reply' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[80%] rounded-lg p-3 ${
+                                communication.channel === 'staff_reply' 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-slate-100 text-slate-900'
+                              }`}>
+                                <div className="text-xs opacity-75 mb-1">
+                                  {communication.channel === 'staff_reply' ? 'Staff' : 'You'} · {new Date(communication.communication_date).toLocaleString('en-US', { 
+                                    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' 
+                                  })}
+                                </div>
+                                <div className="font-medium text-sm">{communication.subject}</div>
+                                <div className="text-sm mt-1">{communication.message}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{communication.message}</p>
-                  </div>
-                ))
+                  );
+                })()
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
                   {isRefreshing ? 'Loading donor communications...' : 'No donor communications are linked yet.'}
