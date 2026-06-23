@@ -22,6 +22,7 @@ import {
   DocumentRepositoryPage,
   ExceptionReportPage,
   TestDonationPage,
+  DonorMessagesPage,
 } from './pages';
 import TestApiPage from './pages/TestApiPage';
 import UserManagementPage from './pages/UserManagementPage';
@@ -45,6 +46,7 @@ function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="donor-portal" element={<DonorPortalPage />} />
+          <Route path="donor-messages" element={<DonorMessagesPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="user-management" element={<UserManagementPage />} />
           <Route path="permissions" element={<PermissionsManagementPage />} />
