@@ -95,7 +95,14 @@ export const apiRequest = async <T>(path: string, options: ApiRequestOptions = {
   }
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { detail: text };
+    }
+  }
 
   if (!response.ok) {
     throw new ApiError(response.status, data);
