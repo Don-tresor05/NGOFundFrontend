@@ -1,0 +1,34 @@
+// Add these after line 50
+const [lifetimeTotal, setLifetimeTotal] = useState(0);
+const [realDonations, setRealDonations] = useState<any[]>([]);
+
+// Add this in the useEffect around line 192, after fetchDonorEngagementSummary
+apiRequest(`/payments/donor-donations/?donor_id=${matchedDonor.donor_id}`)
+  .then((data: any) => {
+    if (mounted) {
+      if (data?.total_donations) setLifetimeTotal(data.total_donations);
+      if (data?.donations) setRealDonations(data.donations);
+    }
+  })
+  .catch(err => console.error('Failed to fetch donations:', err));
+
+// Replace line ~229
+const lifetimeGiving = lifetimeTotal || donorTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+
+// Around line ~620-640, replace transaction history display with:
+const displayItems = realDonations.length > 0 ? realDonations : filteredTransactions;
+{displayItems.length > 0 ? (
+  displayItems.map((item: any, idx: number) => (
+    <div key={item.id || item.transaction_id || idx} className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between">
+      <div>
+        <div className="font-semibold text-slate-900">{item.reference || item.bank_reference_number}</div>
+        <div className="text-sm text-slate-500">{item.date ? new Date(item.date).toLocaleDateString() : item.transaction_date}</div>
+        <div className="text-xs text-slate-600 mt-1">{item.project || 'General Fund'}</div>
+      </div>
+      <div className="text-right">
+        <div className="font-bold text-lg text-teal-700">${item.amount}</div>
+        <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-700">completed</span>
+      </div>
+    </div>
+  ))
+) : (...)}
