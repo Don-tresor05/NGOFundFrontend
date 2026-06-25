@@ -23,6 +23,13 @@ import {
   ExceptionReportPage,
   TestDonationPage,
   DonorMessagesPage,
+  FinanceDashboardPage,
+  FinanceControlsPage,
+  BudgetReallocationPage,
+  ExpenseApprovalWorkflowPage,
+  BankReconciliationPage,
+  VendorPaymentTrackingPage,
+  PaymentSchedulingPage,
 } from './pages';
 import TestApiPage from './pages/TestApiPage';
 import UserManagementPage from './pages/UserManagementPage';
@@ -45,6 +52,13 @@ function App() {
         <Route path="/app" element={<ProtectedRoute />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="finance" element={<FinanceDashboardPage />} />
+          <Route path="finance/controls" element={<FinanceControlsPage />} />
+          <Route path="finance/reallocations" element={<BudgetReallocationPage />} />
+          <Route path="finance/approvals" element={<ExpenseApprovalWorkflowPage />} />
+          <Route path="finance/reconciliation" element={<BankReconciliationPage />} />
+          <Route path="finance/vendors" element={<VendorPaymentTrackingPage />} />
+          <Route path="finance/payments" element={<PaymentSchedulingPage />} />
           <Route path="donor-portal" element={<DonorPortalPage />} />
           <Route path="donor-messages" element={<DonorMessagesPage />} />
           <Route path="profile" element={<ProfilePage />} />
