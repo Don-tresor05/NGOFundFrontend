@@ -1,4 +1,4 @@
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart, Tooltip } from 'recharts';
 import { HighlightedText } from '../HighlightedText';
 
 interface PieMetricChartProps {
@@ -12,17 +12,15 @@ export function PieMetricChart({ title, data }: PieMetricChartProps) {
       <h3 className="text-lg font-bold text-slate-900">
         <HighlightedText text={title} />
       </h3>
-      <div className="mt-6 h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={data} dataKey="value" nameKey="label" innerRadius={70} outerRadius={110} paddingAngle={3}>
-              {data.map((entry) => (
-                <Cell key={entry.label} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
+      <div className="mt-6 flex justify-center">
+        <PieChart width={320} height={288}>
+          <Pie data={data} dataKey="value" nameKey="label" innerRadius={70} outerRadius={110} paddingAngle={3}>
+            {data.map((entry) => (
+              <Cell key={entry.label} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip />
+        </PieChart>
       </div>
       <div className="mt-4 flex flex-wrap gap-3">
         {data.map((entry) => (
