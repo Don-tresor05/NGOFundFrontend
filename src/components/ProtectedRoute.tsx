@@ -21,9 +21,9 @@ export function ProtectedRoute() {
 
   useEffect(() => {
     if (isAuthenticated && authReady) {
-      fetchAll();
+      fetchAll(currentProfile?.actor);
     }
-  }, [authReady, fetchAll, isAuthenticated]);
+  }, [authReady, currentProfile?.actor, fetchAll, isAuthenticated]);
 
   if (!authReady) {
     return <div className="auth-shell text-sm font-semibold text-slate-600">Restoring secure session...</div>;
@@ -43,7 +43,7 @@ export function ProtectedRoute() {
         profile={currentProfile}
         isLoading={isLoading}
         apiError={apiError}
-        onRetry={fetchAll}
+        onRetry={() => fetchAll(currentProfile.actor)}
       />
     );
   }
