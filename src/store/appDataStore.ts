@@ -36,6 +36,7 @@ import {
   User,
   UATFeedback,
   ReleaseNote,
+  Actor,
 } from '../types';
 
 interface AppDataState {
@@ -76,7 +77,7 @@ interface AppDataState {
   bugReports: BugReport[];
   releaseNotes: ReleaseNote[];
   resetData: () => void;
-  fetchAll: () => Promise<void>;
+  fetchAll: (actor?: Actor) => Promise<void>;
   fetchSecuritySummary: () => Promise<SecuritySummary | null>;
   fetchDonorEngagementDashboard: () => Promise<DonorEngagementDashboard | null>;
   fetchSystemSettingsSummary: () => Promise<SystemSettingsSummary | null>;
@@ -535,6 +536,14 @@ const emptyOnForbiddenValue = async <T>(request: Promise<T>): Promise<T | null> 
   }
 };
 
+const isAdminActor = (actor?: Actor | null) => actor === 'super_administrator';
+const isFinanceActor = (actor?: Actor | null) =>
+  actor === 'finance_officer' || actor === 'executive_director' || actor === 'project_manager';
+const isOperationalActor = (actor?: Actor | null) =>
+  actor === 'field_staff' || actor === 'project_manager' || actor === 'executive_director';
+const isDonorActor = (actor?: Actor | null) => actor === 'donor_user';
+const isAuditActor = (actor?: Actor | null) => actor === 'external_auditor' || actor === 'super_administrator';
+
 export const useAppDataStore = create<AppDataState>((set, get) => ({
   isLoading: false,
   apiError: null,
@@ -613,113 +622,175 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
       releaseNotes: [],
     }),
 
-  fetchAll: async () => {
+  fetchAll: async (actor) => {
     set({ isLoading: true, apiError: null, dataReady: false });
     try {
       const [
-      users,
-      donors,
-      notifications,
-      roles,
-      permissions,
-      rolePermissions,
-      grants,
-      bankAccounts,
-      bankStatements,
-      bankStatementLines,
-      budgetLines,
-        projects,
-        requisitions,
-        auditLogs,
-        transactions,
-      reports,
-      systemSettings,
-      complianceItems,
-      documents,
-      securitySummary,
-      donorEngagementDashboard,
-      systemSettingsSummary,
-      reallocationRequests,
-      expenseApprovals,
-      reportSchedules,
-      reportDeliveries,
-      reconciliations,
-      processDocuments,
-      staffRequirements,
-        testCases,
-        uatFeedback,
-        bugReports,
-        releaseNotes,
-      ] = await Promise.all([
-      emptyOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser))),
-      emptyOnForbidden(apiList<ApiDonor>('/donors/').then((rows) => rows.map(mapDonor))),
-      emptyOnForbidden(apiList<ApiNotification>('/notifications/').then((rows) => rows.map(mapNotification))),
-      emptyOnForbidden(apiList<ApiRole>('/roles/').then((rows) => rows.map(mapRole))),
-      emptyOnForbidden(apiList<ApiPermission>('/permissions/').then((rows) => rows.map(mapPermission))),
-      emptyOnForbidden(apiList<ApiRolePermission>('/role-permissions/').then((rows) => rows.map(mapRolePermission))),
-      emptyOnForbidden(apiList<ApiGrant>('/grants/').then((rows) => rows.map(mapGrant))),
-      emptyOnForbidden(apiList<ApiBankAccount>('/bank-accounts/').then((rows) => rows.map(mapBankAccount))),
-      emptyOnForbidden(apiList<ApiBankStatement>('/bank-statements/').then((rows) => rows.map(mapBankStatement))),
-      emptyOnForbidden(apiList<ApiBankStatementLine>('/bank-statement-lines/').then((rows) => rows.map(mapBankStatementLine))),
-      emptyOnForbidden(apiList<ApiBudgetLine>('/budget-lines/').then((rows) => rows.map(mapBudgetLine))),
-        emptyOnForbidden(apiList<ApiProject>('/projects/').then((rows) => rows.map(mapProject))),
-        emptyOnForbidden(apiList<ApiRequisition>('/requisitions/').then((rows) => rows.map(mapRequisition))),
-        emptyOnForbidden(apiList<ApiAuditLog>('/audit-logs/').then((rows) => rows.map(mapAuditLog))),
-        emptyOnForbidden(apiList<ApiTransaction>('/transactions/').then((rows) => rows.map(mapTransaction))),
-        emptyOnForbidden(apiList<ApiReport>('/reports/').then((rows) => rows.map(mapReport))),
-      emptyOnForbidden(apiList<ApiSystemSetting>('/system-settings/').then((rows) => rows.map(mapSetting))),
-      emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
-      emptyOnForbidden(apiList<ApiDocument>('/documents/').then((rows) => rows.map(mapDocument))),
-      emptyOnForbiddenValue(apiRequest<ApiSecuritySummary>('/users/security-summary/')),
-      emptyOnForbiddenValue(apiRequest<ApiDonorEngagementDashboard>('/donors/engagement-dashboard/')),
-      emptyOnForbiddenValue(apiRequest<ApiSystemSettingsSummary>('/system-settings/summary/')),
-      emptyOnForbidden(apiList<ApiReallocationRequest>('/reallocation-requests/').then((rows) => rows.map(mapReallocationRequest))),
-      emptyOnForbidden(apiList<ApiExpenseApproval>('/expense-approvals/').then((rows) => rows.map(mapExpenseApproval))),
-      emptyOnForbidden(apiList<ApiReportSchedule>('/report-schedules/').then((rows) => rows.map(mapReportSchedule))),
-      emptyOnForbidden(apiList<ApiReportDelivery>('/report-deliveries/').then((rows) => rows.map(mapReportDelivery))),
-      emptyOnForbidden(apiList<ApiReconciliation>('/reconciliations/').then((rows) => rows.map(mapReconciliation))),
-      emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
-        emptyOnForbidden(apiList<ApiStaffRequirement>('/staff-requirements/').then((rows) => rows.map(mapStaffRequirement))),
-        emptyOnForbidden(apiList<ApiTestCase>('/test-cases/').then((rows) => rows.map(mapTestCase))),
-        emptyOnForbidden(apiList<ApiUATFeedback>('/uat-feedback/').then((rows) => rows.map(mapUATFeedback))),
-        emptyOnForbidden(apiList<ApiBugReport>('/bug-reports/').then((rows) => rows.map(mapBugReport))),
-        emptyOnForbidden(apiList<ApiReleaseNote>('/release-notes/').then((rows) => rows.map(mapReleaseNote))),
-      ]);
-
-      set({
-        users,
-        donors,
         notifications,
-        roles,
-        permissions,
-        rolePermissions,
         grants,
-        bankAccounts,
-        bankStatements,
-        bankStatementLines,
         budgetLines,
         projects,
-        requisitions,
-        auditLogs,
         transactions,
         reports,
-        systemSettings,
-        complianceItems,
-        documents,
-        securitySummary,
-        donorEngagementDashboard,
-        systemSettingsSummary,
         reallocationRequests,
         expenseApprovals,
         reportSchedules,
         reportDeliveries,
-        reconciliations,
-        processDocuments,
-        staffRequirements,
-        testCases,
-        uatFeedback,
-        bugReports,
-        releaseNotes,
+        donors,
+      ] = await Promise.all([
+        emptyOnForbidden(apiList<ApiNotification>('/notifications/').then((rows) => rows.map(mapNotification))),
+        emptyOnForbidden(apiList<ApiGrant>('/grants/').then((rows) => rows.map(mapGrant))),
+        emptyOnForbidden(apiList<ApiBudgetLine>('/budget-lines/').then((rows) => rows.map(mapBudgetLine))),
+        emptyOnForbidden(apiList<ApiProject>('/projects/').then((rows) => rows.map(mapProject))),
+        emptyOnForbidden(apiList<ApiTransaction>('/transactions/').then((rows) => rows.map(mapTransaction))),
+        emptyOnForbidden(apiList<ApiReport>('/reports/').then((rows) => rows.map(mapReport))),
+        emptyOnForbidden(apiList<ApiReallocationRequest>('/reallocation-requests/').then((rows) => rows.map(mapReallocationRequest))),
+        emptyOnForbidden(apiList<ApiExpenseApproval>('/expense-approvals/').then((rows) => rows.map(mapExpenseApproval))),
+        emptyOnForbidden(apiList<ApiReportSchedule>('/report-schedules/').then((rows) => rows.map(mapReportSchedule))),
+        emptyOnForbidden(apiList<ApiReportDelivery>('/report-deliveries/').then((rows) => rows.map(mapReportDelivery))),
+        emptyOnForbidden(apiList<ApiDonor>('/donors/').then((rows) => rows.map(mapDonor))),
+      ]);
+
+      const baseState: Partial<AppDataState> = {
+        notifications,
+        grants,
+        budgetLines,
+        projects,
+        transactions,
+        reports,
+        reallocationRequests,
+        expenseApprovals,
+        reportSchedules,
+        reportDeliveries,
+        donors,
+      };
+
+      if (isAdminActor(actor)) {
+        const [
+          users,
+          roles,
+          permissions,
+          rolePermissions,
+          bankAccounts,
+          bankStatements,
+          bankStatementLines,
+          systemSettings,
+          complianceItems,
+          documents,
+          securitySummary,
+          systemSettingsSummary,
+          processDocuments,
+          staffRequirements,
+          testCases,
+          uatFeedback,
+          bugReports,
+          releaseNotes,
+        ] = await Promise.all([
+          emptyOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser))),
+          emptyOnForbidden(apiList<ApiRole>('/roles/').then((rows) => rows.map(mapRole))),
+          emptyOnForbidden(apiList<ApiPermission>('/permissions/').then((rows) => rows.map(mapPermission))),
+          emptyOnForbidden(apiList<ApiRolePermission>('/role-permissions/').then((rows) => rows.map(mapRolePermission))),
+          emptyOnForbidden(apiList<ApiBankAccount>('/bank-accounts/').then((rows) => rows.map(mapBankAccount))),
+          emptyOnForbidden(apiList<ApiBankStatement>('/bank-statements/').then((rows) => rows.map(mapBankStatement))),
+          emptyOnForbidden(apiList<ApiBankStatementLine>('/bank-statement-lines/').then((rows) => rows.map(mapBankStatementLine))),
+          emptyOnForbidden(apiList<ApiSystemSetting>('/system-settings/').then((rows) => rows.map(mapSetting))),
+          emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
+          emptyOnForbidden(apiList<ApiDocument>('/documents/').then((rows) => rows.map(mapDocument))),
+          emptyOnForbiddenValue(apiRequest<ApiSecuritySummary>('/users/security-summary/')),
+          emptyOnForbiddenValue(apiRequest<ApiSystemSettingsSummary>('/system-settings/summary/')),
+          emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
+          emptyOnForbidden(apiList<ApiStaffRequirement>('/staff-requirements/').then((rows) => rows.map(mapStaffRequirement))),
+          emptyOnForbidden(apiList<ApiTestCase>('/test-cases/').then((rows) => rows.map(mapTestCase))),
+          emptyOnForbidden(apiList<ApiUATFeedback>('/uat-feedback/').then((rows) => rows.map(mapUATFeedback))),
+          emptyOnForbidden(apiList<ApiBugReport>('/bug-reports/').then((rows) => rows.map(mapBugReport))),
+          emptyOnForbidden(apiList<ApiReleaseNote>('/release-notes/').then((rows) => rows.map(mapReleaseNote))),
+        ]);
+        baseState.users = users;
+        baseState.roles = roles;
+        baseState.permissions = permissions;
+        baseState.rolePermissions = rolePermissions;
+        baseState.bankAccounts = bankAccounts;
+        baseState.bankStatements = bankStatements;
+        baseState.bankStatementLines = bankStatementLines;
+        baseState.systemSettings = systemSettings;
+        baseState.complianceItems = complianceItems;
+        baseState.documents = documents;
+        baseState.securitySummary = securitySummary;
+        baseState.systemSettingsSummary = systemSettingsSummary;
+        baseState.processDocuments = processDocuments;
+        baseState.staffRequirements = staffRequirements;
+        baseState.testCases = testCases;
+        baseState.uatFeedback = uatFeedback;
+        baseState.bugReports = bugReports;
+        baseState.releaseNotes = releaseNotes;
+      } else if (isFinanceActor(actor)) {
+        const [bankAccounts, bankStatements, bankStatementLines, documents, donorEngagementDashboard, requisitions, reconciliations] = await Promise.all([
+          emptyOnForbidden(apiList<ApiBankAccount>('/bank-accounts/').then((rows) => rows.map(mapBankAccount))),
+          emptyOnForbidden(apiList<ApiBankStatement>('/bank-statements/').then((rows) => rows.map(mapBankStatement))),
+          emptyOnForbidden(apiList<ApiBankStatementLine>('/bank-statement-lines/').then((rows) => rows.map(mapBankStatementLine))),
+          emptyOnForbidden(apiList<ApiDocument>('/documents/').then((rows) => rows.map(mapDocument))),
+          emptyOnForbiddenValue(apiRequest<ApiDonorEngagementDashboard>('/donors/engagement-dashboard/')),
+          emptyOnForbidden(apiList<ApiRequisition>('/requisitions/').then((rows) => rows.map(mapRequisition))),
+          emptyOnForbidden(apiList<ApiReconciliation>('/reconciliations/').then((rows) => rows.map(mapReconciliation))),
+        ]);
+        baseState.bankAccounts = bankAccounts;
+        baseState.bankStatements = bankStatements;
+        baseState.bankStatementLines = bankStatementLines;
+        baseState.documents = documents;
+        baseState.donorEngagementDashboard = donorEngagementDashboard;
+        baseState.requisitions = requisitions;
+        baseState.reconciliations = reconciliations;
+      } else if (isAuditActor(actor)) {
+        const [auditLogs, complianceItems, documents, securitySummary, systemSettingsSummary, processDocuments, testCases, uatFeedback, bugReports, releaseNotes, requisitions, reconciliations] = await Promise.all([
+          emptyOnForbidden(apiList<ApiAuditLog>('/audit-logs/').then((rows) => rows.map(mapAuditLog))),
+          emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
+          emptyOnForbidden(apiList<ApiDocument>('/documents/').then((rows) => rows.map(mapDocument))),
+          emptyOnForbiddenValue(apiRequest<ApiSecuritySummary>('/users/security-summary/')),
+          emptyOnForbiddenValue(apiRequest<ApiSystemSettingsSummary>('/system-settings/summary/')),
+          emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
+          emptyOnForbidden(apiList<ApiTestCase>('/test-cases/').then((rows) => rows.map(mapTestCase))),
+          emptyOnForbidden(apiList<ApiUATFeedback>('/uat-feedback/').then((rows) => rows.map(mapUATFeedback))),
+          emptyOnForbidden(apiList<ApiBugReport>('/bug-reports/').then((rows) => rows.map(mapBugReport))),
+          emptyOnForbidden(apiList<ApiReleaseNote>('/release-notes/').then((rows) => rows.map(mapReleaseNote))),
+          emptyOnForbidden(apiList<ApiRequisition>('/requisitions/').then((rows) => rows.map(mapRequisition))),
+          emptyOnForbidden(apiList<ApiReconciliation>('/reconciliations/').then((rows) => rows.map(mapReconciliation))),
+        ]);
+        baseState.auditLogs = auditLogs;
+        baseState.complianceItems = complianceItems;
+        baseState.documents = documents;
+        baseState.securitySummary = securitySummary;
+        baseState.systemSettingsSummary = systemSettingsSummary;
+        baseState.processDocuments = processDocuments;
+        baseState.testCases = testCases;
+        baseState.uatFeedback = uatFeedback;
+        baseState.bugReports = bugReports;
+        baseState.releaseNotes = releaseNotes;
+        baseState.requisitions = requisitions;
+        baseState.reconciliations = reconciliations;
+      } else if (isOperationalActor(actor)) {
+        const [processDocuments, staffRequirements, testCases, uatFeedback, bugReports, releaseNotes] = await Promise.all([
+          emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
+          emptyOnForbidden(apiList<ApiStaffRequirement>('/staff-requirements/').then((rows) => rows.map(mapStaffRequirement))),
+          emptyOnForbidden(apiList<ApiTestCase>('/test-cases/').then((rows) => rows.map(mapTestCase))),
+          emptyOnForbidden(apiList<ApiUATFeedback>('/uat-feedback/').then((rows) => rows.map(mapUATFeedback))),
+          emptyOnForbidden(apiList<ApiBugReport>('/bug-reports/').then((rows) => rows.map(mapBugReport))),
+          emptyOnForbidden(apiList<ApiReleaseNote>('/release-notes/').then((rows) => rows.map(mapReleaseNote))),
+        ]);
+        baseState.processDocuments = processDocuments;
+        baseState.staffRequirements = staffRequirements;
+        baseState.testCases = testCases;
+        baseState.uatFeedback = uatFeedback;
+        baseState.bugReports = bugReports;
+        baseState.releaseNotes = releaseNotes;
+      }
+
+      if (isDonorActor(actor)) {
+        const donorEngagementDashboard = await emptyOnForbiddenValue(apiRequest<ApiDonorEngagementDashboard>('/donors/engagement-dashboard/'));
+        baseState.donorEngagementDashboard = donorEngagementDashboard;
+      }
+
+      set({
+        ...baseState,
         isLoading: false,
         dataReady: true,
       });
