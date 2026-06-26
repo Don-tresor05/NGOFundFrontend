@@ -6,7 +6,7 @@ import { PieMetricChart } from '../components/charts';
 import { useAppDataStore } from '../store/appDataStore';
 import { useAuthStore } from '../store/authStore';
 import { tokenStorage, apiRequest } from '../lib/api';
-import { DonorEngagementSummary } from '../types';
+import { Donor, DonorEngagementSummary } from '../types';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
@@ -99,34 +99,28 @@ export function DonorPortalPage() {
   const [donationType, setDonationType] = useState<'one-time' | 'recurring'>('one-time');
   const [recurringFrequency, setRecurringFrequency] = useState<'monthly' | 'quarterly' | 'annually'>('monthly');
   const [commTab, setCommTab] = useState<'all' | 'acknowledgments'>('all');
+  const [linkedDonor, setLinkedDonor] = useState<Donor | null>(null);
+  const donorId = linkedDonor?.donor_id ?? null;
 
   const actor = currentProfile?.actor;
-  const matchedDonor = useMemo(() => {
-    if (!currentProfile || actor !== 'donor_user') {
+  const fallbackMatchedDonor = useMemo(() => {
+    if (!currentProfile) {
       return null;
     }
 
     const normalizedEmail = currentProfile.email.trim().toLowerCase();
     const normalizedName = currentProfile.name.trim().toLowerCase();
-    const matched = (
+    return (
       donors.find((donor) => donor.contact_email.trim().toLowerCase() === normalizedEmail) ??
       donors.find((donor) => donor.contact_person.trim().toLowerCase() === normalizedName) ??
       null
     );
-    
-    console.log('👤 Donor matching:', {
-      currentEmail: normalizedEmail,
-      currentName: normalizedName,
-      matchedDonor: matched ? matched.donor_id : 'NOT FOUND',
-      totalDonors: donors.length
-    });
-    
-    return matched;
-  }, [actor, currentProfile, donors]);
+  }, [currentProfile, donors]);
+  const resolvedDonor = linkedDonor ?? fallbackMatchedDonor;
 
   const donorGrantIds = useMemo(
-    () => (matchedDonor ? grants.filter((grant) => grant.donor_id === matchedDonor.donor_id).map((grant) => grant.grant_id) : []),
-    [grants, matchedDonor]
+    () => (resolvedDonor ? grants.filter((grant) => grant.donor_id === resolvedDonor.donor_id).map((grant) => grant.grant_id) : []),
+    [grants, resolvedDonor]
   );
   const donorBudgetLineIds = useMemo(
     () => budgetLines.filter((line) => donorGrantIds.includes(line.grant_id)).map((line) => line.budget_line_id),
@@ -143,6 +137,30 @@ export function DonorPortalPage() {
     [donorReports, reportDeliveries]
   );
   const donorCommunications = donorSummary?.recent_communications ?? [];
+  const donorChannels = useMemo(() => {
+    const channels = (donorSummary as { channels?: string[] | string } | null)?.channels ?? [];
+    if (Array.isArray(channels)) {
+      return channels.map((channel) => String(channel)).filter((channel, index, all) => all.indexOf(channel) === index);
+    }
+    if (typeof channels === 'string') {
+      return channels
+        .split(',')
+        .map((channel) => channel.trim())
+        .filter(Boolean)
+        .filter((channel, index, all) => all.indexOf(channel) === index);
+    }
+    return [];
+  }, [donorSummary?.channels]);
+  const donationProjects = useMemo(() => {
+    const names = realDonations
+      .map((donation) => donation.project || 'General Fund')
+      .filter((name, index, all) => all.indexOf(name) === index);
+    return names;
+  }, [realDonations]);
+  const fundedProjects = useMemo(
+    () => projects.filter((project) => donationProjects.includes(project.name)),
+    [donationProjects, projects]
+  );
   
   // Filter and search logic
   const filteredTransactions = useMemo(() => {
@@ -182,75 +200,96 @@ export function DonorPortalPage() {
   );
 
   useEffect(() => {
-    let mounted = true;
-
-    if (actor !== 'donor_user' || !matchedDonor) {
+    if (actor !== 'donor_user') {
       setDonorSummary(null);
-      return () => {
-        mounted = false;
-      };
+      setLinkedDonor(null);
+      return;
     }
 
+    let mounted = true;
     setIsRefreshing(true);
-    
-    const loadData = () => {
-      fetchDonorEngagementSummary(matchedDonor.donor_id)
-        .then((summary) => {
-          if (mounted) {
-            setDonorSummary(summary);
-          }
-        })
-        .finally(() => {
-          if (mounted) {
-            setIsRefreshing(false);
-          }
-        });
-      
-      // Fetch real donations
-      apiRequest(`/payments/donor-donations/?donor_id=${matchedDonor.donor_id}`)
-        .then((data: any) => {
-          if (mounted && data?.donations) {
-            setRealDonations(data.donations);
-            
-            // Generate impact reports from ALL donations
-            const reports = data.donations.map((d: any) => ({
-              id: `impact-${d.id}`,
-              title: d.project !== 'General Fund' ? `Impact Report: ${d.project}` : 'General Fund Contribution Report',
-              project: d.project,
-              amount: d.amount,
-              date: d.date,
-              report_type: 'Impact Report',
-              generated_at: new Date(d.date).toLocaleDateString(),
-            }));
-            setImpactReports(reports);
-          }
-        })
-        .catch(err => console.error('Failed to fetch donations:', err));
+
+    const loadDonorContext = async () => {
+      const donor = await apiRequest<Donor>('/donors/me/');
+      if (!mounted) {
+        return;
+      }
+
+      const resolvedDonor = donor?.donor_id ? donor : fallbackMatchedDonor;
+      if (!resolvedDonor?.donor_id) {
+        setLinkedDonor(null);
+        setDonorSummary(null);
+        return;
+      }
+
+      setLinkedDonor(resolvedDonor);
+      const summary = await fetchDonorEngagementSummary(resolvedDonor.donor_id);
+      if (mounted) {
+        setDonorSummary(summary);
+      }
+
+      if (mounted) {
+        setIsRefreshing(false);
+      }
     };
     
-    // Load immediately
-    loadData();
-    
-    // Poll every 15 seconds for updates
-    const interval = setInterval(loadData, 15000);
+    loadDonorContext().finally(() => {
+      if (mounted) {
+        setIsRefreshing(false);
+      }
+    });
+
+    const interval = setInterval(() => {
+      loadDonorContext().catch((err) => console.error('Failed to refresh donor context:', err));
+    }, 15000);
 
     return () => {
       mounted = false;
       clearInterval(interval);
     };
-  }, [actor, fetchDonorEngagementSummary, matchedDonor]);
+  }, [actor, fetchDonorEngagementSummary, fallbackMatchedDonor]);
 
   useEffect(() => {
-    if (matchedDonor) {
+    if (!donorId) {
+      return;
+    }
+
+    let mounted = true;
+    apiRequest<{ donations?: any[] }>(`/payments/donor-donations/?donor_id=${donorId}`)
+      .then((data) => {
+        if (mounted && data?.donations) {
+          setRealDonations(data.donations);
+          setImpactReports(
+            data.donations.map((entry: any) => ({
+              id: `impact-${entry.id}`,
+              title: entry.project !== 'General Fund' ? `Impact Report: ${entry.project}` : 'General Fund Contribution Report',
+              project: entry.project,
+              amount: entry.amount,
+              date: entry.date,
+              report_type: 'Impact Report',
+              generated_at: new Date(entry.date).toLocaleDateString(),
+            }))
+          );
+        }
+      })
+      .catch((err) => console.error('Failed to fetch donations:', err));
+
+    return () => {
+      mounted = false;
+    };
+  }, [donorId]);
+
+  useEffect(() => {
+    if (resolvedDonor) {
       setProfileDraft({
-        organization_name: matchedDonor.organization_name,
-        contact_person: matchedDonor.contact_person,
-        contact_email: matchedDonor.contact_email,
-        country: matchedDonor.country,
-        category: matchedDonor.category,
+        organization_name: resolvedDonor.organization_name,
+        contact_person: resolvedDonor.contact_person,
+        contact_email: resolvedDonor.contact_email,
+        country: resolvedDonor.country,
+        category: resolvedDonor.category,
       });
     }
-  }, [matchedDonor]);
+    }, [resolvedDonor]);
 
   // Debug logging for stats
   useEffect(() => {
@@ -258,9 +297,9 @@ export function DonorPortalPage() {
       realDonations: realDonations.length,
       projectDonations: realDonations.filter(d => d.project && d.project !== 'General Fund').length,
       impactReports: impactReports.length,
-      donorProjects: donorProjects.length
+      donorProjects: fundedProjects.length
     });
-  }, [realDonations, impactReports, donorProjects]);
+  }, [realDonations, impactReports, fundedProjects]);
 
   // Download tax receipt
   const downloadReceipt = (donation: any) => {
@@ -295,7 +334,7 @@ export function DonorPortalPage() {
   }
 
   const lifetimeGiving = realDonations.reduce((sum, d) => sum + d.amount, 0) || donorTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const activeGrantCount = donorGrantIds.length;
+  const activeGrantCount = donationProjects.filter((name) => name !== 'General Fund').length;
   const communicationChannels = Object.entries(
     (donorSummary?.channels ?? []).reduce<Record<string, number>>((counts, channel) => {
       counts[channel] = (counts[channel] ?? 0) + 1;
@@ -310,7 +349,7 @@ export function DonorPortalPage() {
   return (
     <>
       <AppHeader
-        title={matchedDonor?.organization_name ? `${matchedDonor.organization_name} Donor Portal` : 'Donor Portal'}
+        title={resolvedDonor?.organization_name ? `${resolvedDonor.organization_name} Donor Portal` : 'Donor Portal'}
         summary="A read-only donor-facing portal showing giving history, project impact, receipts, and engagement updates."
       />
 
@@ -318,27 +357,27 @@ export function DonorPortalPage() {
         <StatCard
           label="Lifetime Giving"
           value={currency.format(lifetimeGiving)}
-          trend={matchedDonor ? 'Linked donor record' : 'Waiting for donor matching'}
+          trend={resolvedDonor ? 'Linked donor record' : 'Waiting for donor matching'}
           trendDirection="up"
           icon={Coins}
         />
         <StatCard
           label="Supported Projects"
-          value={String(realDonations.length || donorProjects.length)}
+          value={String(fundedProjects.length)}
           trend="Projects funded through this donor profile"
           trendDirection="up"
           icon={Activity}
         />
         <StatCard
           label="Receipts Ready"
-          value={String(realDonations.length || donorTransactions.length)}
+          value={String(realDonations.length)}
           trend="Receipts and transaction summaries only"
           trendDirection="neutral"
           icon={CheckCircle2}
         />
         <StatCard
           label="Impact Updates"
-          value={String(impactReports.length || donorDeliveries.filter((delivery) => delivery.status === 'sent').length)}
+          value={String(impactReports.length)}
           trend="Delivered updates associated with this donor"
           trendDirection="up"
           icon={BarChart3}
@@ -557,34 +596,23 @@ export function DonorPortalPage() {
                     return;
                   }
                   
-                  if (!matchedDonor) {
+                  if (!resolvedDonor) {
                     alert('Donor information not found. Please update your profile.');
                     return;
                   }
                   
                   try {
-                    const response = await fetch('http://localhost:8000/api/payments/create-checkout-session/', {
+                    const data = await apiRequest<{ checkout_url: string }>('/payments/create-checkout-session/', {
                       method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${tokenStorage.access}`
-                      },
                       body: JSON.stringify({
                         amount: parseFloat(donationAmount),
-                        donor_id: matchedDonor.donor_id,
+                        donor_id: resolvedDonor.donor_id,
                         project_id: selectedProject ? parseInt(selectedProject) : null,
                         donation_type: donationType,
                         frequency: donationType === 'recurring' ? recurringFrequency : undefined
-                      })
+                      }),
                     });
-                    
-                    if (!response.ok) {
-                      const error = await response.json();
-                      throw new Error(error.error || 'Failed to create checkout session');
-                    }
-                    
-                    const data = await response.json();
-                    
+
                     // Redirect to Stripe Checkout
                     window.location.href = data.checkout_url;
                   } catch (error: any) {
@@ -631,12 +659,12 @@ export function DonorPortalPage() {
             <div className="mt-4 flex gap-3">
               <Button
                 onClick={async () => {
-                  if (contactMessage.trim() && matchedDonor) {
+                  if (contactMessage.trim() && resolvedDonor) {
                     try {
                       await apiRequest('/donor-communications/', {
                         method: 'POST',
                         body: JSON.stringify({
-                          donor_id: matchedDonor.id,
+                          donor_id: resolvedDonor.donor_id,
                           channel: 'donor_portal',
                           subject: 'Message from Donor Portal',
                           message: contactMessage,
@@ -955,7 +983,7 @@ export function DonorPortalPage() {
                       return;
                     }
                     
-                    if (!matchedDonor) {
+                    if (!resolvedDonor) {
                       alert('Donor information not found. Please update your profile.');
                       return;
                     }
@@ -969,7 +997,7 @@ export function DonorPortalPage() {
                         },
                         body: JSON.stringify({
                           amount: parseFloat(recurringAmount),
-                          donor_id: matchedDonor.donor_id,
+                          donor_id: resolvedDonor.donor_id,
                           project_id: recurringProject ? parseInt(recurringProject) : null,
                           donation_type: 'recurring',
                           frequency: 'monthly'
@@ -1070,7 +1098,7 @@ export function DonorPortalPage() {
                   variant="outline"
                   onClick={() =>
                     exportCsv(
-                      `${matchedDonor?.organization_name?.toLowerCase().replace(/\s+/g, '-') ?? 'donor'}-portal.csv`,
+                      `${resolvedDonor?.organization_name?.toLowerCase().replace(/\s+/g, '-') ?? 'donor'}-portal.csv`,
                       donorExportRows
                     )
                   }
@@ -1080,8 +1108,13 @@ export function DonorPortalPage() {
                 <Button
                   variant="outline"
                   icon={RefreshCcw}
-                  onClick={() => matchedDonor && fetchDonorEngagementSummary(matchedDonor.donor_id).then(setDonorSummary)}
-                  disabled={!matchedDonor || isRefreshing}
+                  onClick={() => {
+                    if (!donorId) {
+                      return;
+                    }
+                    fetchDonorEngagementSummary(donorId).then(setDonorSummary);
+                  }}
+                  disabled={!donorId || isRefreshing}
                 >
                   {isRefreshing ? 'Refreshing...' : 'Refresh summary'}
                 </Button>
@@ -1098,7 +1131,7 @@ export function DonorPortalPage() {
               </div>
               <div className="metric-tile">
                 <span className="eyebrow">Linked Status</span>
-                <strong>{matchedDonor ? 'Verified' : 'Pending match'}</strong>
+                <strong>{resolvedDonor ? 'Verified' : 'Pending match'}</strong>
               </div>
             </div>
             <div className="mt-5 flex flex-wrap gap-3">
@@ -1117,7 +1150,7 @@ export function DonorPortalPage() {
                 <h3 className="text-xl font-bold text-slate-900">Donor profile snapshot</h3>
                 <p className="mt-1 text-sm text-slate-600">This portal is read-only and personalized from the linked donor record.</p>
               </div>
-              {matchedDonor ? (
+              {resolvedDonor ? (
                 <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                   Linked donor record
                 </span>
@@ -1130,11 +1163,11 @@ export function DonorPortalPage() {
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="metric-tile">
                 <span className="eyebrow">Organization</span>
-                <strong>{matchedDonor?.organization_name ?? 'Not linked yet'}</strong>
+                <strong>{resolvedDonor?.organization_name ?? 'Not linked yet'}</strong>
               </div>
               <div className="metric-tile">
                 <span className="eyebrow">Primary Contact</span>
-                <strong>{matchedDonor?.contact_person ?? currentProfile.name}</strong>
+                <strong>{resolvedDonor?.contact_person ?? currentProfile.name}</strong>
               </div>
               <div className="metric-tile">
                 <span className="eyebrow">Portal Email</span>
@@ -1157,9 +1190,9 @@ export function DonorPortalPage() {
               </div>
               <Button
                 variant="outline"
-                disabled={!matchedDonor || profileSaving}
+                disabled={!resolvedDonor || profileSaving}
                 onClick={async () => {
-                  if (!matchedDonor) {
+                  if (!resolvedDonor) {
                     return;
                   }
                   setProfileSaving(true);
@@ -1348,7 +1381,9 @@ export function DonorPortalPage() {
               {/* Regular Communications */}
               {donorCommunications.length > 0 ? (
                 (() => {
-                  const unreadReplies = donorCommunications.filter(c => c.channel === 'staff_reply' && !c.is_read);
+                  const unreadReplies = (donorCommunications as Array<{ id: number; channel: string; is_read?: boolean }>).filter(
+                    (c) => c.channel === 'staff_reply' && !c.is_read
+                  );
                   const hasUnread = unreadReplies.length > 0;
                   
                   return (
@@ -1357,11 +1392,10 @@ export function DonorPortalPage() {
                         setShowMessageThread(!showMessageThread);
                         if (!showMessageThread && hasUnread) {
                           // Mark as read when opening
-                          unreadReplies.forEach(reply => {
-                            fetch(`${API_BASE_URL}/api/donor-communications/${reply.id}/`, {
+                          unreadReplies.forEach((reply) => {
+                            apiRequest(`/donor-communications/${reply.id}/`, {
                               method: 'PATCH',
-                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-                              body: JSON.stringify({ is_read: true })
+                              body: JSON.stringify({ is_read: true }),
                             });
                           });
                         }
@@ -1432,15 +1466,15 @@ export function DonorPortalPage() {
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="metric-tile">
                 <span className="eyebrow">Projects Supported</span>
-                <strong>{donorProjects.length}</strong>
+                <strong>{fundedProjects.length}</strong>
               </div>
               <div className="metric-tile">
                 <span className="eyebrow">Reports Delivered</span>
-                <strong>{donorDeliveries.filter((delivery) => delivery.status === 'sent').length}</strong>
+                <strong>{impactReports.length}</strong>
               </div>
               <div className="metric-tile">
                 <span className="eyebrow">Receipts Generated</span>
-                <strong>{donorTransactions.length}</strong>
+                <strong>{realDonations.length}</strong>
               </div>
               <div className="metric-tile">
                 <span className="eyebrow">Last Contact</span>
@@ -1448,7 +1482,7 @@ export function DonorPortalPage() {
               </div>
             </div>
             <div className="mt-4 space-y-3">
-              {donorProjects.slice(0, 4).map((project) => (
+              {fundedProjects.map((project) => (
                 <div key={project.project_id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="font-semibold text-slate-900">{project.name}</div>
                   <div className="text-sm text-slate-500">
@@ -1456,7 +1490,7 @@ export function DonorPortalPage() {
                   </div>
                 </div>
               ))}
-              {donorProjects.length === 0 ? (
+              {fundedProjects.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
                   No funded projects are linked to this donor profile yet.
                 </div>
@@ -1487,7 +1521,7 @@ export function DonorPortalPage() {
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-3">
                   <div className="text-xs uppercase tracking-wide text-slate-500">Channels Used</div>
-                  <div className="mt-1 text-xl font-bold text-slate-900">{(donorSummary?.channels ?? []).length}</div>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{donorChannels.length}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-3">
                   <div className="text-xs uppercase tracking-wide text-slate-500">Avg Response Time</div>
