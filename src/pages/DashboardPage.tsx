@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   Activity,
   BarChart3,
@@ -66,18 +67,39 @@ export function DashboardPage() {
     const total = state.testCases.length;
     return total ? Math.round((state.testCases.filter((testCase) => testCase.status === 'approved').length / total) * 100) : 0;
   });
-  const weeklyActivity = Array.from({ length: 5 }, (_, index) => {
-    const day = new Date();
-    day.setDate(day.getDate() - (4 - index));
-    const label = day.toLocaleDateString('en-US', { weekday: 'short' });
-    const dayKey = day.toISOString().slice(0, 10);
-    const value =
-      transactions.filter((transaction) => transaction.created_at.startsWith(dayKey)).length +
-      requisitions.filter((requisition) => requisition.created_at.startsWith(dayKey)).length +
-      reports.filter((report) => report.created_at.startsWith(dayKey)).length +
-      bugReports.filter((bug) => bug.created_at.startsWith(dayKey)).length;
-    return { label, value };
-  });
+  const weeklyActivity = useMemo(
+    () =>
+      Array.from({ length: 5 }, (_, index) => {
+        const day = new Date();
+        day.setDate(day.getDate() - (4 - index));
+        const label = day.toLocaleDateString('en-US', { weekday: 'short' });
+        const dayKey = day.toISOString().slice(0, 10);
+        const value =
+          transactions.filter((transaction) => transaction.created_at.startsWith(dayKey)).length +
+          requisitions.filter((requisition) => requisition.created_at.startsWith(dayKey)).length +
+          reports.filter((report) => report.created_at.startsWith(dayKey)).length +
+          bugReports.filter((bug) => bug.created_at.startsWith(dayKey)).length;
+        return { label, value };
+      }),
+    [bugReports, reports, requisitions, transactions]
+  );
+
+  const fundingRhythm = useMemo(
+    () =>
+      Array.from({ length: 5 }, (_, index) => {
+        const monthDate = new Date();
+        monthDate.setMonth(monthDate.getMonth() - (4 - index));
+        const label = monthDate.toLocaleString('en-US', { month: 'short' });
+        const total = transactions
+          .filter((transaction) => {
+            const date = new Date(`${transaction.transaction_date}T00:00:00`);
+            return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
+          })
+          .reduce((sum, transaction) => sum + transaction.amount, 0);
+        return { label, value: Math.round(total / 1000) };
+      }),
+    [transactions]
+  );
 
   const activeApprovals = actorId ? pendingRequisitionCount + activeExpenseApprovalCount + pendingReallocationCount : 0;
   const outstandingAlerts = actorId ? openBugCount + unverifiedComplianceCount + unreadNotificationCount : 0;
@@ -162,22 +184,7 @@ export function DashboardPage() {
       </section>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-2">
-        <AreaMetricChart
-          title="Funding Rhythm"
-          data={Array.from({ length: 5 }, (_, index) => {
-            const monthDate = new Date();
-            monthDate.setMonth(monthDate.getMonth() - (4 - index));
-            const label = monthDate.toLocaleString('en-US', { month: 'short' });
-            const total = useAppDataStore
-              .getState()
-              .transactions.filter((transaction) => {
-                const date = new Date(`${transaction.transaction_date}T00:00:00`);
-                return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
-              })
-              .reduce((sum, transaction) => sum + transaction.amount, 0);
-            return { label, value: Math.round(total / 1000) };
-          })}
-        />
+        <AreaMetricChart title="Funding Rhythm" data={fundingRhythm} />
         <PieMetricChart
           title="Workflow Distribution"
           data={workflowDistribution.map((item, index) => ({
