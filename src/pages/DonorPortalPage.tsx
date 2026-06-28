@@ -56,14 +56,10 @@ export function DonorPortalPage() {
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     const paymentStatus = searchParams.get('payment');
-    
-    console.log('Payment params:', { sessionId, paymentStatus });
-    
+
     if (sessionId && paymentStatus === 'success') {
-      console.log('Checking payment status...');
       apiRequest(`/payments/check-payment-status/?session_id=${sessionId}`)
-        .then((data) => {
-          console.log('Payment check response:', data);
+        .then(() => {
           alert('Thank you for your donation! You should receive an email confirmation shortly.');
           window.history.replaceState({}, '', '/app/donor-portal');
         })
@@ -291,16 +287,6 @@ export function DonorPortalPage() {
     }
     }, [resolvedDonor]);
 
-  // Debug logging for stats
-  useEffect(() => {
-    console.log('🔢 Stats Update:', {
-      realDonations: realDonations.length,
-      projectDonations: realDonations.filter(d => d.project && d.project !== 'General Fund').length,
-      impactReports: impactReports.length,
-      donorProjects: fundedProjects.length
-    });
-  }, [realDonations, impactReports, fundedProjects]);
-
   // Download tax receipt
   const downloadReceipt = (donation: any) => {
     const html = `<!DOCTYPE html><html><head><title>Tax Receipt</title><style>body{font-family:Arial;max-width:800px;margin:40px auto;padding:20px}.header{text-align:center;border-bottom:2px solid #333;padding-bottom:20px;margin-bottom:30px}.amount{font-size:24px;color:#16a34a;font-weight:bold;margin:20px 0}.field{margin:15px 0}.label{font-weight:bold}</style></head><body><div class="header"><h1>Official Tax Receipt</h1><p>Rwanda Paediatric Association NGO</p></div><div class="field"><span class="label">Receipt Date:</span> ${new Date().toLocaleDateString()}</div><div class="field"><span class="label">Donation Date:</span> ${new Date(donation.date).toLocaleDateString()}</div><div class="field"><span class="label">Reference:</span> ${donation.reference}</div><div class="field"><span class="label">Project:</span> ${donation.project}</div><div class="amount">Amount: $${donation.amount}</div><p style="margin-top:30px;padding-top:20px;border-top:1px solid #ccc">This receipt is issued for tax purposes. Please retain for your records.</p></body></html>`;
@@ -334,7 +320,7 @@ export function DonorPortalPage() {
   }
 
   const lifetimeGiving = realDonations.reduce((sum, d) => sum + d.amount, 0) || donorTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const activeGrantCount = donationProjects.filter((name) => name !== 'General Fund').length;
+  const activeGrantCount = fundedProjects.length || donorProjects.length || donationProjects.filter((name) => name !== 'General Fund').length;
   const communicationChannels = Object.entries(
     (donorSummary?.channels ?? []).reduce<Record<string, number>>((counts, channel) => {
       counts[channel] = (counts[channel] ?? 0) + 1;
