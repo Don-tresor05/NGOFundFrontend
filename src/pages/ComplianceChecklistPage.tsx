@@ -1,207 +1,154 @@
-import { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Clock, AlertTriangle, Plus, Calendar, FileCheck } from 'lucide-react';
-import { Button } from '../components/Button';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Calendar, CheckCircle, Clock, FileCheck, Plus, XCircle } from 'lucide-react';
+import { AppHeader, Button } from '../components';
 import { StatCard } from '../components/StatCard';
 import { apiRequest } from '../lib/api';
 
 interface ComplianceItem {
   id: number;
   title: string;
-  description: string;
-  category: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE';
-  due_date: string;
-  assigned_to: string;
-  priority: 'HIGH' | 'MEDIUM' | 'LOW';
-  documents_required: number;
-  documents_submitted: number;
-  approval_status: string;
+  owner: string;
+  verified: boolean;
+  verified_by?: string | null;
+  verified_at?: string | null;
 }
 
 export default function ComplianceChecklistPage() {
   const [items, setItems] = useState<ComplianceItem[]>([]);
-  const [filteredItems, setFilteredItems] = useState<ComplianceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'VERIFIED' | 'UNVERIFIED'>('ALL');
+  const [ownerFilter, setOwnerFilter] = useState('ALL');
 
   useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const data = await apiRequest<any>('/compliance-items/');
+        setItems(Array.isArray(data) ? data : data.results || []);
+      } catch (error) {
+        console.error('Error fetching compliance items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchItems();
   }, []);
 
-  useEffect(() => {
-    filterItems();
-  }, [items, statusFilter, categoryFilter]);
+  const owners = useMemo(() => [...new Set(items.map((item) => item.owner))], [items]);
 
-  const fetchItems = async () => {
+  const filteredItems = useMemo(
+    () =>
+      items.filter((item) => {
+        const statusMatch =
+          statusFilter === 'ALL' || (statusFilter === 'VERIFIED' ? item.verified : !item.verified);
+        const ownerMatch = ownerFilter === 'ALL' || item.owner === ownerFilter;
+        return statusMatch && ownerMatch;
+      }),
+    [items, ownerFilter, statusFilter]
+  );
+
+  const stats = useMemo(
+    () => ({
+      total: items.length,
+      verified: items.filter((item) => item.verified).length,
+      pending: items.filter((item) => !item.verified).length,
+    }),
+    [items]
+  );
+
+  const toggleVerification = async (item: ComplianceItem, verified: boolean) => {
     try {
-      const data = await apiRequest('/compliance-items/');
-      const results = Array.isArray(data) ? data : data.results || [];
-      setItems(results);
+      await apiRequest(`/compliance-items/${item.id}/${verified ? 'verify' : 'unverify'}/`, {
+        method: 'POST',
+      });
+      setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, verified } : entry)));
     } catch (error) {
-      console.error('Error fetching compliance items:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error updating compliance item:', error);
     }
   };
-
-  const filterItems = () => {
-    let result = [...items];
-    if (statusFilter !== 'ALL') result = result.filter(i => i.status === statusFilter);
-    if (categoryFilter !== 'ALL') result = result.filter(i => i.category === categoryFilter);
-    setFilteredItems(result);
-  };
-
-  const updateStatus = async (id: number, status: string) => {
-    try {
-      await apiRequest(`/compliance-items/${id}/`, 'PATCH', { status });
-      fetchItems();
-    } catch (error) {
-      console.error('Error updating status:', error);
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'COMPLETED': return <CheckCircle className="text-green-500" size={20} />;
-      case 'IN_PROGRESS': return <Clock className="text-blue-500" size={20} />;
-      case 'OVERDUE': return <AlertTriangle className="text-red-500" size={20} />;
-      default: return <XCircle className="text-gray-400" size={20} />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800';
-      case 'OVERDUE': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'bg-red-100 text-red-800';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const stats = {
-    total: items.length,
-    completed: items.filter(i => i.status === 'COMPLETED').length,
-    inProgress: items.filter(i => i.status === 'IN_PROGRESS').length,
-    overdue: items.filter(i => i.status === 'OVERDUE').length
-  };
-
-  const categories = [...new Set(items.map(i => i.category))];
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return <div className="flex h-64 items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Compliance Checklist</h1>
-          <p className="text-gray-600 mt-1">Track requirements and deadlines</p>
+    <div className="page">
+      <AppHeader title="Compliance Checklist" summary="Track governance items and verification status." />
+
+      <div className="container">
+        <div className="mb-6 flex items-center justify-end">
+          <Button className="flex items-center gap-2">
+            <Plus size={18} /> Add Item
+          </Button>
         </div>
-        <Button className="flex items-center gap-2">
-          <Plus size={18} /> Add Item
-        </Button>
-      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <StatCard label="Total Items" value={String(stats.total)} trend="All compliance items" trendDirection="neutral" icon={FileCheck} />
-        <StatCard label="Completed" value={String(stats.completed)} trend="Completed items" trendDirection="up" icon={CheckCircle} />
-        <StatCard label="In Progress" value={String(stats.inProgress)} trend="Currently working" trendDirection="neutral" icon={Clock} />
-        <StatCard label="Overdue" value={String(stats.overdue)} trend="Past deadline" trendDirection="down" icon={AlertTriangle} />
-      </div>
+        <div className="grid gap-6 md:grid-cols-3 mb-6">
+          <StatCard label="Total Items" value={String(stats.total)} trend="Compliance scope" trendDirection="neutral" icon={FileCheck} />
+          <StatCard label="Verified" value={String(stats.verified)} trend="Verified items" trendDirection="up" icon={CheckCircle} />
+          <StatCard label="Pending" value={String(stats.pending)} trend="Awaiting review" trendDirection="down" icon={Clock} />
+        </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option key="ALL" value="ALL">All Status</option>
-            <option key="PENDING" value="PENDING">Pending</option>
-            <option key="IN_PROGRESS" value="IN_PROGRESS">In Progress</option>
-            <option key="COMPLETED" value="COMPLETED">Completed</option>
-            <option key="OVERDUE" value="OVERDUE">Overdue</option>
-          </select>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-4 py-2 border rounded-lg">
-            <option value="ALL">All Categories</option>
-            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
-          <div className="text-sm text-gray-600 flex items-center">
-            {filteredItems.length} items shown
+        <div className="mb-6 rounded-lg bg-white p-4 shadow-sm">
+          <div className="grid gap-4 md:grid-cols-3">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'VERIFIED' | 'UNVERIFIED')} className="rounded-lg border px-4 py-2">
+              <option value="ALL">All Status</option>
+              <option value="VERIFIED">Verified</option>
+              <option value="UNVERIFIED">Unverified</option>
+            </select>
+            <select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)} className="rounded-lg border px-4 py-2">
+              <option value="ALL">All Owners</option>
+              {owners.map((owner) => (
+                <option key={owner} value={owner}>
+                  {owner}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center text-sm text-slate-600">{filteredItems.length} items shown</div>
           </div>
         </div>
-      </div>
 
-      {/* Checklist Items */}
-      <div className="space-y-4">
-        {filteredItems.map((item) => (
-          <div key={item.id} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4 flex-1">
-                <div className="mt-1">{getStatusIcon(item.status)}</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold">{item.title}</h3>
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(item.priority)}`}>
-                      {item.priority}
-                    </span>
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                      {item.status ? item.status.replace('_', ' ') : 'PENDING'}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-3">{item.description}</p>
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={14} />
-                      <span>Due: {new Date(item.due_date).toLocaleDateString()}</span>
+        <div className="space-y-4">
+          {filteredItems.map((item) => (
+            <div key={item.id} className="rounded-lg bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="mt-1">{item.verified ? <CheckCircle className="text-green-500" size={20} /> : <XCircle className="text-gray-400" size={20} />}</div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="text-lg font-semibold">{item.title}</h3>
+                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${item.verified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {item.verified ? 'Verified' : 'Pending'}
+                      </span>
                     </div>
-                    <div>Category: {item.category}</div>
-                    <div>Assigned: {item.assigned_to || 'Unassigned'}</div>
-                    <div>Docs: {item.documents_submitted || 0}/{item.documents_required || 0}</div>
-                    <div>Approval: {item.approval_status || 'Pending'}</div>
+                    <p className="mt-2 text-sm text-slate-600">Owner: {item.owner}</p>
+                    <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-500">
+                      <div className="flex items-center gap-1">
+                        <Calendar size={14} />
+                        <span>{item.verified_at ? `Verified: ${new Date(item.verified_at).toLocaleDateString()}` : 'Verification pending'}</span>
+                      </div>
+                      <div>Verified by: {item.verified_by || 'Unassigned'}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                {item.status !== 'COMPLETED' && (
-                  <select
-                    value={item.status}
-                    onChange={(e) => updateStatus(item.id, e.target.value)}
-                    className="px-3 py-1 border rounded-lg text-sm"
-                  >
-                    <option value="PENDING">Pending</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="COMPLETED">Completed</option>
-                    <option value="OVERDUE">Overdue</option>
-                  </select>
-                )}
+                <select
+                  value={item.verified ? 'VERIFIED' : 'UNVERIFIED'}
+                  onChange={(e) => toggleVerification(item, e.target.value === 'VERIFIED')}
+                  className="rounded-lg border px-3 py-1 text-sm"
+                >
+                  <option value="UNVERIFIED">Unverified</option>
+                  <option value="VERIFIED">Verified</option>
+                </select>
               </div>
             </div>
-            {/* Progress bar for documents */}
-            {item.documents_required > 0 && (
-              <div className="mt-4">
-                <div className="flex justify-between text-xs text-gray-600 mb-1">
-                  <span>Document Submission</span>
-                  <span>{Math.round((item.documents_submitted / item.documents_required) * 100)}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-full rounded-full transition-all"
-                    style={{ width: `${Math.min((item.documents_submitted / item.documents_required) * 100, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
+          ))}
+        </div>
+
+        {!filteredItems.length ? (
+          <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-8 text-center text-slate-600">
+            <AlertTriangle className="mx-auto mb-2 text-slate-400" size={36} />
+            No compliance items match the current filters.
           </div>
-        ))}
+        ) : null}
       </div>
     </div>
   );
