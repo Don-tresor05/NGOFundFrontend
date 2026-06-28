@@ -22,7 +22,6 @@ export function TestDonationPage() {
   const handleDonate = async () => {
     setLoading(true);
     try {
-      console.log('Sending payment request...');
       const response = await apiRequest<{ checkout_url: string; session_id: string }>('/payments/create-checkout-session/', {
         method: 'POST',
         body: JSON.stringify({
@@ -31,25 +30,14 @@ export function TestDonationPage() {
           donation_type: 'one-time'
         })
       });
-      
-      console.log('=== FULL RESPONSE ===');
-      console.log('Type:', typeof response);
-      console.log('Response:', response);
-      console.log('checkout_url:', response?.checkout_url);
-      console.log('Keys:', Object.keys(response || {}));
-      console.log('===================');
-      
       if (!response || !response.checkout_url) {
-        console.error('ERROR: No checkout URL in response!');
         alert('Error: No checkout URL in response. Check console.');
         setLoading(false);
         return;
       }
-      
-      console.log('Redirecting to:', response.checkout_url);
+
       window.location.href = response.checkout_url;
     } catch (error: any) {
-      console.error('Donation error:', error);
       alert('Failed: ' + (error?.message || 'Unknown error'));
       setLoading(false);
     }
