@@ -36,10 +36,9 @@ export default function ExceptionReportPage() {
 
   const fetchExceptions = async () => {
     try {
-      // Fetch transactions and analyze for exceptions
       const [transactions, budgetLines] = await Promise.all([
-        apiRequest('/transactions/'),
-        apiRequest('/budget-lines/')
+        apiRequest<any>('/transactions/'),
+        apiRequest<any>('/budget-lines/')
       ]);
 
       const transData = Array.isArray(transactions) ? transactions : transactions.results || [];
@@ -87,22 +86,6 @@ export default function ExceptionReportPage() {
           });
         }
       });
-
-      // Add mock flagged activities
-      if (exceptionList.length === 0) {
-        exceptionList.push({
-          id: 'mock-1',
-          type: 'FLAGGED_ACTIVITY',
-          severity: 'LOW',
-          title: 'Multiple login attempts',
-          description: 'User attempted login 5 times in 10 minutes',
-          entity_type: 'USER',
-          entity_id: 1,
-          timestamp: new Date().toISOString(),
-          status: 'INVESTIGATING',
-          assigned_to: 'Security Team'
-        });
-      }
 
       setExceptions(exceptionList);
     } catch (error) {
@@ -163,11 +146,12 @@ export default function ExceptionReportPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Exception Reports</h1>
-        <p className="text-gray-600 mt-1">Track violations and unusual activity</p>
-      </div>
+    <div className="page">
+      <div className="container">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Exception Reports</h1>
+          <p className="text-gray-600 mt-1">Track violations and unusual activity</p>
+        </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -209,7 +193,7 @@ export default function ExceptionReportPage() {
         {filteredExceptions.length === 0 ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
             <TrendingUp className="mx-auto text-green-500 mb-2" size={48} />
-            <p className="text-green-800 font-medium">No exceptions found - All systems normal!</p>
+            <p className="text-green-800 font-medium">No exceptions found</p>
           </div>
         ) : (
           filteredExceptions.map((exception) => (
@@ -317,6 +301,7 @@ export default function ExceptionReportPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
