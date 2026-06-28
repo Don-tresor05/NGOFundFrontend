@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, RefreshCcw } from 'lucide-react';
 import { AppHeader, Button } from '../components';
+import { AreaMetricChart, PieMetricChart } from '../components/charts';
 import { apiRequest } from '../lib/api';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -104,6 +105,33 @@ export function FinanceDashboardPage() {
   }, []);
 
   const pendingApprovals = (summary?.totals.pending_requisitions ?? 0) + (summary?.totals.pending_expense_approvals ?? 0);
+  const fundingRhythm = useMemo(
+    () =>
+      Array.from({ length: 5 }, (_, index) => {
+        const monthDate = new Date();
+        monthDate.setMonth(monthDate.getMonth() - (4 - index));
+        const label = monthDate.toLocaleString('en-US', { month: 'short' });
+        const value = (summary?.recent_transactions ?? [])
+          .filter((transaction) => {
+            const date = new Date(`${transaction.transaction_date}T00:00:00`);
+            return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
+          })
+          .reduce((sum, transaction) => sum + asNumber(transaction.amount), 0);
+        return { label, value: Math.round(value / 1000) };
+      }),
+    [summary]
+  );
+
+  const workflowDistribution = useMemo(
+    () => [
+      { label: 'Approvals', value: pendingApprovals },
+      { label: 'Monitoring', value: (summary?.totals.unmatched_statement_lines ?? 0) + (summary?.budget_alerts.length ?? 0) },
+      { label: 'Reporting', value: (summary?.recent_transactions.length ?? 0) + (summary?.upcoming_payments.length ?? 0) },
+      { label: 'Controls', value: (summary?.bank_accounts.length ?? 0) + (summary?.vendors.length ?? 0) },
+    ],
+    [pendingApprovals, summary]
+  );
+
   const topProjects = useMemo(() => [...(summary?.project_budgets ?? [])].sort((a, b) => b.utilization - a.utilization).slice(0, 10), [summary]);
 
   return (
@@ -197,7 +225,7 @@ export function FinanceDashboardPage() {
               </Link>
               <Link to="/app/finance/controls" className="flex items-center justify-between rounded border border-slate-200 p-3 hover:bg-slate-50">
                 <span>Controls and close</span>
-                <strong>Open</strong>
+                <strong>{(summary?.totals.reconciliation_exceptions ?? 0) > 0 ? 'Attention' : 'Ready'}</strong>
               </Link>
               {(summary?.totals.reconciliation_exceptions ?? 0) > 0 ? (
                 <div className="flex items-start gap-3 rounded border border-red-200 bg-red-50 p-3 text-red-700">
@@ -250,6 +278,9 @@ export function FinanceDashboardPage() {
               <Link to="/app/finance/reconciliation" className="btn btn-outline w-full">
                 Open reconciliation
               </Link>
+              <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                {summary?.totals.unmatched_statement_lines ?? 0} unmatched lines and {(summary?.totals.reconciliation_exceptions ?? 0)} exceptions are pending review.
+              </div>
             </div>
           </div>
         </div>
@@ -293,6 +324,17 @@ export function FinanceDashboardPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+          <AreaMetricChart title="Funding Rhythm" data={fundingRhythm} />
+          <PieMetricChart
+            title="Workflow Distribution"
+            data={workflowDistribution.map((item, index) => ({
+              ...item,
+              color: ['#1f6f78', '#f59e0b', '#4caf50', '#ef4444'][index],
+            }))}
+          />
         </div>
       </div>
     </div>
