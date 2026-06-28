@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Search, Filter, Download, Calendar, User, Activity } from 'lucide-react';
+import { Search, Download, User, Activity } from 'lucide-react';
+import { AppHeader } from '../components';
 import { Button } from '../components/Button';
 import { apiRequest } from '../lib/api';
 
 interface AuditLog {
   id: number;
   user: number;
-  user_name: string;
-  user_email: string;
+  user_name?: string;
+  user_email?: string;
   action_type: string;
   target_entity_type: string;
   target_entity_id: number;
   timestamp: string;
-  ip_address: string;
-  details: string;
+  ip_address?: string | null;
+  details?: string;
 }
 
 export default function AuditTrailExplorerPage() {
@@ -37,7 +38,7 @@ export default function AuditTrailExplorerPage() {
 
   const fetchLogs = async () => {
     try {
-      const data = await apiRequest('/audit-logs/');
+      const data = await apiRequest<any>('/audit-logs/');
       setLogs(Array.isArray(data) ? data : data.results || []);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
@@ -51,10 +52,10 @@ export default function AuditTrailExplorerPage() {
 
     if (searchQuery) {
       result = result.filter(log =>
-        log.user_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.user_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (log.user_name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (log.user_email ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         log.action_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.details.toLowerCase().includes(searchQuery.toLowerCase())
+        (log.details ?? '').toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -83,13 +84,13 @@ export default function AuditTrailExplorerPage() {
       headers.join(','),
       ...filteredLogs.map(log => [
         log.timestamp,
-        log.user_name,
-        log.user_email,
+        log.user_name ?? `User ${log.user}`,
+        log.user_email ?? '',
         log.action_type,
         log.target_entity_type,
         log.target_entity_id,
-        log.ip_address,
-        `"${log.details.replace(/"/g, '""')}"`
+        log.ip_address ?? '',
+        `"${(log.details ?? '').replace(/"/g, '""')}"`
       ].join(','))
     ].join('\n');
 
@@ -117,16 +118,15 @@ export default function AuditTrailExplorerPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Audit Trail Explorer</h1>
-          <p className="text-gray-600 mt-1">Track and monitor all system activities</p>
+    <div className="page">
+      <AppHeader title="Audit Trail Explorer" summary="Track and monitor all system activities." />
+
+      <div className="container">
+        <div className="mb-6 flex justify-end">
+          <Button onClick={exportToCSV} className="flex items-center gap-2">
+            <Download size={18} /> Export CSV
+          </Button>
         </div>
-        <Button onClick={exportToCSV} className="flex items-center gap-2">
-          <Download size={18} /> Export CSV
-        </Button>
-      </div>
 
       {/* Advanced Filters */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
@@ -220,8 +220,8 @@ export default function AuditTrailExplorerPage() {
                     <div className="flex items-center gap-2">
                       <User size={16} className="text-gray-400" />
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{log.user_name}</div>
-                        <div className="text-xs text-gray-500">{log.user_email}</div>
+                        <div className="text-sm font-medium text-gray-900">{log.user_name || `User ${log.user}`}</div>
+                        <div className="text-xs text-gray-500">{log.user_email || 'No email available'}</div>
                       </div>
                     </div>
                   </td>
@@ -238,7 +238,7 @@ export default function AuditTrailExplorerPage() {
                     {log.ip_address || 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                    {log.details}
+                    {log.details || 'No details available'}
                   </td>
                 </tr>
               ))}
@@ -263,7 +263,7 @@ export default function AuditTrailExplorerPage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">User</label>
-                <p className="text-gray-900">{selectedLog.user_name} ({selectedLog.user_email})</p>
+                <p className="text-gray-900">{selectedLog.user_name || `User ${selectedLog.user}`} ({selectedLog.user_email || 'No email available'})</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Action</label>
@@ -280,7 +280,7 @@ export default function AuditTrailExplorerPage() {
               <div>
                 <label className="text-sm font-medium text-gray-500">Details</label>
                 <pre className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap">
-                  {selectedLog.details}
+                  {selectedLog.details || 'No details available'}
                 </pre>
               </div>
             </div>
@@ -291,6 +291,7 @@ export default function AuditTrailExplorerPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
