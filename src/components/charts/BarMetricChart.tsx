@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { HighlightedText } from '../HighlightedText';
 
 interface BarMetricChartProps {
@@ -12,16 +12,14 @@ export function BarMetricChart({ title, data }: BarMetricChartProps) {
       <h3 className="text-lg font-bold text-slate-900">
         <HighlightedText text={title} />
       </h3>
-      <div className="mt-6 h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
-            <CartesianGrid stroke="#ece8da" vertical={false} />
-            <XAxis dataKey="label" axisLine={false} tickLine={false} />
-            <YAxis axisLine={false} tickLine={false} />
-            <Tooltip />
-            <Bar dataKey="value" fill="#1f6f78" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="mt-6 overflow-x-auto">
+        <BarChart width={640} height={288} data={data}>
+          <CartesianGrid stroke="#ece8da" vertical={false} />
+          <XAxis dataKey="label" axisLine={false} tickLine={false} />
+          <YAxis axisLine={false} tickLine={false} />
+          <Tooltip />
+          <Bar dataKey="value" fill="#1f6f78" radius={[8, 8, 0, 0]} />
+        </BarChart>
       </div>
     </div>
   );
