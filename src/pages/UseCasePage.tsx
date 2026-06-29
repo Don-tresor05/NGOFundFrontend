@@ -1381,8 +1381,8 @@ export function UseCasePage() {
                         onChange={(event) => setReconciliationForm((state) => ({ ...state, transaction: event.target.value }))}
                       >
                         <option value="">Select transaction</option>
-                        {transactions.map((transaction) => (
-                          <option key={transaction.transaction_id} value={transaction.transaction_id}>
+                        {transactions.map((transaction, index) => (
+                          <option key={transaction.transaction_id ?? `transaction-${index}`} value={transaction.transaction_id}>
                             {transaction.bank_reference_number} - {currency.format(transaction.amount)}
                           </option>
                         ))}
@@ -1396,8 +1396,8 @@ export function UseCasePage() {
                         onChange={(event) => setReconciliationForm((state) => ({ ...state, bankStatementLine: event.target.value }))}
                       >
                         <option value="">Select line</option>
-                        {bankStatementLines.map((line) => (
-                          <option key={line.id} value={line.id}>
+                        {bankStatementLines.map((line, index) => (
+                          <option key={line.id ?? `statement-line-${index}`} value={line.id}>
                             {line.reference_number || line.description} - {currency.format(line.amount)}
                           </option>
                         ))}
