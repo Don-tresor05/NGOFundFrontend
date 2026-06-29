@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { apiList, apiRequest } from '../lib/api';
+import { apiList } from '../lib/api';
+import { useAuthStore } from '../store/authStore';
 import type { 
   Donor, 
   Grant, 
@@ -12,6 +13,13 @@ import type {
   BankAccount,
   AuditLog
 } from '../types';
+
+const useCurrentActor = () => useAuthStore((state) => state.currentProfile?.actor);
+
+const canAccessAdminData = (actor?: string | null) => actor === 'super_administrator';
+const canAccessComplianceData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'finance_officer';
+const canAccessTestingData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'project_manager';
+const canAccessOperationalData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'project_manager' || actor === 'field_staff' || actor === 'finance_officer';
 
 export function useDonors() {
   const [donors, setDonors] = useState<Donor[]>([]);
@@ -104,16 +112,22 @@ export function useBudgetLines() {
 }
 
 export function useUsers() {
+  const actor = useCurrentActor();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!canAccessAdminData(actor)) {
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
     apiList<User>('/users/')
       .then(data => setUsers(data))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
 
   return { users, loading, error, refresh: () => setLoading(true) };
 }
@@ -221,15 +235,21 @@ export function useBankStatementLines() {
 }
 
 export function useComplianceItems() {
+  const actor = useCurrentActor();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    if (!canAccessComplianceData(actor)) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
     apiList('/compliance-items/')
       .then(data => setItems(data))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
   
   return { items, loading };
 }
@@ -249,85 +269,121 @@ export function useDocuments() {
 }
 
 export function useStaffRequirements() {
+  const actor = useCurrentActor();
   const [requirements, setRequirements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    if (!canAccessTestingData(actor)) {
+      setRequirements([]);
+      setLoading(false);
+      return;
+    }
     apiList('/staff-requirements/')
       .then(data => setRequirements(data))
       .catch(() => setRequirements([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
   
   return { requirements, loading };
 }
 
 export function useTestCases() {
+  const actor = useCurrentActor();
   const [testCases, setTestCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    if (!canAccessTestingData(actor)) {
+      setTestCases([]);
+      setLoading(false);
+      return;
+    }
     apiList('/test-cases/')
       .then(data => setTestCases(data))
       .catch(() => setTestCases([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
   
   return { testCases, loading };
 }
 
 export function useRolePermissions() {
+  const actor = useCurrentActor();
   const [rolePermissions, setRolePermissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    if (!canAccessAdminData(actor)) {
+      setRolePermissions([]);
+      setLoading(false);
+      return;
+    }
     apiList('/role-permissions/')
       .then(data => setRolePermissions(data))
       .catch(() => setRolePermissions([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
   
   return { rolePermissions, loading };
 }
 
 export function useBugReports() {
+  const actor = useCurrentActor();
   const [bugReports, setBugReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    if (!canAccessTestingData(actor)) {
+      setBugReports([]);
+      setLoading(false);
+      return;
+    }
     apiList('/bug-reports/')
       .then(data => setBugReports(data))
       .catch(() => setBugReports([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
   
   return { bugReports, loading };
 }
 
 export function useUATFeedback() {
+  const actor = useCurrentActor();
   const [uatFeedback, setUATFeedback] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    if (!canAccessTestingData(actor)) {
+      setUATFeedback([]);
+      setLoading(false);
+      return;
+    }
     apiList('/uat-feedback/')
       .then(data => setUATFeedback(data))
       .catch(() => setUATFeedback([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
   
   return { uatFeedback, loading };
 }
 
 export function useReleaseNotes() {
+  const actor = useCurrentActor();
   const [releaseNotes, setReleaseNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    if (!canAccessTestingData(actor)) {
+      setReleaseNotes([]);
+      setLoading(false);
+      return;
+    }
     apiList('/release-notes/')
       .then(data => setReleaseNotes(data))
       .catch(() => setReleaseNotes([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
   
   return { releaseNotes, loading };
 }
@@ -375,17 +431,21 @@ export function useNotifications() {
 }
 
 export function useProcessDocuments() {
+  const actor = useCurrentActor();
   const [processDocuments, setProcessDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    if (!canAccessOperationalData(actor)) {
+      setProcessDocuments([]);
+      setLoading(false);
+      return;
+    }
     apiList('/process-documents/')
       .then(data => setProcessDocuments(data))
       .catch(() => setProcessDocuments([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [actor]);
   
   return { processDocuments, loading };
 }
-
-
