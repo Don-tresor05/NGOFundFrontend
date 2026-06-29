@@ -17,9 +17,9 @@ import type {
 const useCurrentActor = () => useAuthStore((state) => state.currentProfile?.actor);
 
 const canAccessAdminData = (actor?: string | null) => actor === 'super_administrator';
-const canAccessComplianceData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'finance_officer';
+const canAccessComplianceData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director';
 const canAccessTestingData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'project_manager';
-const canAccessOperationalData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'project_manager' || actor === 'field_staff' || actor === 'finance_officer';
+const canAccessOperationalData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'project_manager' || actor === 'field_staff';
 
 export function useDonors() {
   const [donors, setDonors] = useState<Donor[]>([]);
