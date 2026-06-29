@@ -82,6 +82,18 @@ const resetApplicationData = () => {
   useAppDataStore.getState().resetData();
 };
 
+const isJwtExpired = (token: string) => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { exp?: number };
+    if (!payload.exp) {
+      return false;
+    }
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return false;
+  }
+};
+
 const toProfileFromUser = (user: ApiUser): Profile => {
   const actor = roleToActor[user.role];
   const actorDefinition = ACTORS.find((entry) => entry.id === actor);
@@ -204,7 +216,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   hydrateProfile: async () => {
-    if (!tokenStorage.access) {
+    const accessToken = tokenStorage.access;
+    if (!accessToken || isJwtExpired(accessToken)) {
+      tokenStorage.clear();
       resetApplicationData();
       set({ isAuthenticated: false, currentProfile: null, authReady: true });
       return;
