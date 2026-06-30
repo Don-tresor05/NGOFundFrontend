@@ -41,6 +41,7 @@ import {
   Actor,
   BugReport,
   DashboardStat,
+  Report,
   ReportSchedule,
   Role,
   UseCaseId,
@@ -89,6 +90,70 @@ const generateTemporaryPassword = () => {
 };
 
 const percentage = (value: number, total: number) => (total === 0 ? 0 : Math.round((value / total) * 100));
+
+const numberValue = (value: string | number | null | undefined) => Number(value ?? 0);
+
+const sumSnapshotAmounts = (
+  rows: Array<Record<string, string | number | null | undefined>> | undefined,
+  key: string
+) => (rows ?? []).reduce((total, row) => total + numberValue(row[key]), 0);
+
+const buildReportExportRows = (
+  reports: Report[],
+  grantTitle: (id: number) => string,
+  userName: (id: number) => string
+) =>
+  reports.map((report) => {
+    const snapshot = report.custom_fields?.snapshot;
+    const budgetLines = snapshot?.budget_lines ?? [];
+    const transactions = snapshot?.transactions ?? [];
+    const reconciliations = snapshot?.reconciliations ?? [];
+    const bankStatementLines = snapshot?.bank_statement_lines ?? [];
+    const matchedReconciliations = reconciliations.filter((entry) => entry.status === 'matched' || entry.status === 'reconciled').length;
+    const financialSummary = snapshot?.financial_summary;
+    const donorFunding = snapshot?.donor_funding;
+    const projectUtilization = snapshot?.project_utilization;
+    const reconciliationReport = snapshot?.reconciliation_report;
+    const auditComplianceReport = snapshot?.audit_compliance_report;
+
+    return {
+      report_id: report.report_id,
+      report_type: report.report_type,
+      grant: snapshot?.grant?.grant_title ?? grantTitle(report.grant_id),
+      generated_by: userName(report.generated_by_user_id),
+      format: report.format,
+      created_at: report.created_at,
+      donor: donorFunding?.donor_name ?? snapshot?.donor?.organization_name ?? '',
+      donor_email: donorFunding?.contact_email ?? snapshot?.donor?.contact_email ?? '',
+      financial_total_grant_amount: financialSummary?.total_grant_amount ?? snapshot?.grant?.total_amount ?? '',
+      financial_allocated_budget: financialSummary?.allocated_budget ?? sumSnapshotAmounts(budgetLines, 'allocated_amount'),
+      financial_spent_amount: financialSummary?.spent_amount ?? sumSnapshotAmounts(budgetLines, 'spent_amount'),
+      financial_remaining_balance: financialSummary?.remaining_balance ?? sumSnapshotAmounts(budgetLines, 'remaining_amount'),
+      financial_budget_variance: financialSummary?.budget_variance ?? sumSnapshotAmounts(budgetLines, 'remaining_amount'),
+      financial_burn_rate: financialSummary?.monthly_burn_rate ?? '',
+      donor_contributions_received: donorFunding?.contributions_received ?? sumSnapshotAmounts(transactions, 'amount'),
+      donor_projects_supported: donorFunding?.projects_supported ?? snapshot?.projects?.length ?? 0,
+      donor_receipts_generated: donorFunding?.receipts_generated ?? transactions.length,
+      donor_impact_reports_delivered: donorFunding?.impact_reports_delivered ?? 0,
+      project_count: projectUtilization?.project_count ?? snapshot?.projects?.length ?? 0,
+      project_budget_lines: projectUtilization?.budget_line_count ?? budgetLines.length,
+      project_actual_spending: projectUtilization?.actual_spending ?? sumSnapshotAmounts(budgetLines, 'spent_amount'),
+      project_remaining_funds: projectUtilization?.remaining_funds ?? sumSnapshotAmounts(budgetLines, 'remaining_amount'),
+      project_overrun_lines: projectUtilization?.overrun_lines ?? 0,
+      project_underspent_lines: projectUtilization?.underspent_lines ?? 0,
+      reconciliation_ledger_transactions: reconciliationReport?.ledger_transactions ?? transactions.length,
+      reconciliation_imported_bank_lines: reconciliationReport?.imported_bank_lines ?? bankStatementLines.length,
+      reconciliation_matched_items: reconciliationReport?.matched_items ?? matchedReconciliations,
+      reconciliation_unmatched_items: reconciliationReport?.unmatched_items ?? bankStatementLines.filter((line) => !line.matched).length,
+      reconciliation_exceptions: reconciliationReport?.exceptions ?? reconciliations.filter((entry) => entry.status === 'exception').length,
+      audit_trail_references: auditComplianceReport?.audit_trail_references ?? snapshot?.audit_references?.length ?? 0,
+      audit_missing_receipts: auditComplianceReport?.missing_receipts ?? 0,
+      audit_pending_approvals: auditComplianceReport?.pending_approvals ?? 0,
+      audit_policy_exceptions: auditComplianceReport?.policy_exceptions ?? 0,
+      compliance_checklist_status: auditComplianceReport?.compliance_checklist_status ?? 'unknown',
+      snapshot_status: snapshot ? 'captured' : 'missing',
+    };
+  });
 
 const REPORT_SECTION_OPTIONS = [
   { key: 'financial-summary', label: 'Financial Summary' },
@@ -1914,12 +1979,7 @@ export function UseCasePage() {
                     onClick={() =>
                       exportCsv(
                         'generated-reports.csv',
-                        reports.map((report) => ({
-                          report_type: report.report_type,
-                          grant: grantTitle(report.grant_id),
-                          format: report.format,
-                          created_at: report.created_at,
-                        }))
+                        buildReportExportRows(reports, grantTitle, userName)
                       )
                     }
                   >
