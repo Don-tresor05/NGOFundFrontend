@@ -255,7 +255,7 @@ export function BankReconciliationPage() {
               Auto-match
             </Button>
           </div>
-          <Button variant="outline" icon={RefreshCcw} onClick={loadData} disabled={loading}>
+          <Button variant="outline" icon={RefreshCcw} onClick={() => loadData()} disabled={loading}>
             Refresh
           </Button>
         </div>
