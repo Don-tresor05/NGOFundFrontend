@@ -21,14 +21,64 @@ const canAccessComplianceData = (actor?: string | null) => actor === 'super_admi
 const canAccessTestingData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'project_manager';
 const canAccessOperationalData = (actor?: string | null) => actor === 'super_administrator' || actor === 'external_auditor' || actor === 'executive_director' || actor === 'project_manager' || actor === 'field_staff';
 
+const toNumber = (value: unknown) => Number(value ?? 0);
+
+const mapDonor = (donor: any): Donor => ({ ...donor, donor_id: donor.donor_id ?? donor.id });
+const mapGrant = (grant: any): Grant => ({
+  ...grant,
+  grant_id: grant.grant_id ?? grant.id,
+  donor_id: grant.donor_id ?? grant.donor,
+  total_amount: toNumber(grant.total_amount),
+});
+const mapProject = (project: any): Project => ({
+  ...project,
+  project_id: project.project_id ?? project.id,
+  grant_id: project.grant_id ?? project.grant,
+});
+const mapBudgetLine = (line: any): BudgetLine => ({
+  ...line,
+  budget_line_id: line.budget_line_id ?? line.id,
+  grant_id: line.grant_id ?? line.grant,
+  allocated_amount: toNumber(line.allocated_amount),
+  spent_amount: toNumber(line.spent_amount),
+});
+const mapRequisition = (requisition: any): Requisition => ({
+  ...requisition,
+  requisition_id: requisition.requisition_id ?? requisition.id,
+  submitted_by_user_id: requisition.submitted_by_user_id ?? requisition.submitted_by,
+  budget_line_id: requisition.budget_line_id ?? requisition.budget_line,
+  amount: toNumber(requisition.amount),
+  receipt_document_url: requisition.receipt_document_url ?? requisition.receipt_document ?? '',
+});
+const mapTransaction = (transaction: any): Transaction => ({
+  ...transaction,
+  transaction_id: transaction.transaction_id ?? transaction.id,
+  requisition_id: transaction.requisition_id ?? transaction.requisition,
+  budget_line_id: transaction.budget_line_id ?? transaction.budget_line,
+  processed_by_user_id: transaction.processed_by_user_id ?? transaction.processed_by,
+  amount: toNumber(transaction.amount),
+});
+const mapReport = (report: any): Report => ({
+  ...report,
+  report_id: report.report_id ?? report.id,
+  grant_id: report.grant_id ?? report.grant,
+  generated_by_user_id: report.generated_by_user_id ?? report.generated_by,
+  file_url: report.file_url ?? report.file ?? null,
+});
+const mapAuditLog = (log: any): AuditLog => ({
+  ...log,
+  log_id: log.log_id ?? log.id,
+  user_id: log.user_id ?? log.user,
+});
+
 export function useDonors() {
   const [donors, setDonors] = useState<Donor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiList<Donor>('/donors/')
-      .then(data => setDonors(data))
+    apiList<any>('/donors/')
+      .then(data => setDonors(data.map(mapDonor)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -42,8 +92,8 @@ export function useGrants() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiList<Grant>('/grants/')
-      .then(data => setGrants(data))
+    apiList<any>('/grants/')
+      .then(data => setGrants(data.map(mapGrant)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -57,8 +107,8 @@ export function useProjects() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiList<Project>('/projects/')
-      .then(data => setProjects(data))
+    apiList<any>('/projects/')
+      .then(data => setProjects(data.map(mapProject)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -72,8 +122,8 @@ export function useTransactions() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiList<Transaction>('/transactions/')
-      .then(data => setTransactions(data))
+    apiList<any>('/transactions/')
+      .then(data => setTransactions(data.map(mapTransaction)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -87,8 +137,8 @@ export function useRequisitions() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiList<Requisition>('/requisitions/')
-      .then(data => setRequisitions(data))
+    apiList<any>('/requisitions/')
+      .then(data => setRequisitions(data.map(mapRequisition)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -102,8 +152,8 @@ export function useBudgetLines() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiList<BudgetLine>('/budget-lines/')
-      .then(data => setBudgetLines(data))
+    apiList<any>('/budget-lines/')
+      .then(data => setBudgetLines(data.map(mapBudgetLine)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -138,8 +188,8 @@ export function useReports() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiList<Report>('/reports/')
-      .then(data => setReports(data))
+    apiList<any>('/reports/')
+      .then(data => setReports(data.map(mapReport)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -168,8 +218,8 @@ export function useAuditLogs() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiList<AuditLog>('/audit-logs/')
-      .then(data => setAuditLogs(data))
+    apiList<any>('/audit-logs/')
+      .then(data => setAuditLogs(data.map(mapAuditLog)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
