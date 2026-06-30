@@ -820,8 +820,8 @@ export function UseCasePage() {
                   await apiRequest('/transactions/', {
                     method: 'POST',
                     body: JSON.stringify({
-                      requisition: requisitions[0]?.requisition_id || 1,
-                      budget_line: Number(formData.get('project')),
+                      budget_line: Number(formData.get('budget_line')),
+                      bank_account: Number(formData.get('bank_account')) || null,
                       amount: formData.get('amount'),
                       transaction_date: formData.get('transaction_date'),
                       bank_reference_number: formData.get('bank_reference'),
@@ -847,11 +847,24 @@ export function UseCasePage() {
                 </select>
               </label>
               <label className="form-group">
-                <span className="form-label">Project</span>
-                <select name="project" className="form-control" required>
-                  <option value="">Select project</option>
-                  {projects.map((project) => (
-                    <option key={project.project_id} value={project.project_id}>{project.name}</option>
+                <span className="form-label">Budget Line</span>
+                <select name="budget_line" className="form-control" required>
+                  <option value="">Select budget line</option>
+                  {budgetLines.map((line) => (
+                    <option key={line.budget_line_id} value={line.budget_line_id}>
+                      {line.line_name} ({line.allocated_amount.toLocaleString()} RWF allocated)
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="form-group">
+                <span className="form-label">Bank Account</span>
+                <select name="bank_account" className="form-control" required>
+                  <option value="">Select bank account</option>
+                  {bankAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.account_name} ({account.bank_name})
+                    </option>
                   ))}
                 </select>
               </label>
@@ -1562,10 +1575,15 @@ export function UseCasePage() {
               <DataEntryForm
                 title="Generate a finance report"
                 description="Produce reporting output for a selected period."
-                onSubmit={(event) => {
+                onSubmit={async (event) => {
                   event.preventDefault();
+                  if (!firstGrant) {
+                    alert('Create or select a grant before generating a report.');
+                    return;
+                  }
                   const reportTitle = reportBuilderForm.title || reportForm.name || reportForm.period || 'Financial Report';
-                  store.generateReport(reportTitle, firstGrant.grant_id, currentUserId, 'PDF');
+                  await store.generateReport(reportTitle, firstGrant.grant_id, currentUserId, 'PDF');
+                  await store.fetchAll(currentProfile.actor);
                   setReportForm({ name: '', period: '' });
                 }}
                 actions={<Button type="submit">Generate Financial Reports</Button>}
@@ -1583,9 +1601,9 @@ export function UseCasePage() {
               <DataEntryForm
                 title="Schedule report delivery"
                 description="Set cadence, destination, and delivery path for repeating reports."
-                onSubmit={(event) => {
+                onSubmit={async (event) => {
                   event.preventDefault();
-                  apiHelpers.createReportSchedule({
+                  await store.createReportSchedule({
                     report_type: scheduleForm.reportType,
                     grant: firstGrant?.grant_id ?? null,
                     frequency: scheduleForm.frequency as ReportSchedule['frequency'],
@@ -1593,6 +1611,7 @@ export function UseCasePage() {
                     recipient_emails: scheduleForm.recipients,
                     next_run_at: scheduleForm.nextRunAt || null,
                   });
+                  await store.fetchAll(currentProfile.actor);
                   setScheduleForm({ reportType: '', frequency: 'monthly', deliveryMethod: 'email', recipients: '', nextRunAt: '' });
                 }}
                 actions={<Button type="submit">Create Schedule</Button>}
@@ -1853,12 +1872,8 @@ export function UseCasePage() {
                       }
                       
                       try {
-                        const response = await fetch('http://127.0.0.1:8000/api/reports/', {
+                        const data = await apiRequest<{ id: number }>('/reports/', {
                           method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('ngofund_access_token')}`
-                          },
                           body: JSON.stringify({
                             report_type: reportBuilderForm.title,
                             format: 'PDF',
@@ -1869,17 +1884,8 @@ export function UseCasePage() {
                             }
                           })
                         });
-                        
-                        if (response.ok) {
-                          const data = await response.json();
-                          alert(`✓ Report #${data.id} generated successfully!\n\nTitle: ${reportBuilderForm.title}\nSections: ${reportBuilderForm.sections.length}\nFormat: PDF\n\nCheck the "Generated reports" table below.`);
-                          console.log('Report created:', data);
-                          // Refresh the page to show new report
-                          window.location.reload();
-                        } else {
-                          const error = await response.json();
-                          alert(`Failed to generate report: ${error.detail || JSON.stringify(error)}`);
-                        }
+                        alert(`Report #${data.id} generated successfully.\n\nTitle: ${reportBuilderForm.title}\nSections: ${reportBuilderForm.sections.length}\nFormat: PDF`);
+                        await store.fetchAll(currentProfile.actor);
                       } catch (error) {
                         alert(`Error: ${error instanceof Error ? error.message : 'Failed to connect to backend'}`);
                       }
