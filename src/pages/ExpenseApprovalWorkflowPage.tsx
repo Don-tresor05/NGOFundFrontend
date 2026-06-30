@@ -4,15 +4,33 @@ import { apiRequest } from '../lib/api';
 
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+const asArray = <T,>(payload: T[] | { results?: T[] }) => (Array.isArray(payload) ? payload : payload.results ?? []);
+
+interface RequisitionRow {
+  id: number;
+  amount: string | number;
+  description: string;
+  status: string;
+  created_at: string;
+  budget_line: number;
+  submitted_by: number;
+}
+
 export function ExpenseApprovalWorkflowPage() {
   const [approvals, setApprovals] = useState<any[]>([]);
+  const [requisitions, setRequisitions] = useState<RequisitionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
   const loadApprovals = async () => {
+    setLoading(true);
     try {
-      const data = await apiRequest<any[] | { results: any[] }>('/expense-approvals/');
-      setApprovals(Array.isArray(data) ? data : data.results ?? []);
+      const [approvalData, requisitionData] = await Promise.all([
+        apiRequest<any[] | { results: any[] }>('/expense-approvals/'),
+        apiRequest<RequisitionRow[] | { results: RequisitionRow[] }>('/requisitions/?status=pending'),
+      ]);
+      setApprovals(asArray(approvalData));
+      setRequisitions(asArray(requisitionData));
     } catch (err) {
       console.error('Failed to load approvals:', err);
     } finally {
@@ -56,6 +74,22 @@ export function ExpenseApprovalWorkflowPage() {
     }
   };
 
+  const handleRequisitionDecision = async (id: number, decision: 'approve' | 'reject') => {
+    try {
+      const body =
+        decision === 'reject'
+          ? JSON.stringify({ rejection_reason: prompt('Enter rejection reason:') || 'Rejected by finance review.' })
+          : undefined;
+      await apiRequest(`/requisitions/${id}/${decision}/`, {
+        method: 'POST',
+        body,
+      });
+      loadApprovals();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : `Failed to ${decision} requisition`);
+    }
+  };
+
   const filteredApprovals = approvals.filter(a => 
     filter === 'all' || a.stage === filter
   );
@@ -83,10 +117,63 @@ export function ExpenseApprovalWorkflowPage() {
 
   return (
     <div className="page">
-      <AppHeader title="Expense Approvals" subtitle="Multi-level approval workflow" />
+      <AppHeader title="Expense Approvals" summary="Review pending requisitions and move expense approvals through controlled stages." />
       
       <div className="container">
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <div className="card">
+            <p className="text-sm text-slate-500">Pending Requisitions</p>
+            <p className="text-2xl font-bold text-orange-600">{requisitions.length}</p>
+          </div>
+          <div className="card">
+            <p className="text-sm text-slate-500">Open Expense Approvals</p>
+            <p className="text-2xl font-bold text-blue-600">{approvals.filter((approval) => !['approved', 'rejected'].includes(approval.stage)).length}</p>
+          </div>
+          <div className="card">
+            <p className="text-sm text-slate-500">Total Controls Queue</p>
+            <p className="text-2xl font-bold">{requisitions.length + approvals.filter((approval) => !['approved', 'rejected'].includes(approval.stage)).length}</p>
+          </div>
+        </div>
+
         <div className="card mb-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Pending requisitions</h2>
+              <p className="text-sm text-slate-500">These are included in the dashboard pending approvals count.</p>
+            </div>
+          </div>
+          {loading ? (
+            <p className="py-8 text-center text-slate-500">Loading requisitions...</p>
+          ) : requisitions.length === 0 ? (
+            <p className="py-8 text-center text-slate-500">No pending requisitions</p>
+          ) : (
+            <div className="space-y-3">
+              {requisitions.map((requisition) => (
+                <div key={requisition.id} className="rounded border border-slate-200 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">Requisition #{requisition.id}</p>
+                      <p className="mt-1 text-sm text-slate-600">{requisition.description}</p>
+                      <p className="mt-2 text-xs text-slate-500">Submitted {new Date(requisition.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <p className="font-bold">{currency.format(Number(requisition.amount ?? 0))}</p>
+                  </div>
+                  <div className="mt-3 flex gap-2 border-t pt-3">
+                    <button className="btn btn-primary" onClick={() => handleRequisitionDecision(requisition.id, 'approve')}>
+                      Approve Requisition
+                    </button>
+                    <button className="btn btn-outline" onClick={() => handleRequisitionDecision(requisition.id, 'reject')}>
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card mb-6">
+          <h2 className="mb-4 text-lg font-semibold">Expense approval stages</h2>
           <div className="flex gap-2 mb-4">
             <button 
               onClick={() => setFilter('all')}
