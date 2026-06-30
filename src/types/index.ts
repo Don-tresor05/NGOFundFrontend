@@ -444,6 +444,100 @@ export interface Report {
   file_url: string | null;
   format: 'PDF' | 'Excel' | 'CSV';
   created_at: string;
+  custom_fields?: {
+    audience?: string;
+    sections?: string[];
+    snapshot?: {
+      financial_summary?: {
+        total_grant_amount?: string | number;
+        allocated_budget?: string | number;
+        spent_amount?: string | number;
+        remaining_balance?: string | number;
+        budget_variance?: string | number;
+        budget_utilization_percent?: string | number;
+        monthly_burn_rate?: string | number;
+      };
+      donor_funding?: {
+        donor_name?: string;
+        contact_person?: string;
+        contact_email?: string;
+        contributions_received?: string | number;
+        cleared_funds?: string | number;
+        projects_supported?: string | number;
+        receipts_generated?: string | number;
+        impact_reports_delivered?: string | number;
+      };
+      project_utilization?: {
+        project_count?: string | number;
+        budget_line_count?: string | number;
+        actual_spending?: string | number;
+        remaining_funds?: string | number;
+        overrun_lines?: string | number;
+        underspent_lines?: string | number;
+      };
+      reconciliation_report?: {
+        ledger_transactions?: string | number;
+        imported_bank_lines?: string | number;
+        matched_items?: string | number;
+        unmatched_items?: string | number;
+        exceptions?: string | number;
+        reconciliation_rate?: string | number;
+      };
+      audit_compliance_report?: {
+        audit_trail_references?: string | number;
+        missing_receipts?: string | number;
+        pending_approvals?: string | number;
+        policy_exceptions?: string | number;
+        compliance_items?: string | number;
+        verified_compliance_items?: string | number;
+        compliance_checklist_status?: string;
+      };
+      donor?: {
+        organization_name?: string;
+        contact_person?: string;
+        contact_email?: string;
+        category?: string;
+        status?: string;
+      };
+      grant?: {
+        grant_title?: string;
+        total_amount?: string | number;
+        currency?: string;
+        status?: string;
+      };
+      projects?: Array<{ name?: string; status?: string }>;
+      budget_lines?: Array<{
+        line_name?: string;
+        allocated_amount?: string | number;
+        spent_amount?: string | number;
+        remaining_amount?: string | number;
+      }>;
+      transactions?: Array<{
+        amount?: string | number;
+        currency?: string;
+        status?: string;
+        bank_reference_number?: string;
+      }>;
+      reconciliations?: Array<{
+        status?: string;
+        difference_amount?: string | number;
+      }>;
+      bank_statement_lines?: Array<{
+        reference_number?: string;
+        amount?: string | number;
+        matched?: boolean;
+      }>;
+      audit_references?: Array<{
+        action_type?: string;
+        target_entity_type?: string;
+      }>;
+      compliance_items?: Array<{
+        title?: string;
+        owner?: string;
+        verified?: boolean;
+      }>;
+    };
+  };
 }
 
 export interface ReallocationRequest {
