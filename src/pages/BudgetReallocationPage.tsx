@@ -8,6 +8,7 @@ const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 
 export function BudgetReallocationPage() {
   const currentProfile = useAuthStore((state) => state.currentProfile);
+  const fetchAll = useAppDataStore((state) => state.fetchAll);
   const budgetLines = useAppDataStore((state) => state.budgetLines) || [];
   const projects = useAppDataStore((state) => state.projects) || [];
   const grants = useAppDataStore((state) => state.grants) || [];
@@ -59,7 +60,7 @@ export function BudgetReallocationPage() {
       alert('Reallocation request submitted successfully');
       setShowForm(false);
       setFormData({ source_budget_line: '', target_budget_line: '', amount: '', reason: '' });
-      loadRequests();
+      await loadRequests();
     } catch (err) {
       alert('Failed to submit request');
     }
@@ -69,7 +70,8 @@ export function BudgetReallocationPage() {
     if (!confirm('Approve this reallocation request?')) return;
     try {
       await apiRequest(`/reallocation-requests/${id}/approve/`, { method: 'POST' });
-      loadRequests();
+      await loadRequests();
+      await fetchAll(currentProfile?.actor);
     } catch (err) {
       alert('Failed to approve request');
     }
@@ -79,7 +81,8 @@ export function BudgetReallocationPage() {
     if (!confirm('Reject this reallocation request?')) return;
     try {
       await apiRequest(`/reallocation-requests/${id}/reject/`, { method: 'POST' });
-      loadRequests();
+      await loadRequests();
+      await fetchAll(currentProfile?.actor);
     } catch (err) {
       alert('Failed to reject request');
     }
@@ -87,7 +90,7 @@ export function BudgetReallocationPage() {
 
   return (
     <div className="page">
-      <AppHeader title="Budget Reallocation" subtitle="Request and manage budget reallocations" />
+      <AppHeader title="Budget Reallocation" summary="Request, approve, and apply controlled movement between budget lines." />
       
       <div className="container">
         <div className="card mb-6">
