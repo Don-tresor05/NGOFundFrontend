@@ -426,6 +426,7 @@ export interface AuditLog {
 
 export interface Transaction {
   transaction_id: number;
+  donor_id?: number | null;
   requisition_id: number;
   budget_line_id: number;
   processed_by_user_id: number;
