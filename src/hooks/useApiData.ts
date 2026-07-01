@@ -53,6 +53,7 @@ const mapRequisition = (requisition: any): Requisition => ({
 const mapTransaction = (transaction: any): Transaction => ({
   ...transaction,
   transaction_id: transaction.transaction_id ?? transaction.id,
+  donor_id: transaction.donor_id ?? transaction.donor ?? null,
   requisition_id: transaction.requisition_id ?? transaction.requisition,
   budget_line_id: transaction.budget_line_id ?? transaction.budget_line,
   processed_by_user_id: transaction.processed_by_user_id ?? transaction.processed_by,
