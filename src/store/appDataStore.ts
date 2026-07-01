@@ -209,8 +209,9 @@ type ApiRequisition = Omit<Requisition, 'requisition_id' | 'submitted_by_user_id
   receipt_document: string | null;
 };
 type ApiAuditLog = Omit<AuditLog, 'log_id' | 'user_id'> & { id: number; user: number };
-type ApiTransaction = Omit<Transaction, 'transaction_id' | 'requisition_id' | 'budget_line_id' | 'processed_by_user_id'> & {
+type ApiTransaction = Omit<Transaction, 'transaction_id' | 'donor_id' | 'requisition_id' | 'budget_line_id' | 'processed_by_user_id'> & {
   id: number;
+  donor: number | null;
   requisition: number;
   budget_line: number;
   processed_by: number;
@@ -352,6 +353,7 @@ const mapRequisition = (requisition: ApiRequisition): Requisition => ({
 const mapAuditLog = (log: ApiAuditLog): AuditLog => ({ ...log, log_id: log.id, user_id: log.user });
 const mapTransaction = (transaction: ApiTransaction): Transaction => ({
   transaction_id: transaction.id,
+  donor_id: transaction.donor,
   requisition_id: transaction.requisition,
   budget_line_id: transaction.budget_line,
   processed_by_user_id: transaction.processed_by,
@@ -369,6 +371,7 @@ const mapReport = (report: ApiReport): Report => ({
   file_url: report.file,
   format: report.format,
   created_at: report.created_at,
+  custom_fields: report.custom_fields,
 });
 const mapNotification = (notification: ApiNotification): Notification => ({
   notification_id: notification.id,
