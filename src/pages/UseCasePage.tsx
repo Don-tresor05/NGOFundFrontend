@@ -885,6 +885,7 @@ export function UseCasePage() {
                   await apiRequest('/transactions/', {
                     method: 'POST',
                     body: JSON.stringify({
+                      donor: Number(formData.get('donor')),
                       budget_line: Number(formData.get('budget_line')),
                       bank_account: Number(formData.get('bank_account')) || null,
                       amount: formData.get('amount'),
