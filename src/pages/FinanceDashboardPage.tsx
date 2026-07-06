@@ -20,6 +20,12 @@ interface FinanceSummary {
     unmatched_statement_lines: number;
     reconciliation_exceptions: number;
   };
+  budget_health: {
+    status: 'healthy' | 'at_risk' | 'over_budget';
+    deficit_amount: string | number;
+    utilization: number;
+    message: string;
+  };
   project_budgets: Array<{
     project_id: number;
     project_name: string;
@@ -81,6 +87,28 @@ interface FinanceSummary {
 }
 
 const asNumber = (value: string | number | null | undefined) => Number(value ?? 0);
+const balanceClass = (value: string | number | null | undefined) => (asNumber(value) < 0 ? 'text-red-700' : 'text-slate-900');
+
+const healthStyles = {
+  healthy: {
+    card: 'border-green-200 bg-green-50',
+    text: 'text-green-700',
+    label: 'Healthy',
+    runway: 'Estimated runway',
+  },
+  at_risk: {
+    card: 'border-amber-200 bg-amber-50',
+    text: 'text-amber-700',
+    label: 'At risk',
+    runway: 'Limited runway',
+  },
+  over_budget: {
+    card: 'border-red-200 bg-red-50',
+    text: 'text-red-700',
+    label: 'Over budget',
+    runway: 'Over budget',
+  },
+} as const;
 
 export function FinanceDashboardPage() {
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
@@ -133,6 +161,15 @@ export function FinanceDashboardPage() {
   );
 
   const topProjects = useMemo(() => [...(summary?.project_budgets ?? [])].sort((a, b) => b.utilization - a.utilization).slice(0, 10), [summary]);
+  const budgetHealth = summary?.budget_health ?? {
+    status: 'healthy' as const,
+    deficit_amount: 0,
+    utilization: 0,
+    message: 'Budget position is within approved limits.',
+  };
+  const healthStyle = healthStyles[budgetHealth.status];
+  const remainingBudget = asNumber(summary?.totals.remaining_budget);
+  const isOverBudget = budgetHealth.status === 'over_budget';
 
   return (
     <div className="page">
@@ -153,7 +190,7 @@ export function FinanceDashboardPage() {
           <div className="card mb-6 border-red-200 bg-red-50 text-red-700">{error}</div>
         ) : null}
 
-        <div className="mb-6 grid gap-4 md:grid-cols-4">
+        <div className="mb-6 grid gap-4 md:grid-cols-5">
           <div className="card">
             <p className="text-sm text-slate-500">Total Budget</p>
             <p className="text-2xl font-bold">{currency.format(asNumber(summary?.totals.total_budget))}</p>
@@ -164,13 +201,31 @@ export function FinanceDashboardPage() {
           </div>
           <div className="card">
             <p className="text-sm text-slate-500">Remaining</p>
-            <p className="text-2xl font-bold text-green-600">{currency.format(asNumber(summary?.totals.remaining_budget))}</p>
+            <p className={`text-2xl font-bold ${remainingBudget < 0 ? 'text-red-700' : 'text-green-600'}`}>{currency.format(remainingBudget)}</p>
+            {remainingBudget < 0 ? <p className="mt-1 text-xs font-semibold text-red-700">Deficit requires review</p> : null}
           </div>
           <div className="card">
             <p className="text-sm text-slate-500">Scheduled Payments</p>
             <p className="text-2xl font-bold text-blue-600">{currency.format(asNumber(summary?.totals.scheduled_payments))}</p>
           </div>
+          <div className={`card border ${healthStyle.card}`}>
+            <p className="text-sm text-slate-500">Budget Status</p>
+            <p className={`text-2xl font-bold ${healthStyle.text}`}>{healthStyle.label}</p>
+            <p className={`mt-1 text-xs font-semibold ${healthStyle.text}`}>{budgetHealth.utilization.toFixed(1)}% utilized</p>
+          </div>
         </div>
+
+        {budgetHealth.status !== 'healthy' ? (
+          <div className={`mb-6 flex items-start gap-3 rounded border p-4 ${healthStyle.card} ${healthStyle.text}`}>
+            <AlertTriangle size={20} className="mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold">{budgetHealth.message}</p>
+              {isOverBudget ? (
+                <p className="mt-1 text-sm">Current deficit: {currency.format(asNumber(budgetHealth.deficit_amount))}. Treat this as an exception until reallocation or correction is completed.</p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         <div className="mb-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="card">
@@ -247,15 +302,15 @@ export function FinanceDashboardPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-slate-600">Next month balance</span>
-                <strong>{currency.format(asNumber(summary?.forecast.next_month_balance))}</strong>
+                <strong className={balanceClass(summary?.forecast.next_month_balance)}>{currency.format(asNumber(summary?.forecast.next_month_balance))}</strong>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-slate-600">3-month balance</span>
-                <strong>{currency.format(asNumber(summary?.forecast.three_month_balance))}</strong>
+                <strong className={balanceClass(summary?.forecast.three_month_balance)}>{currency.format(asNumber(summary?.forecast.three_month_balance))}</strong>
               </div>
               <div className="flex justify-between border-t pt-3">
-                <span className="text-sm font-medium">Estimated runway</span>
-                <strong>{summary?.forecast.runway_months == null ? 'No burn' : `${summary.forecast.runway_months} months`}</strong>
+                <span className="text-sm font-medium">{healthStyle.runway}</span>
+                <strong className={isOverBudget ? 'text-red-700' : ''}>{isOverBudget ? 'Exception state' : summary?.forecast.runway_months == null ? 'No burn' : `${summary.forecast.runway_months} months`}</strong>
               </div>
             </div>
           </div>
