@@ -96,6 +96,7 @@ export function BankReconciliationPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingMatch, setPendingMatch] = useState<{ lineId: number; txnId: string } | null>(null);
 
   const loadData = async (clearMessage = true) => {
     setLoading(true);
@@ -363,16 +364,43 @@ export function BankReconciliationPage() {
                       <p className="font-semibold">{currency.format(Number(line.amount))}</p>
                     </div>
                     <p className="text-xs text-slate-600">{new Date(line.transaction_date).toLocaleDateString()}</p>
-                    <button
-                      onClick={() => {
-                        const txnId = window.prompt('Enter transaction ID to match:');
-                        if (txnId) handleManualMatch(Number(txnId), line.id);
-                      }}
-                      className="btn btn-primary btn-sm mt-2"
-                      disabled={busy}
-                    >
-                      Match manually
-                    </button>
+                    {pendingMatch?.lineId === line.id ? (
+                      <div className="mt-2 flex gap-2">
+                        <select
+                          className="form-control flex-1 text-sm"
+                          value={pendingMatch.txnId}
+                          onChange={(e) => setPendingMatch({ lineId: line.id, txnId: e.target.value })}
+                        >
+                          <option value="">Select transaction…</option>
+                          {transactions.map((txn) => (
+                            <option key={txn.id} value={txn.id}>
+                              #{txn.id} — {txn.bank_reference_number || 'no ref'} — {currency.format(Number(txn.amount))}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          disabled={busy || !pendingMatch.txnId}
+                          onClick={async () => {
+                            await handleManualMatch(Number(pendingMatch.txnId), line.id);
+                            setPendingMatch(null);
+                          }}
+                        >
+                          Confirm
+                        </button>
+                        <button className="btn btn-outline btn-sm" onClick={() => setPendingMatch(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setPendingMatch({ lineId: line.id, txnId: '' })}
+                        className="btn btn-primary btn-sm mt-2"
+                        disabled={busy}
+                      >
+                        Match manually
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
