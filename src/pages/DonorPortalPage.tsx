@@ -319,14 +319,8 @@ export function DonorPortalPage() {
     return <Navigate to="/app/dashboard" replace />;
   }
 
-  const lifetimeGiving =
-    Number((donorSummary as any)?.total_donated) ||
-    donorTransactions.reduce((sum, t) => sum + Number(t.amount), 0) ||
-    realDonations.reduce((sum, d) => sum + d.amount, 0);
-  const activeGrantCount =
-    Number((donorSummary as any)?.supported_projects) ||
-    donorProjects.length ||
-    fundedProjects.length;
+  const lifetimeGiving = realDonations.reduce((sum, d) => sum + d.amount, 0) || donorTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const activeGrantCount = fundedProjects.length || donorProjects.length || donationProjects.filter((name) => name !== 'General Fund').length;
   const communicationChannels = Object.entries(
     (donorSummary?.channels ?? []).reduce<Record<string, number>>((counts, channel) => {
       counts[channel] = (counts[channel] ?? 0) + 1;
@@ -355,21 +349,21 @@ export function DonorPortalPage() {
         />
         <StatCard
           label="Supported Projects"
-          value={String(activeGrantCount)}
+          value={String(fundedProjects.length)}
           trend="Projects funded through this donor profile"
           trendDirection="up"
           icon={Activity}
         />
         <StatCard
           label="Receipts Ready"
-          value={String(donorTransactions.length || realDonations.length)}
+          value={String(realDonations.length)}
           trend="Receipts and transaction summaries only"
           trendDirection="neutral"
           icon={CheckCircle2}
         />
         <StatCard
           label="Impact Updates"
-          value={String(donorReports.length || impactReports.length)}
+          value={String(impactReports.length)}
           trend="Delivered updates associated with this donor"
           trendDirection="up"
           icon={BarChart3}
