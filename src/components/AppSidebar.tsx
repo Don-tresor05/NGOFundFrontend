@@ -4,6 +4,7 @@ import {
   BarChart3,
   ClipboardCheck,
   FileCheck2,
+  FileText,
   HandCoins,
   LayoutDashboard,
   LogOut,
@@ -93,11 +94,15 @@ export function AppSidebar() {
           <UserRound size={18} />
           <span>Profile</span>
         </NavLink>
-        {(currentProfile.actor === 'finance_officer' || currentProfile.actor === 'executive_director') && (
+        {(currentProfile.actor === 'finance_officer' || currentProfile.actor === 'executive_director' || currentProfile.actor === 'external_auditor') && (
           <>
             <NavLink to="/app/finance" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
               <DollarSign size={18} />
               <span>Finance Dashboard</span>
+            </NavLink>
+            <NavLink to="/app/reports" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+              <FileText size={18} />
+              <span>Reports</span>
             </NavLink>
             <NavLink to="/app/donor-messages" className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
               <Mail size={18} />
