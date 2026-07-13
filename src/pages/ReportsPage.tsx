@@ -139,6 +139,7 @@ export default function ReportsPage() {
     try {
       await generateReport(genType, Number(genGrant), currentProfile?.id ? Number(currentProfile.id) : 0, genFormat);
       setShowGenerate(false);
+      showToast('Report generated successfully');
     } finally {
       setGenLoading(false);
     }
