@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import {
   FileText, Plus, Send, Calendar, Filter, Download,
   CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronUp, X,
+  Sparkles,
 } from 'lucide-react';
 import { useAppDataStore } from '../store/appDataStore';
 import { useAuthStore } from '../store/authStore';
@@ -114,6 +115,13 @@ export default function ReportsPage() {
   // Active tab
   const [tab, setTab] = useState<'reports' | 'schedules' | 'deliveries'>('reports');
 
+  // Toast
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
       if (filterType && r.report_type !== filterType) return false;
@@ -159,6 +167,7 @@ export default function ReportsPage() {
     setDeliverLoading(true);
     try {
       await deliverReport(selectedReport.report_id, { destination: deliverDest || currentProfile?.email });
+      showToast('Report delivered successfully');
     } finally {
       setDeliverLoading(false);
     }
@@ -179,6 +188,13 @@ export default function ReportsPage() {
 
   return (
     <div className="page">
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white"
+          style={{ background: 'linear-gradient(135deg,#0f2942,#1f6f78)' }}>
+          <Sparkles size={15} className="text-amber-300" />
+          {toast}
+        </div>
+      )}
       <div className="container">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
