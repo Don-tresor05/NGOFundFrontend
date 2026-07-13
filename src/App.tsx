@@ -30,6 +30,7 @@ import {
   BankReconciliationPage,
   VendorPaymentTrackingPage,
   PaymentSchedulingPage,
+  ReportsPage,
 } from './pages';
 import TestApiPage from './pages/TestApiPage';
 import UserManagementPage from './pages/UserManagementPage';
@@ -59,6 +60,7 @@ function App() {
           <Route path="finance/reconciliation" element={<BankReconciliationPage />} />
           <Route path="finance/vendors" element={<VendorPaymentTrackingPage />} />
           <Route path="finance/payments" element={<PaymentSchedulingPage />} />
+          <Route path="reports" element={<ReportsPage />} />
           <Route path="donor-portal" element={<DonorPortalPage />} />
           <Route path="donor-messages" element={<DonorMessagesPage />} />
           <Route path="profile" element={<ProfilePage />} />
