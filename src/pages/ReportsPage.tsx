@@ -211,7 +211,7 @@ export default function ReportsPage() {
             <button onClick={() => setShowSchedule(true)} className="flex items-center gap-2 px-3 py-2 border border-gray-300 bg-white rounded-lg text-sm text-gray-700 hover:bg-gray-50">
               <Calendar size={15} /> Schedule
             </button>
-            <button onClick={() => setShowGenerate(true)} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            <button onClick={() => setShowGenerate(true)} className="flex items-center gap-2 px-3 py-2 bg-[#0f2942] text-white rounded-lg text-sm hover:bg-[#1a4068]">
               <Plus size={15} /> Generate Report
             </button>
           </div>
@@ -254,7 +254,7 @@ export default function ReportsPage() {
         <div className="flex gap-1 border-b border-gray-200 mb-4">
           {(['reports', 'schedules', 'deliveries'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${tab === t ? 'border-[#0f2942] text-[#0f2942]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {t}
             </button>
           ))}
@@ -280,14 +280,14 @@ export default function ReportsPage() {
                       onClick={() => setSelectedReport(isOpen ? null : r)}
                     >
                       <div className="flex items-center gap-3">
-                        <FileText size={18} className="text-blue-500 shrink-0" />
+                        <FileText size={18} className="text-gray-400 shrink-0" />
                         <div>
                           <p className="font-medium text-gray-900 text-sm">{r.report_type}</p>
                           <p className="text-xs text-gray-500">{grant?.grant_title ?? `Grant #${r.grant_id}`} · {user?.full_name ?? `User #${r.generated_by_user_id}`}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">{r.format}</span>
+                        <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded font-medium">{r.format}</span>
                         <span className="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString()}</span>
                         {isOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                       </div>
@@ -305,7 +305,7 @@ export default function ReportsPage() {
                           <button
                             onClick={handleDeliver}
                             disabled={deliverLoading}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0f2942] text-white rounded-lg text-sm hover:bg-[#1a4068] disabled:opacity-50"
                           >
                             <Send size={14} /> {deliverLoading ? 'Sending…' : 'Deliver'}
                           </button>
@@ -427,7 +427,7 @@ export default function ReportsPage() {
                 <div className="flex gap-2">
                   {(['PDF', 'Excel', 'CSV'] as const).map((f) => (
                     <button key={f} onClick={() => setGenFormat(f)}
-                      className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${genFormat === f ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                      className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${genFormat === f ? 'bg-[#0f2942] text-white border-[#0f2942]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                       {f}
                     </button>
                   ))}
@@ -437,7 +437,7 @@ export default function ReportsPage() {
             <div className="flex gap-2 p-5 border-t">
               <button onClick={() => setShowGenerate(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleGenerate} disabled={!genGrant || genLoading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+                className="flex-1 px-4 py-2 bg-[#0f2942] text-white rounded-lg text-sm hover:bg-[#1a4068] disabled:opacity-50">
                 {genLoading ? 'Generating…' : 'Generate'}
               </button>
             </div>
@@ -497,7 +497,7 @@ export default function ReportsPage() {
             <div className="flex gap-2 p-5 border-t">
               <button onClick={() => setShowSchedule(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
               <button onClick={handleSchedule} disabled={!schedEmails.trim() || schedLoading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
+                className="flex-1 px-4 py-2 bg-[#0f2942] text-white rounded-lg text-sm hover:bg-[#1a4068] disabled:opacity-50">
                 {schedLoading ? 'Saving…' : 'Create Schedule'}
               </button>
             </div>
