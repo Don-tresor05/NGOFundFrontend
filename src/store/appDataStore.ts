@@ -727,7 +727,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         baseState.bugReports = bugReports;
         baseState.releaseNotes = releaseNotes;
       } else if (isFinanceActor(actor)) {
-        const [bankAccounts, bankStatements, bankStatementLines, documents, donorEngagementDashboard, requisitions, reconciliations] = await Promise.all([
+        const [bankAccounts, bankStatements, bankStatementLines, documents, donorEngagementDashboard, requisitions, reconciliations, users] = await Promise.all([
           emptyOnForbidden(apiList<ApiBankAccount>('/bank-accounts/').then((rows) => rows.map(mapBankAccount))),
           emptyOnForbidden(apiList<ApiBankStatement>('/bank-statements/').then((rows) => rows.map(mapBankStatement))),
           emptyOnForbidden(apiList<ApiBankStatementLine>('/bank-statement-lines/').then((rows) => rows.map(mapBankStatementLine))),
@@ -735,6 +735,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
           emptyOnForbiddenValue(apiRequest<ApiDonorEngagementDashboard>('/donors/engagement-dashboard/')),
           emptyOnForbidden(apiList<ApiRequisition>('/requisitions/').then((rows) => rows.map(mapRequisition))),
           emptyOnForbidden(apiList<ApiReconciliation>('/reconciliations/').then((rows) => rows.map(mapReconciliation))),
+          emptyOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser))),
         ]);
         baseState.bankAccounts = bankAccounts;
         baseState.bankStatements = bankStatements;
@@ -743,8 +744,9 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         baseState.donorEngagementDashboard = donorEngagementDashboard;
         baseState.requisitions = requisitions;
         baseState.reconciliations = reconciliations;
+        baseState.users = users;
       } else if (isAuditActor(actor)) {
-        const [auditLogs, complianceItems, documents, securitySummary, systemSettingsSummary, processDocuments, testCases, uatFeedback, bugReports, releaseNotes, requisitions, reconciliations] = await Promise.all([
+        const [auditLogs, complianceItems, documents, securitySummary, systemSettingsSummary, processDocuments, testCases, uatFeedback, bugReports, releaseNotes, requisitions, reconciliations, users] = await Promise.all([
           emptyOnForbidden(apiList<ApiAuditLog>('/audit-logs/').then((rows) => rows.map(mapAuditLog))),
           emptyOnForbidden(apiList<ApiComplianceItem>('/compliance-items/').then((rows) => rows.map(mapComplianceItem))),
           emptyOnForbidden(apiList<ApiDocument>('/documents/').then((rows) => rows.map(mapDocument))),
@@ -757,6 +759,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
           emptyOnForbidden(apiList<ApiReleaseNote>('/release-notes/').then((rows) => rows.map(mapReleaseNote))),
           emptyOnForbidden(apiList<ApiRequisition>('/requisitions/').then((rows) => rows.map(mapRequisition))),
           emptyOnForbidden(apiList<ApiReconciliation>('/reconciliations/').then((rows) => rows.map(mapReconciliation))),
+          emptyOnForbidden(apiList<ApiUser>('/users/').then((rows) => rows.map(mapUser))),
         ]);
         baseState.auditLogs = auditLogs;
         baseState.complianceItems = complianceItems;
@@ -770,6 +773,7 @@ export const useAppDataStore = create<AppDataState>((set, get) => ({
         baseState.releaseNotes = releaseNotes;
         baseState.requisitions = requisitions;
         baseState.reconciliations = reconciliations;
+        baseState.users = users;
       } else if (isOperationalActor(actor)) {
         const [processDocuments, staffRequirements, testCases, uatFeedback, bugReports, releaseNotes] = await Promise.all([
           emptyOnForbidden(apiList<ApiProcessDocument>('/process-documents/').then((rows) => rows.map(mapProcessDocument))),
