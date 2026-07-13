@@ -29,3 +29,4 @@ export { ExpenseApprovalWorkflowPage } from './ExpenseApprovalWorkflowPage';
 export { BankReconciliationPage } from './BankReconciliationPage';
 export { VendorPaymentTrackingPage } from './VendorPaymentTrackingPage';
 export { PaymentSchedulingPage } from './PaymentSchedulingPage';
+export { default as ReportsPage } from './ReportsPage';
