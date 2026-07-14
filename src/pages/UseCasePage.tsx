@@ -1651,6 +1651,7 @@ export function UseCasePage() {
                   await store.generateReport(reportTitle, firstGrant.grant_id, currentUserId, 'PDF');
                   await store.fetchAll(currentProfile.actor);
                   setReportForm({ name: '', period: '' });
+                  alert('Report generated successfully.');
                 }}
                 actions={<Button type="submit">Generate Financial Reports</Button>}
               >
@@ -2020,7 +2021,7 @@ export function UseCasePage() {
                       key: 'deliver',
                       header: 'Delivery',
                       render: (row) => (
-                        <Button variant="outline" onClick={() => store.deliverReport(row.report_id, { destination: currentProfile.email, delivery_method: 'email' })}>
+                        <Button variant="outline" onClick={async () => { await store.deliverReport(row.report_id, { destination: currentProfile.email, delivery_method: 'email' }); alert('Report delivered successfully.'); }}>
                           Deliver
                         </Button>
                       ),
